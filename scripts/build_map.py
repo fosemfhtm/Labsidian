@@ -145,6 +145,12 @@ def main():
     n_coarse = max(4, min(14, int(round(n_fine / 3.2))))  # more regions than ~14 stop being readable
     coarse_of_fine = AgglomerativeClustering(n_clusters=n_coarse, linkage="ward").fit_predict(cent)
     coarse = coarse_of_fine[fine]
+    # areas: the coarse regions merged once more (≤ 8, neighbours on the map) — one fixed set of axes for the whole lab,
+    # so people can be compared (the radar on the person page). Named on the site after their biggest region.
+    n_area = min(8, n_coarse)
+    ccent = np.stack([u2[coarse == c].mean(0) for c in range(n_coarse)])
+    area_of_coarse = AgglomerativeClustering(n_clusters=n_area, linkage="ward").fit_predict(ccent) if n_coarse > n_area else np.arange(n_coarse)
+    area = area_of_coarse[coarse]
 
     # labels
     dom, met = compile_tax(DOMAINS), compile_tax(METHODS)
@@ -185,7 +191,7 @@ def main():
                 out.update(ctfidf({c: [en_text[i] for i in np.where(assign == c)[0]] for c in members}))
         return out
 
-    clusters = cluster_info(coarse, "c") + cluster_info(fine, "f")
+    clusters = cluster_info(area, "a") + cluster_info(coarse, "c") + cluster_info(fine, "f")
     tag_of = {int(cl["id"][1:]): cl["tag"] for cl in clusters if cl["level"] == "c"}
     distinct = keywords_within(coarse, tag_of)
     siblings = keywords_within(fine, {f: int(coarse_of_fine[f]) for f in range(n_fine)})
@@ -193,6 +199,8 @@ def main():
         i = int(cl["id"][1:])
         if cl["level"] == "c" and distinct.get(i):
             cl["distinct"] = distinct[i][0]
+        if cl["level"] == "c":
+            cl["parent"] = f"a{int(area_of_coarse[i])}"
         if cl["level"] == "f":
             cl["parent"] = f"c{int(coarse_of_fine[i])}"
             own = siblings.get(i) or []
@@ -208,7 +216,7 @@ def main():
     for i, p in enumerate(papers):
         out["papers"][p["key"]] = {
             "x": round(float(u2[i, 0]), 2), "y": round(float(u2[i, 1]), 2),
-            "c": f"c{int(coarse[i])}", "f": f"f{int(fine[i])}",
+            "a": f"a{int(area[i])}", "c": f"c{int(coarse[i])}", "f": f"f{int(fine[i])}",
             "nb": [[papers[j]["key"], round(float(sims[i, j]), 3)] for j in nb[i]],
         }
     (DATA / "map.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")

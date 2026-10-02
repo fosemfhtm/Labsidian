@@ -143,7 +143,7 @@
     </div>`;
   };
   const miniPaper = (p, right) => `<div class="mini" data-open="paper:${p.id}"><span class="t">${esc(p.title)}</span>
-      <span class="m">${p.readers.map(id => avatar(id)).join("")}</span>
+      <span class="m">${avStack(p.readers, 4)}</span>
       <span class="m">${right ?? stars(p.rating)}</span></div>`;
 
   // ---------- drawer ----------
@@ -196,43 +196,44 @@
   function personDetail(id) {
     const p = P[id];
     if (!p) return "";
+    const V = window.LabViz, pr = V.profile(id), me = window.Store?.auth.current();
     const mine = D.reviews.filter(r => r.person === id).sort((a, b) => b.date.localeCompare(a.date));
-    const dom = Object.entries(p.topics).filter(([k]) => k.startsWith("d:"));
-    const met = Object.entries(p.topics).filter(([k]) => k.startsWith("m:"));
-    const shared = D.papers.filter(x => x.readers.length > 1 && x.readers.includes(id));
-    const topDomains = dom.slice(0, 3).map(([k]) => k.slice(2));
-    // papers others read in this person's fields, closest first (SPECTER2 neighbours of what they read), then most recent
-    const near = {};
-    D.papers.forEach(x => x.readers.includes(id) && (x.nb || []).forEach(([nid, s]) => (near[nid] = (near[nid] || 0) + s)));
-    const recs = D.papers
-      .filter(x => !x.readers.includes(id) && x.domains.some(d => topDomains.includes(d)))
-      .sort((a, b) => (near[b.id] || 0) - (near[a.id] || 0) || b._last.localeCompare(a._last))
-      .slice(0, 10);
+    const other = me && me.id !== id && P[me.id] ? me.id : p.similar[0]?.id;
+    const fieldsTop = pr.fields.slice(0, 6), fieldsRest = pr.fields.slice(6).reduce((a, f) => a + f.value, 0);
     return `
       <div class="pd-head"><div class="pc-head">${avatar(id, true)}
-        <div><h2 style="padding:0">${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div>
-      <button class="btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button></div>
-      <div class="stat-row">
-        <div class="stat"><b>${p.count}</b><span>${t("d.reviewed")}</span></div>
-        <div class="stat"><b>${p.avgRating.toFixed(1)}</b><span>${t("d.avg")}</span></div>
-        <div class="stat"><b>${shared.length}</b><span>${t("d.shared")}</span></div>
+        <div><h2 style="padding:0">${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div></div>
+      ${pr.role ? `<div class="pf-role">${esc(pr.role)}</div>` : ""}
+      ${V.palette(pr.fields)}
+      ${me?.id === id ? `<p class="pf-self">${t("pf.self")} · <a href="#/me">${t("pf.toMe")} →</a></p>` : ""}
+      <div class="pf-stats">
+        <div><b>${pr.count}</b><span>${t("pf.reviews")}</span>${V.spark(weekBuckets(p.dates), p.color)}</div>
+        <div><b>${pr.shared}</b><span>${t("pf.shared")}</span></div>
+        <div><b>${pr.studies}</b><span>${t("pf.studies")}</span></div>
       </div>
-      <h4>${t("d.domains")}</h4>
-      ${bars(dom.slice(0, 7).map(([k, n]) => [tl(T[k]), n, T[k].color, "topic:" + k]), dom[0]?.[1] || 1)}
-      <h4>${t("d.methods")}</h4>
-      ${bars(met.slice(0, 5).map(([k, n]) => [tl(T[k]), n, T[k].color, "topic:" + k]), met[0]?.[1] || 1)}
-      <h4>${t("d.similar")}</h4>
-      ${p.similar.slice(0, 5).map(s => `<div class="sim-row" data-open="person:${s.id}">${avatar(s.id)}<span>${esc(P[s.id].name)}</span>
-          <span class="track"><span class="fill" style="width:${s.sim * 100}%;background:${P[s.id].color}"></span></span>
-          <span class="m">${Math.round(s.sim * 100)}% · ${t("d.together", { n: s.shared })}</span></div>`).join("")}
-      <h4>${t("d.recs")}</h4>
-      <div class="mini-list">${recs.map(x => miniPaper(x)).join("") || `<div class="empty">${t("d.none")}</div>`}</div>
-      <h4>${t("d.recent")}</h4>
-      <div class="mini-list">${mine.slice(0, 25).map(r => miniPaper(PA[r.paper], r.date)).join("")}</div>
-      ${mine.length > 25 ? `<p class="kv"><a href="#/papers?person=${id}">${t("d.all", { n: mine.length })}</a></p>` : ""}
+      <div class="btn-row"><button class="btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
+        ${other ? `<a class="btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
+      <h4>${t("pf.terrain")}</h4>
+      ${pr.enough ? `<p class="hint">${t("pf.terrainHint")}</p>
+        ${V.radar(pr.areas, [{ values: pr.areas.map(a => a.lab), color: "var(--text-3)", dashed: true }, { values: pr.areas.map(a => a.share), color: p.color }])}
+        ${pr.lift ? `<p class="pf-insight">${esc(pr.lift)}</p>` : ""}` : `<p class="muted">${t("pf.few", { n: V.MIN_REVIEWS - pr.count })}</p>`}
+      <h4>${t("pf.methods")}</h4>
+      ${V.band(pr.methods)}
+      <h4>${t("pf.fields")}</h4>
+      <div class="tags-row">${fieldsTop.map(f => `<span class="tag" data-open="topic:${f.id}"><span class="dot" style="background:${f.color}"></span>${esc(f.label)} <b class="pf-n">${f.value}</b></span>`).join("")}
+        ${fieldsRest ? `<span class="tag">${t("pf.other")} <b class="pf-n">${fieldsRest}</b></span>` : ""}</div>
+      ${p.similar.length ? `<h4>${t("pf.similar")}</h4><p class="hint">${t("pf.similarHint")}</p>${V.orbit(id, p.similar)}` : ""}
+      <div class="pf-recent"><h4>${t("pf.recent")}</h4>
+      <div class="mini-list">${mine.slice(0, 15).map(r => miniPaper(PA[r.paper], r.date)).join("")}</div>
+      ${mine.length > 15 ? `<p class="kv"><a href="#/papers?person=${id}">${t("d.all", { n: mine.length })}</a></p>` : ""}</div>
     `;
   }
 
+  // how much a paper is read and talked about in the lab — readers, 👍/👀, comments (ratings aren't a signal here)
+  const buzz = p => p.readers.length * 3 + p.reviews.reduce((s, rid) => {
+    if (!window.Store) return s;
+    const x = Store.reactions.get(rid); return s + 2 * (x.like.length + x.want.length) + Store.comments.count(rid);
+  }, 0);
   function topicDetail(tid) {
     const x = T[tid];
     if (!x) return "";
@@ -244,7 +245,7 @@
     const co = {};
     list.forEach(p => topicIds(p).forEach(y => { if (y !== tid && !y.startsWith(tid[0])) co[y] = (co[y] || 0) + 1; }));
     const coArr = Object.entries(co).sort((a, b) => b[1] - a[1]).slice(0, 6);
-    const top = [...list].sort((a, b) => b.rating - a.rating || b.readers.length - a.readers.length).slice(0, 8);
+    const top = [...list].sort((a, b) => buzz(b) - buzz(a) || b._last.localeCompare(a._last)).slice(0, 8);  // not by rating: most are the 3-star default
     const recent = [...list].sort((a, b) => b._last.localeCompare(a._last)).slice(0, 10);
     return `
       <div class="kv">${x.axis === "domain" ? t("d.domain") : t("d.method")}</div>
@@ -262,7 +263,8 @@
       <div class="mini-list">${top.map(p => miniPaper(p)).join("")}</div>
       <h4>${t("d.recentRead")}</h4>
       <div class="mini-list">${recent.map(p => miniPaper(p, p._last)).join("")}</div>
-      <p class="kv"><a href="#/papers?topic=${encodeURIComponent(tid)}">${t("d.topicAll")}</a></p>
+      ${window.Store?.guides.forTag(tid).length ? `<h4>${t("gd.title")}</h4><div class="mini-list">${Store.guides.forTag(tid).map(g => `<a class="mini" href="#/guide/${g.id}"><span class="t">${esc(g.title)}</span><span class="m">${g.items.length}</span></a>`).join("")}</div>` : ""}
+      <p class="kv"><a href="#/topic/${encodeURIComponent(tid)}">${t("tp.page")} →</a> · <a href="#/papers?topic=${encodeURIComponent(tid)}">${t("d.topicAll")}</a></p>
     `;
   }
 
@@ -341,19 +343,15 @@
   }
   function renderPeople() {
     $("#people-sub").textContent = t("people.sub", { n: D.people.length, r: D.reviews.length, p: D.papers.length });
-    const lab = Object.entries(paperTopicCount).sort((a, b) => b[1] - a[1]);
-    const ld = lab.filter(([k]) => k.startsWith("d:")), lm = lab.filter(([k]) => k.startsWith("m:"));
-    $("#lab-bars").innerHTML = `<div class="lab-bars-wrap">
-      <div><h3>${t("lab.domains")}</h3>${bars(ld.map(([k, n]) => [tl(T[k]), n, T[k].color, "topic:" + k]), ld[0]?.[1] || 1)}</div>
-      <div><h3>${t("lab.methods")}</h3>${bars(lm.map(([k, n]) => [tl(T[k]), n, T[k].color, "topic:" + k]), lm[0]?.[1] || 1)}</div>
-    </div>`;
+    $("#lab-bars").innerHTML = window.LabViz ? `<h3>${t("pf.ask")}</h3><p class="hint">${t("pf.askHint")}</p>${LabViz.matrix()}` : "";
     $("#people-grid").innerHTML = [...D.people].sort((a, b) => b.count - a.count).map(p => {
       const dom = Object.entries(p.topics).filter(([k]) => k.startsWith("d:")).slice(0, 4);
       const wk = weekBuckets(p.dates), mx = Math.max(...wk, 1);
-      const sim = p.similar[0];
+      const sim = p.similar[0], pr = window.LabViz?.profile(p.id);
       return `<div class="card person-card" data-open="person:${p.id}">
         <div class="pc-head">${avatar(p.id)}<div><div class="pc-name">${esc(p.name)}</div>
-          <div class="pc-meta">${t("pc.meta", { n: p.count, r: p.avgRating.toFixed(1) })}</div></div></div>
+          <div class="pc-meta">${pr?.role ? esc(pr.role) : t("pc.metaN", { n: p.count })}</div></div></div>
+        ${pr ? LabViz.palette(pr.fields) : ""}
         ${bars(dom.map(([k, n]) => [tl(T[k]), n, T[k].color]), dom[0]?.[1] || 1)}
         <div class="spark" title="${t("pc.weekly")}">${wk.map(n => `<i style="height:${(100 * n / mx).toFixed(0)}%;${n ? `background:${p.color}` : ""}"></i>`).join("")}</div>
         ${sim ? `<div class="pc-sim">${t("pc.similar")} <b style="color:${P[sim.id].color}">${esc(P[sim.id].name)}</b> (${Math.round(sim.sim * 100)}%)</div>` : ""}
@@ -476,7 +474,7 @@
     v.innerHTML = `${back}<div class="dp-grid person">
       <div class="dp-main">
         <div class="pc-head">${avatar(id, true)}<div><h1>${esc(p.name)}</h1>
-          <div class="pc-meta">${t("pc.meta", { n: mine.length, r: (mine.filter(r => r.rating).reduce((a, r) => a + r.rating, 0) / (mine.filter(r => r.rating).length || 1)).toFixed(1) })}</div></div></div>
+          <div class="pc-meta">${t("pc.metaN", { n: mine.length })}</div></div></div>
         <div class="btn-row"><button class="btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
           <select id="pp-term"><option value="">${t("tm.all")}</option>${terms.map(x => `<option value="${x}">${esc((Store.terms.list().find(y => y.id === x) || { label: x }).label)}</option>`).join("")}</select></div>
         <div class="dp-reviews" id="pp-list"></div>
@@ -510,7 +508,8 @@
     const v = ["graph", "people", "papers", "shared", "paper", "person", ...Object.keys(pages)].includes(view) ? view : pages.home ? "home" : "graph";
     if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(decodeURIComponent(arg || "")); }
     document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "view-" + v));
-    document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.view === v));
+    const navOf = { topics: "papers", topic: "papers", guides: "papers", guide: "papers", compare: "people" };
+    document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.view === (navOf[v] || v)));
     if (v === "papers" && qs) {
       const params = new URLSearchParams(qs);
       if (params.has("topic")) $("#f-topic").value = params.get("topic");
@@ -534,7 +533,11 @@
   initPaperFilters();
   window.addEventListener("hashchange", route);
 
+  // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
+  const papersTabs = on => `<div class="tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
+    .map(([k, href, key]) => `<a href="${href}" class="${on === k ? "on" : ""}">${t(key)}</a>`).join("")}</div>`;
   window.LabUI = { openDrawer, closeDrawer, esc, stars, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
+    buzz, papersTabs, paperTopicCount, topicDetail,
     rerender, P, T, PA, R, CL, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place
   document.addEventListener("DOMContentLoaded", () => { window.I18N.apply(); route(); });

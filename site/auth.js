@@ -20,7 +20,7 @@
       "n.want": "{a}님이 내 리뷰를 보고 읽을 목록에 담았어요", "n.sameRead": "{a}님도 내가 읽은 논문을 읽었어요",
       "nav.me": "내 페이지", "n.mcpDraft": "내 AI(MCP)가 다이어리 초안을 만들었어요",
       "n.studyInvite": "{a}님이 논문 스터디에 초대했어요", "n.studyJoin": "{a}님이 내 스터디에 참가했어요", "n.studyQuestion": "{a}님이 스터디에 질문을 올렸어요",
-      "n.studyClosed": "{a}님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요",
+      "n.studyClosed": "{a}님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요", "n.guideItem": "{a}님이 내 가이드에 논문을 추가했어요",
       "tm.all": "모든 학기", "tm.title": "볼 학기", "tm.hint": "여러 학기를 함께 볼 수 있어요. 그래프·사람·논문 목록에 적용돼요.", "tm.apply": "적용",
       "mcp.applied": "AI(MCP) 요청 {n}건이 반영됐어요", "mcp.reload": "새로고침해서 보기",
       "sync.error": "서버에 저장하지 못했어요 — scripts/serve.py가 켜져 있는지 확인해 주세요. 다시 연결되면 자동으로 보내요.",
@@ -41,7 +41,7 @@
       "n.want": "{a} added a paper from your review to their reading list", "n.sameRead": "{a} also read a paper you reviewed",
       "nav.me": "My page", "n.mcpDraft": "Your AI (MCP) drafted a diary entry",
       "n.studyInvite": "{a} invited you to a paper study", "n.studyJoin": "{a} joined your study", "n.studyQuestion": "{a} posted a question to a study",
-      "n.studyClosed": "{a} finished a study — see the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow — your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today — your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes",
+      "n.studyClosed": "{a} finished a study — see the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow — your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today — your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes", "n.guideItem": "{a} added a paper to your guide",
       "tm.all": "All terms", "tm.title": "Terms to show", "tm.hint": "Pick one or several terms. Applies to the graph, people and paper lists.", "tm.apply": "Apply",
       "mcp.applied": "Applied {n} AI (MCP) request(s)", "mcp.reload": "Reload to see",
       "sync.error": "Couldn't save to the server — is scripts/serve.py running? Changes are sent again once it's back.",
@@ -220,7 +220,7 @@
   function notifMenu() {
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="link-btn" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
-      (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-type="${n.type}">
+      (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
         ${n.type === "curation" ? `<span class="avatar" style="background:rgb(var(--indigo));color:#fff">🧹</span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="empty">${t("n.empty")}</div>`);
@@ -236,6 +236,7 @@
   function openNotif(d) {
     if (d.type === "curation") { location.hash = "#/admin?tab=tags"; return; }
     if (d.draft) { location.hash = "#/write?mcp=" + d.draft; return; }
+    if (d.guide) { location.hash = "#/guide/" + d.guide; return; }
     if (d.study) {
       const tab = { studyClosed: "notes", studyNotesDraft: "notes", studyQuestion: "prep" }[d.type];
       location.hash = "#/study/" + d.study + (tab ? "?tab=" + tab : ""); return;

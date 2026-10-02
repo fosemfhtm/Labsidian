@@ -40,7 +40,8 @@ https://github.com/user-attachments/assets/72d9b3d5-0d11-4704-ac68-0c455598de82
 - **댓글 · 질문 · @멘션 · 알림**, 리뷰 번역(브라우저 내장 번역)
 - **읽을 목록** — 링크·DOI·arXiv·제목이나 PDF로 논문 담기, 읽을 예정 → 읽는 중 → 다 읽음 → 다이어리 씀, 메모, 목록에서 바로 다이어리 쓰기(논문 정보·PDF 채워짐)
 - **논문 스터디** — 같이 읽을 논문을 정하고 각자 다이어리 쓰기 → 질문 보드(투표) → 정리 노트
-- **사람 / 논문 / 함께 읽은 논문** 페이지, 비슷한 논문 추천
+- **사람** — 추천 없이 정보만: 연구 지형(지도의 큰 영역 ≤ 8개를 고정 축으로 한 레이더, 점선 = 연구실 평균), 방법론 비율, 세부 분야, 관심사가 비슷한 사람, 누구에게 물어볼까(사람 × 영역 표), 두 사람 나란히 비교
+- **논문 · 분야·방법론 · 핵심 논문 가이드** (논문 페이지의 탭) — 주제별로 누가 읽었는지·같이 쓰인 방법론·많이 읽힌 논문, 그리고 연구실이 함께 모으는 핵심 논문 목록(구간별 정리, 👍, 내 진행 = 다이어리 쓴 논문, 남은 논문 읽을 목록에 담기, 스터디로 바로 연결 · 스터디 논문을 가이드에 추가)
 - **통합 검색** (`/` 또는 `Ctrl/⌘ K`), **한국어 / English**, 라이트 / 다크
 - **관리자** — 멤버 관리, 학기·작성 목표 설정, 태그 병합(되돌리기 가능)
 - **내 AI 연결 (MCP)** — Claude·Codex에서 "이 PDF 읽고 다이어리 초안 만들어줘" 같은 식으로 [Labsidian을 말로 다뤄요](#내-claude--codex-연결-mcp)
@@ -134,8 +135,9 @@ env = { LABSIDIAN_USER = "한서윤" }
 | `add_comment` | 내 이름으로 댓글·질문(@멘션) |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 리뷰 비교, 질문 보드, 정리 노트) |
 | `add_study_question` `draft_study_notes` | 스터디 질문 올리기, 정리 노트 **초안** |
+| `list_guides` `get_guide` `create_guide` `add_guide_item` `vote_guide_item` | 핵심 논문 가이드 보기(누가 읽었는지·내 진행·다룬 스터디), 만들기, 링크·제목으로 논문 추가, 👍 |
 | `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_merge_tags` `admin_rename_tag` `admin_create_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기 설정, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
-| `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름·키워드 짓기(지도를 다시 만들어도 그 논문들을 따라감), 규칙이 잘못 붙인 논문 분야·방법 태그 고치기 |
+| `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름·키워드 짓기(지도를 다시 만들어도 그 논문들을 따라감, 사람 페이지 축인 `a` 영역도 같은 방식 · 안 지으면 가장 큰 하위 영역 이름), 규칙이 잘못 붙인 논문 분야·방법 태그 고치기 |
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
@@ -192,14 +194,16 @@ site/                     정적 사이트 (빌드 없음)
   store.js                데이터 계층 — 로컬 서버면 SQLite(scripts/serve.py), 정적 호스팅이면 localStorage. MCP 요청도 이 파일의 규칙으로 처리
   app.js · graph.js       라우팅·페이지 · 그래프 (sigma.js + d3-force)
   auth.js · social.js     로그인·헤더·알림 · 댓글·멘션·반응·번역·읽을 목록
-  write.js · me.js · admin.js · study.js · home.js · spotlight.js
+  write.js · me.js · admin.js · study.js · home.js · spotlight.js · reading.js
+  viz.js · people.js      사람 페이지 시각화(레이더·비율 막대·궤도·표) · 두 사람 비교
+  topics.js · guides.js   분야·방법론 탭 · 핵심 논문 가이드
   i18n.js                 한/영 문구
   data.demo.js            가상 연구실 데이터 (data.js = 실제 데이터, 저장소에 없음)
 scripts/                  다이어리 파싱 → 메타데이터 보강 → 의미 지도 → 사이트 빌드, 로컬 서버(serve.py + store_worker.mjs, SQLite)
 mcp/labsidian_mcp.py      Claude · Codex용 MCP 서버
 data/demo/                가상 연구실 원본
 video/                    데모 영상 — record.py(Playwright 촬영) · remotion/(편집·렌더)
-docs/                     기획안(PLAN.md) · 디자인(DESIGN.md) · 스크린샷 · 데모 GIF
+docs/                     기획안(PLAN.md · PEOPLE_TOPICS_GUIDES.md) · 디자인(DESIGN.md) · 스크린샷 · 데모 GIF
 ```
 
 `main`에 push하면 [GitHub Actions](.github/workflows/pages.yml)가 `site/`를 GitHub Pages에 배포해요. 이때 `data.demo.js`가 `data.js` 자리에 들어가요.

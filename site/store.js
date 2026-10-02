@@ -32,13 +32,14 @@
     notifications: {}, drafts: {}, tagOps: [], terms: null, log: [], seq: 1, studies: {}, studyQs: {},
     paperTags: {}, clusterNames: {},  // admin corrections: a paper's domain/method tags · a map region's name
     offDays: {},  // the lab's weekdays off (public holidays, shutdowns, conferences): no diary owed
+    guides: {},   // core-paper guides the lab curates together (docs/PEOPLE_TOPICS_GUIDES.md)
   });
   // Local server (scripts/serve.py): the source of truth is its SQLite file. The page loads it once, sends only the
   // records it changed, and picks up changes made elsewhere (MCP ops, other tabs). Static host (GitHub Pages) or the
   // headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
   const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
-    "paperTags", "clusterNames", "offDays"];
+    "paperTags", "clusterNames", "offDays", "guides"];
   const recordsOf = d => {
     const m = new Map();
     Object.entries(d).forEach(([k, v]) => {
@@ -377,7 +378,7 @@
   // was named; each current region takes the name whose papers it shares most (Jaccard >= 0.5, one name per region)
   function clusterMembers() {
     const m = {};
-    SEED.allPapers.forEach(p => { if (p.c) (m[p.c] ||= new Set()).add(p.id); if (p.f) (m[p.f] ||= new Set()).add(p.id); });
+    SEED.allPapers.forEach(p => ["a", "c", "f"].forEach(k => p[k] && (m[p[k]] ||= new Set()).add(p.id)));
     return m;
   }
   function nameClusters() {
@@ -963,6 +964,98 @@
       },
     },
 
+    // ---- core-paper guides: an ordered, sectioned list of key papers for a topic, curated by the lab.
+    // Anyone adds papers and 👍s them; the guide's owner (or an admin) edits its title, sections and order and removes
+    // others' items. An item is a lab paper or one from outside (link / title); progress = papers you wrote a diary on.
+    guides: {
+      list() { return Object.values(db.guides).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); },
+      get(id) { return db.guides[id] || null; },
+      canManage(g) { const me = current(); return !!me && !!g && (g.owner === me.id || me.role === "admin"); },
+      paperOf(it) { return (it.paperId && SEED.allPapers.find(p => p.id === it.paperId)) || (it.key && SEED.allPapers.find(p => p.key === it.key)) || null; },
+      titleOf(it) { return Store.guides.paperOf(it)?.title || it.meta?.title || "(untitled)"; },
+      wroteBy(it, uid) { const p = Store.guides.paperOf(it); return !!p && SEED.allReviews.some(r => r.person === uid && r.paper === p.id); },
+      progress(g, uid) { const u = uid || current()?.id; return { done: g.items.filter(it => Store.guides.wroteBy(it, u)).length, total: g.items.length }; },
+      studiesFor(it) { const p = Store.guides.paperOf(it); return Object.values(db.studies).filter(st => (p && Store.studies.paperOf(st)?.id === p.id) || (it.key && st.paperKey === it.key)); },
+      forTag(tid) { return Store.guides.list().filter(g => (g.tags || []).includes(tid)); },
+      forPaper(p) { return Store.guides.list().filter(g => g.items.some(it => Store.guides.paperOf(it)?.id === p.id || (it.key && it.key === p.key))); },
+      // items nobody in the lab has read yet, no study covered, and 2+ members 👍 — study candidates
+      studyCandidates(limit = 4) {
+        const out = [];
+        Store.guides.list().forEach(g => g.items.forEach(it => {
+          const p = Store.guides.paperOf(it);
+          if ((!p || !p.readers.length) && (it.votes || []).length >= 2 && !Store.guides.studiesFor(it).length) out.push({ guide: g, item: it });
+        }));
+        return out.sort((a, b) => b.item.votes.length - a.item.votes.length).slice(0, limit);
+      },
+      async create(data) {
+        const me = requireUser();
+        const title = String(data.title || "").trim().slice(0, 120); if (!title) throw new Error("guide.title");
+        const id = data.id && /^g_[\w-]{4,40}$/.test(data.id) && !db.guides[data.id] ? data.id : uid("g_");
+        const sections = (data.sections?.length ? data.sections : ["기초", "핵심", "최신"]).map((x, i) => ({ id: "s" + (i + 1), title: String(x).slice(0, 40) }));
+        db.guides[id] = { id, title, desc: String(data.desc || "").slice(0, 1000), tags: (data.tags || []).map(cleanTag).filter(Boolean).slice(0, 8),
+          owner: me.id, sections, items: [], createdAt: now(), updatedAt: now() };
+        log("guide.create", title); save();
+        return id;
+      },
+      async update(id, patch) {
+        requireUser(); const g = db.guides[id]; if (!g) throw new Error("guide.missing");
+        if (!Store.guides.canManage(g)) throw new Error("forbidden");
+        if ("title" in patch && String(patch.title).trim()) g.title = String(patch.title).trim().slice(0, 120);
+        if ("desc" in patch) g.desc = String(patch.desc || "").slice(0, 1000);
+        if ("tags" in patch) g.tags = (patch.tags || []).map(cleanTag).filter(Boolean).slice(0, 8);
+        if (Array.isArray(patch.sections)) {  // [{id?, title}] — items of a dropped section move to the first one
+          g.sections = patch.sections.filter(x => String(x.title || "").trim()).map((x, i) => ({ id: x.id || "s" + Date.now().toString(36) + i, title: String(x.title).trim().slice(0, 40) }));
+          if (!g.sections.length) g.sections = [{ id: "s1", title: "핵심" }];
+          const ok = new Set(g.sections.map(x => x.id)); g.items.forEach(it => { if (!ok.has(it.section)) it.section = g.sections[0].id; });
+        }
+        g.updatedAt = now(); log("guide.update", g.title); save();
+      },
+      async remove(id) {
+        requireUser(); const g = db.guides[id]; if (!g) return;
+        if (!Store.guides.canManage(g)) throw new Error("forbidden");
+        delete db.guides[id]; log("guide.delete", g.title); save();
+      },
+      async addItem(id, data) {
+        const me = requireUser(), g = db.guides[id]; if (!g) throw new Error("guide.missing");
+        const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(data.title || ""));
+        const title = known?.title || String(data.title || "").trim().slice(0, 300); if (!title) throw new Error("guide.itemTitle");
+        const key = known?.key || normTitle(title);
+        const dup = g.items.find(it => it.key === key); if (dup) return dup.id;
+        const section = g.sections.some(x => x.id === data.section) ? data.section : g.sections[0].id;
+        const it = { id: uid("gi_"), section, key, note: String(data.note || "").slice(0, 300), by: me.id, at: now(), votes: [] };
+        if (known) it.paperId = known.id;
+        else it.meta = { title, link: String(data.link || "").slice(0, 500), authors: String(data.authors || "").slice(0, 500), venue: String(data.venue || "").slice(0, 200), year: String(data.year || "").slice(0, 4) };
+        g.items.push(it); g.updatedAt = now();
+        if (g.owner !== me.id) notify(g.owner, { type: "guideItem", guideId: g.id, excerpt: title.slice(0, 80) });
+        log("guide.addItem", `${g.title} ← ${title.slice(0, 60)}`); save();
+        return it.id;
+      },
+      async updateItem(id, itemId, patch) {
+        const me = requireUser(), g = db.guides[id], it = g?.items.find(x => x.id === itemId); if (!it) throw new Error("guide.itemMissing");
+        if (it.by !== me.id && !Store.guides.canManage(g)) throw new Error("forbidden");
+        if ("note" in patch) it.note = String(patch.note || "").slice(0, 300);
+        if ("section" in patch && g.sections.some(x => x.id === patch.section)) it.section = patch.section;
+        g.updatedAt = now(); save();
+      },
+      async removeItem(id, itemId) {
+        const me = requireUser(), g = db.guides[id], i = g ? g.items.findIndex(x => x.id === itemId) : -1; if (i < 0) return;
+        if (g.items[i].by !== me.id && !Store.guides.canManage(g)) throw new Error("forbidden");
+        g.items.splice(i, 1); g.updatedAt = now(); save();
+      },
+      async vote(id, itemId) {
+        const me = requireUser(), it = db.guides[id]?.items.find(x => x.id === itemId); if (!it) return 0;
+        const i = (it.votes ||= []).indexOf(me.id); if (i >= 0) it.votes.splice(i, 1); else it.votes.push(me.id);
+        save(); return it.votes.length;
+      },
+      async moveItem(id, itemId, dir) {  // within its section, by the owner / an admin
+        requireUser(); const g = db.guides[id]; if (!g || !Store.guides.canManage(g)) throw new Error("forbidden");
+        const same = g.items.filter(x => x.section === g.items.find(y => y.id === itemId)?.section);
+        const k = same.findIndex(x => x.id === itemId), j = k + dir; if (k < 0 || j < 0 || j >= same.length) return;
+        const a = g.items.indexOf(same[k]), b = g.items.indexOf(same[j]); [g.items[a], g.items[b]] = [g.items[b], g.items[a]];
+        g.updatedAt = now(); save();
+      },
+    },
+
     // reading list: lab papers saved with 📚 (or via 👀 / a study) and papers a member adds themselves (link, title, PDF).
     // status todo → reading → read; "written" once they've posted a diary on it. Stored items: { id, paperId } for a
     // lab paper, or { id, title, link, authors, venue, year, abstract, key } for one of their own; + status, note, files.
@@ -1158,7 +1251,9 @@
     return {
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
       clusters: SEED.clusters, terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
-      reading: Object.fromEntries(Object.keys(db.reading).map(u => [u, Store.reading.list(u)])), notifications: db.notifications, tagOps: db.tagOps, offDays: Object.values(db.offDays),
+      reading: Object.fromEntries(Object.keys(db.reading).map(u => [u, Store.reading.list(u)])), notifications: db.notifications,
+      guides: Object.values(db.guides).map(g => ({ ...g, items: g.items.map(it => ({ ...it, title: Store.guides.titleOf(it), paperId: Store.guides.paperOf(it)?.id || null,
+        readers: Store.guides.paperOf(it)?.readers || [], studies: Store.guides.studiesFor(it).map(st => st.id) })) })), tagOps: db.tagOps, offDays: Object.values(db.offDays),
       // computed here so the MCP server never re-implements the duty rules (working days, holidays, start/end dates)
       duties: Object.fromEntries((db.terms || []).map(t => [t.id, Object.fromEntries(Object.keys(db.users).map(u => [u, Store.quota(u, t)]))])),
       holidays: [...new Set((db.terms || []).flatMap(t => [+t.start.slice(0, 4), +t.end.slice(0, 4)]))].flatMap(y => Store.calendar.holidays(y)),
@@ -1171,7 +1266,7 @@
   // and stores the result; a hosted DB would do the same in an RPC / edge function.
   const OPS = new Set(["draft", "comment", "reading.add", "study.question", "study.notesDraft",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
-    "offday.save", "offday.remove", "reading.update"]);
+    "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
@@ -1204,6 +1299,14 @@
         }
       }
       if (op.op === "reading.update") await Store.reading.update(op.itemId, op.patch || {});
+      if (op.op === "guide.create") await Store.guides.create({ ...op.guide, id: op.guideId });
+      if (op.op === "guide.update") await Store.guides.update(op.guideId, op.patch || {});
+      if (op.op === "guide.addItem") {  // a link / DOI / arXiv id is looked up like in the write form
+        const meta = op.input && !op.paperId ? await Store.lookup(op.input) : null;
+        await Store.guides.addItem(op.guideId, { ...(meta || {}), paperId: op.paperId, title: meta?.title || op.title || op.input,
+          link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""), section: op.section, note: op.note });
+      }
+      if (op.op === "guide.vote") { const it = db.guides[op.guideId]?.items.find(x => x.id === op.itemId); if (it && !(it.votes || []).includes(op.actor)) await Store.guides.vote(op.guideId, op.itemId); }
       if (op.op === "tag.merge") await Store.tags.merge(op.from, op.into);
       if (op.op === "tag.rename") await Store.tags.rename(op.tagId, op.label, op.labelEn, op.color);
       if (op.op === "tag.create") await Store.tags.create({ axis: op.axis, label: op.label, labelEn: op.labelEn, color: op.color });

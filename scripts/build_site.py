@@ -182,6 +182,7 @@ def main():
         m = (mp or {}).get("papers", {}).get(k)
         if m:
             p["x"], p["y"], p["c"], p["f"] = m["x"], m["y"], m["c"], m["f"]
+            p["a"] = m.get("a")  # area (≤ 8 per lab): the person page's radar axes
             p["nb"] = [[key2id[nk], s] for nk, s in m["nb"] if nk in key2id]
     for p in papers:  # citation edges inside our own corpus
         p["refs"] = sorted({s2id2pid[r] for r in p.pop("_refs") if r in s2id2pid and s2id2pid[r] != p["id"]})

@@ -350,7 +350,7 @@
   let inboxN = 5;
   function inbox() {
     const all = S.notifications.list(), list = all.slice(0, inboxN);
-    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-type="${nf.type}">
+    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-type="${nf.type}">
       ${UI.avatar(nf.actor)}<div><div>${esc(LabNotifText(nf))}</div>${nf.excerpt ? `<div class="excerpt">“${esc(nf.excerpt)}”</div>` : ""}<div class="muted">${LabAgo(nf.at)}</div></div></div>`).join("")
       || `<div class="muted">${t("me.noInbox")}</div>`;
     if (all.length > inboxN) $("#me-inbox", view).insertAdjacentHTML("beforeend", `<button class="link-btn" id="me-inbox-more">${t("me.more")} (${all.length - inboxN})</button>`);

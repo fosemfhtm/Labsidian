@@ -17,6 +17,7 @@ Backend contract — what a hosted DB version has to provide (the tools only use
                   enforces roles itself (here: POST /api/ops → site/store.js applyOp run headless; hosted: an RPC /
                   edge function that takes the actor from the login token instead of trusting "actor").
   ops: draft · comment · reading.add · reading.update · study.question · study.notesDraft
+       guide.create · guide.update · guide.addItem · guide.vote
        admin: tag.merge · tag.rename · tag.create · quota.set · term.save · user.role · user.disable
 Every command and its result is kept in the server's ops table (GET /api/ops, or SELECT * FROM ops).
 """
@@ -174,6 +175,10 @@ def cluster_name(c, lang="ko"):
         return c["custom"][lang]
     if c["level"] == "f" and c.get("keywords"):
         return " · ".join(c["keywords"][:2])
+    if c["level"] == "a":  # an unnamed area goes by its biggest topic
+        kids = sorted((x for x in DB.data().get("clusters") or [] if x["level"] == "c" and x.get("parent") == c["id"]), key=lambda x: -x.get("size", 0))
+        if kids:
+            return cluster_name(kids[0], lang)
     return c[lang]
 
 
@@ -574,6 +579,96 @@ def draft_study_notes(study_id: str, conclusion: str, open_questions: str = "", 
     return _done(DB.apply({"op": "study.notesDraft", "actor": u["id"], "studyId": st["id"], "conclusion": conclusion, "open": open_questions,
                                "next": follow_ups, "summary": st["title"][:60]}), {"open": f"{SITE}/#/study/{st['id']}"})
 
+# ------------------------------------------------------------------ core-paper guides
+def _guide(guide_id):
+    g = next((x for x in DB.data().get("guides") or [] if x["id"] == guide_id), None)
+    if not g:
+        raise ToolError("unknown guide_id — use list_guides")
+    return g
+
+
+def _tag_id(x):
+    """a tag id ("d:…", "m:…") or a label in either language"""
+    d = DB.data()
+    if x in d["T"]:
+        return x
+    k = x.strip().lower()
+    t = next((t for t in d["topics"] if t["axis"] in ("domain", "method") and k in (t["label"].lower(), (t.get("labelEn") or "").lower())), None)
+    if not t:
+        raise ToolError(f"no field/method tag {x!r} — see list_tags")
+    return t["id"]
+
+
+@mcp.tool()
+def list_guides(tag: str = "") -> list:
+    """Core-paper guides: lists of key papers per topic that the lab curates together (optionally only those with a
+    field/method tag). Shows how far I am (papers I wrote a diary on) in each."""
+    d, uid = DB.data(), (me()["id"] if ME else "")
+    tid = _tag_id(tag) if tag else ""
+    mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
+    return [{"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "tags": [tag_label(x) for x in g.get("tags") or []],
+             "papers": len(g["items"]), "i_wrote": sum(1 for it in g["items"] if it.get("paperId") in mine), "open": f"{SITE}/#/guide/{g['id']}"}
+            for g in d.get("guides") or [] if not tid or tid in (g.get("tags") or [])]
+
+
+@mcp.tool()
+def get_guide(guide_id: str) -> dict:
+    """One guide by section: every paper with who added it and why, 👍 count, who in the lab read it, whether I wrote
+    a diary on it, and the studies that covered it. Good for planning what to read or study next."""
+    d, g = DB.data(), _guide(guide_id)
+    uid = me()["id"] if ME else ""
+    mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
+    st = {x["id"]: x for x in d.get("studies") or []}
+    sec = lambda sid: [{"item_id": it["id"], "title": it["title"], "paper": brief(d["PA"][it["paperId"]]) if it.get("paperId") in d["PA"] else {**(it.get("meta") or {}), "inLab": False},
+                        "note": it.get("note", ""), "added_by": _name(it["by"]), "votes": len(it.get("votes") or []),
+                        "read_by": [_name(u) for u in it.get("readers") or []], "i_wrote": it.get("paperId") in mine,
+                        "studies": [{"id": s, "title": st[s]["title"], "date": st[s].get("date") or None} for s in it.get("studies") or [] if s in st]}
+                       for it in g["items"] if it["section"] == sid]
+    return {"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "tags": [tag_label(x) for x in g.get("tags") or []],
+            "sections": [{"section": x["title"], "papers": sec(x["id"])} for x in g["sections"]], "open": f"{SITE}/#/guide/{g['id']}"}
+
+
+@mcp.tool()
+def create_guide(title: str, description: str = "", tags: list[str] | None = None, sections: list[str] | None = None) -> dict:
+    """Start a core-paper guide as me (I become its owner). tags: field/method tag ids or labels (list_tags);
+    sections default to 기초 / 핵심 / 최신. Then add papers with add_guide_item."""
+    u = me()
+    if not title.strip():
+        raise ToolError("empty title")
+    gid = "g_" + uuid.uuid4().hex[:10]
+    guide = {"title": title.strip(), "desc": description, "tags": [_tag_id(x) for x in tags or []], **({"sections": sections} if sections else {})}
+    return _done(DB.apply({"op": "guide.create", "actor": u["id"], "guideId": gid, "guide": guide, "summary": title[:60]}),
+                 {"guide_id": gid, "open": f"{SITE}/#/guide/{gid}"})
+
+
+@mcp.tool()
+def add_guide_item(guide_id: str, paper_ref: str = "", link: str = "", title: str = "", section: str = "", note: str = "") -> dict:
+    """Add a paper to a guide as me: a lab paper (paper_ref = id or title from search_papers), or any paper by link /
+    DOI / arXiv id or title. section = a section's name (default: the first); note = one line on why it is core.
+    The guide's owner gets a notification. The same paper twice is ignored."""
+    u, g = me(), _guide(guide_id)
+    sec = next((x["id"] for x in g["sections"] if section and section.strip().lower() in (x["title"].lower(), x["id"])), None)
+    if section and not sec:
+        raise ToolError(f"no section {section!r} — sections: {', '.join(x['title'] for x in g['sections'])}")
+    base = {"op": "guide.addItem", "actor": u["id"], "guideId": g["id"], "section": sec, "note": note[:300]}
+    if paper_ref:
+        p = paper(paper_ref)
+        return _done(DB.apply({**base, "paperId": p["id"], "summary": p["title"][:60]}), {"open": f"{SITE}/#/guide/{g['id']}"})
+    if not (link or title):
+        raise ToolError("give paper_ref, link or title")
+    return _done(DB.apply({**base, "input": (link or title).strip(), "title": title.strip(), "link": link.strip(), "summary": (title or link)[:60]}),
+                 {"open": f"{SITE}/#/guide/{g['id']}"})
+
+
+@mcp.tool()
+def vote_guide_item(guide_id: str, item_id: str) -> dict:
+    """👍 a paper in a guide as me (item_id from get_guide) — "this one really is core". Voting twice keeps one vote."""
+    u, g = me(), _guide(guide_id)
+    if not any(it["id"] == item_id for it in g["items"]):
+        raise ToolError("unknown item_id — see get_guide")
+    return _done(DB.apply({"op": "guide.vote", "actor": u["id"], "guideId": g["id"], "itemId": item_id, "summary": item_id}))
+
+
 # ------------------------------------------------------------------ admin tools
 @mcp.tool()
 def admin_merge_tags(from_tag: str, into_tag: str) -> dict:
@@ -719,12 +814,13 @@ def admin_remove_off_day(off_day_id: str) -> dict:
 @mcp.tool()
 def admin_list_clusters(level: str = "c", parent: str = "", samples: int = 8) -> list:
     """[admin] Regions of the paper map with their current name, the automatic name, keywords and sample paper titles —
-    to judge whether a name fits. level "c" = big topics, "f" = sub-topics (narrow with parent, e.g. "c3").
+    to judge whether a name fits. level "a" = the ≤ 8 areas (the axes of the people page; unnamed = named after their
+    biggest topic), "c" = big topics (parent = an area), "f" = sub-topics (narrow with parent, e.g. "c3").
     Region ids change when the map is rebuilt; names set with admin_name_cluster follow their papers."""
     require_admin()
     d = DB.data()
-    if level not in ("c", "f"):
-        raise ToolError('level must be "c" or "f"')
+    if level not in ("a", "c", "f"):
+        raise ToolError('level must be "a", "c" or "f"')
     out = []
     for c in d.get("clusters") or []:
         if c["level"] != level or (parent and c.get("parent") != parent):
