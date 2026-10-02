@@ -378,7 +378,11 @@ details.fld summary { cursor: pointer; }
 .side-st { display: grid; gap: 2px; padding: 7px 4px; border-radius: 10px; text-decoration: none; color: var(--text); font-size: 13px; }
 .side-st:hover { background: var(--bg-2); }
 .side-st .m { color: var(--text-3); font-size: 12px; }
-@media (max-width: 760px) { .st-grid { grid-template-columns: 1fr; } .cand-row { grid-template-columns: 1fr auto; } .cand-row .st-avs { display: none; } }
+@media (max-width: 760px) {   /* phones: the title gets its own full-width line (up to 2), who wants it + the button go below */
+  .st-grid { grid-template-columns: 1fr; }
+  .cand-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; padding: 10px 0; }
+  .cand-row .t { grid-column: 1 / -1; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 14px; line-height: 1.4; }
+}
 .st-notes textarea, .st-q-form textarea { width: 100%; resize: vertical; background: var(--bg-2); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 8px 11px; font: inherit; font-size: 15px; line-height: 1.55; outline: none; }
 .st-notes textarea:focus, .st-q-form textarea:focus { border-color: var(--accent-2); }
 .st-detail .sim-row .pill { white-space: nowrap; margin-left: 4px; }
