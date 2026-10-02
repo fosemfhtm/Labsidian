@@ -49,7 +49,7 @@ https://github.com/user-attachments/assets/72d9b3d5-0d11-4704-ac68-0c455598de82
 
 ## 로컬에서 실행
 
-필요한 건 Python뿐이에요(사이트는 빌드가 필요 없는 정적 파일).
+필요한 건 Python과 Node.js예요(사이트는 빌드가 필요 없는 정적 파일, Node는 MCP 요청 처리용).
 
 ```bash
 git clone https://github.com/fosemfhtm/Labsidian.git
@@ -58,6 +58,8 @@ python scripts/serve.py            # → http://localhost:8765
 ```
 
 실제 연구실 데이터(`site/data.js`)가 없으면 자동으로 데모 연구실이 떠요.
+
+로컬 서버에서는 사이트에서 쓰는 모든 것(계정·리뷰·댓글·스터디·첨부)이 SQLite 파일 하나에 저장돼요 — 실제 연구실은 `data/labsidian.db`, 데모는 `data/demo/labsidian.db`(둘 다 저장소에 안 올라감). 서버를 켤 때 하루 한 번 `_backup/`에 자동 백업(최근 14개)하고, `sqlite3`나 DB Browser로 바로 열어볼 수 있어요. 예전처럼 브라우저(localStorage)에만 있던 데이터는 그 브라우저로 사이트를 처음 열 때 서버로 한 번 옮겨져요.
 
 ## 어떻게 만들어지나
 
@@ -136,14 +138,14 @@ env = { LABSIDIAN_USER = "한서윤" }
 - "이 PDF 읽고 다이어리 초안 만들어줘"
 - (관리자) "비슷한 태그 찾아서 병합 계획 보여주고, 내가 OK하면 병합해줘"
 
-> **지금(DB 연결 전)은** 로컬 개발 서버(`scripts/serve.py`)로 사이트를 열어둔 상태여야 해요. 열린 사이트가 데이터를 `data/live_snapshot.json`으로 보내면 MCP가 그걸 읽고, MCP가 요청한 작업은 `data/mcp_outbox.json`에 쌓였다가 사이트가 몇 초 안에 반영해요. 공개 데모(GitHub Pages)에서는 동작하지 않아요.
-> 동작 확인: `python mcp/smoke_test.py 한서윤`
+> **지금은** 로컬 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). MCP는 서버 API로 읽고, 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려줘요. 모든 요청과 결과는 DB의 `ops` 테이블(또는 `GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요 — 8765 실제, 8766 데모. 공개 데모(GitHub Pages)에서는 동작하지 않아요.
+> 동작 확인(데모 서버 `python scripts/serve.py 8766 --demo`): `python mcp/smoke_test.py 한서윤`
 
 ## 데이터와 프라이버시
 
 - 이 저장소에는 **가상 연구실 데이터만** 있어요(`data/demo/`, `site/data.demo.js`). 실제 연구실 다이어리(구성원 실명·리뷰 전문)는 `.gitignore`로 막혀 있어서 로컬에만 있어요.
 - 가상 연구실의 논문은 실제 공개 논문이고, 멤버와 리뷰는 멤버 설정(`data/demo/personas.json`)을 바탕으로 Claude가 썼어요. `scripts/demo_build.py`가 실명이나 실제 리뷰 문장이 섞이지 않았는지 검사해요.
-- 데모 계정과 데이터는 `localStorage`에만 저장돼요. 로그인도 흉내만 내는 것이라 보안 기능이 아니에요.
+- 공개 데모(GitHub Pages)의 계정과 데이터는 `localStorage`에만 저장돼요. 로그인도 흉내만 내는 것이라 보안 기능이 아니에요.
 
 <details>
 <summary>가상 연구실 다시 만들기</summary>
@@ -182,13 +184,13 @@ npm run gif               # → docs/labsidian_demo.gif (README 맨 위, 12초)
 
 ```
 site/                     정적 사이트 (빌드 없음)
-  store.js                데이터 계층 — 지금은 localStorage. DB를 붙일 때 이 파일만 교체
+  store.js                데이터 계층 — 로컬 서버면 SQLite(scripts/serve.py), 정적 호스팅이면 localStorage. MCP 요청도 이 파일의 규칙으로 처리
   app.js · graph.js       라우팅·페이지 · 그래프 (sigma.js + d3-force)
   auth.js · social.js     로그인·헤더·알림 · 댓글·멘션·반응·번역·읽을 목록
   write.js · me.js · admin.js · study.js · home.js · spotlight.js
   i18n.js                 한/영 문구
   data.demo.js            가상 연구실 데이터 (data.js = 실제 데이터, 저장소에 없음)
-scripts/                  다이어리 파싱 → 메타데이터 보강 → 의미 지도 → 사이트 빌드, 개발 서버
+scripts/                  다이어리 파싱 → 메타데이터 보강 → 의미 지도 → 사이트 빌드, 로컬 서버(serve.py + store_worker.mjs, SQLite)
 mcp/labsidian_mcp.py      Claude · Codex용 MCP 서버
 data/demo/                가상 연구실 원본
 video/                    데모 영상 — record.py(Playwright 촬영) · remotion/(편집·렌더)
@@ -200,6 +202,6 @@ docs/                     기획안(PLAN.md) · 디자인(DESIGN.md) · 스크�
 ## 다음 단계
 
 - 연구실 서버에 DB와 로그인을 붙여서 실제 다이어리를 멤버만 볼 수 있게 서비스
-- MCP가 로컬 사이트를 거치지 않고 DB에 직접 읽고 쓰기
+- MCP가 로컬 서버 대신 호스팅 DB에 로그인 토큰으로 읽고 쓰기 (지금 서버 API와 같은 명령 형태)
 
 자세한 기획은 [docs/PLAN.md](docs/PLAN.md)에 있어요.

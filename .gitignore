@@ -7,6 +7,10 @@ data/demo/_work/
 # MCP bridge runtime files (rewritten by the open site / MCP server)
 data/demo/live_snapshot.json
 data/demo/mcp_outbox.json
+data/demo/*.migrated.json
+# the demo lab's local server data (scripts/serve.py --demo)
+data/demo/labsidian.db*
+data/demo/_backup/
 
 site/data.js
 vault/

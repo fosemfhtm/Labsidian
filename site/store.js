@@ -31,21 +31,66 @@
     version: 1, users: {}, reviews: {}, reviewEdits: {}, comments: {}, reactions: {}, reading: {},
     notifications: {}, drafts: {}, tagOps: [], terms: null, log: [], seq: 1, studies: {}, studyQs: {},
   });
-  let db;
-  try { db = Object.assign(empty(), JSON.parse(localStorage.getItem(KEY) || "null") || {}); } catch (e) { db = empty(); }
-  const save = () => {
-    try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { console.warn("store save failed", e); }
-    scheduleSnapshot();
+  // Local server (scripts/serve.py): the source of truth is its SQLite file. The page loads it once, sends only the
+  // records it changed, and picks up changes made elsewhere (MCP ops, other tabs). Static host (GitHub Pages) or the
+  // headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
+  // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
+  const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs"];
+  const recordsOf = d => {
+    const m = new Map();
+    Object.entries(d).forEach(([k, v]) => {
+      if (COLLS.includes(k)) Object.entries(v || {}).forEach(([id, x]) => m.set(`${k}\u0000${id}`, JSON.stringify(x)));
+      else if (v !== undefined) m.set(`_meta\u0000${k}`, JSON.stringify(v));
+    });
+    return m;
   };
-  // ---- MCP bridge (dev only): push a snapshot for the MCP server to read; MCP writes go to an outbox we poll.
-  // With a static host (GitHub Pages) both endpoints simply don't exist and this is a no-op.
-  // MCP bridge only exists on the local dev server (scripts/serve.py), never on a static host like GitHub Pages
-  let snapTimer = null, bridgeOk = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-  function scheduleSnapshot() {
-    if (!bridgeOk) return;
-    clearTimeout(snapTimer);
-    snapTimer = setTimeout(pushSnapshot, 1500);
-  }
+  const xhr = (method, url, body) => {  // synchronous: the pages expect window.Store to be ready when this script ends
+    try {
+      const x = new XMLHttpRequest(); x.open(method, url, false);
+      if (body) x.setRequestHeader("Content-Type", "application/json");
+      x.send(body ? JSON.stringify(body) : null);
+      return x.status === 200 ? JSON.parse(x.responseText) : null;
+    } catch (e) { return null; }
+  };
+  const fromLocal = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } };
+  const HEADLESS = !!window.__LABSIDIAN_HEADLESS__;
+  let db, server = null;  // server: { version, synced: Map(record → JSON last known to the server), failed }
+  const state = !HEADLESS && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? xhr("GET", "/api/state") : null;
+  let migrateFiles = false;
+  if (state) {
+    let d = state.db, version = state.version;
+    // first visit after the server started keeping the data: move what this browser had (in localStorage) over, once
+    const old = state.seedOnly && fromLocal();
+    const used = d => Object.values(d.users || {}).some(u => u.pw) || COLLS.some(c => c !== "users" && Object.keys(d[c] || {}).length);
+    if (old && used(old)) {
+      const r = xhr("POST", "/api/state/import", { db: old });
+      if (r) { d = r.db; version = r.version; migrateFiles = true; }
+    }
+    db = Object.assign(empty(), d || {});
+    server = { version, synced: recordsOf(db), failed: false };
+  } else db = Object.assign(empty(), fromLocal() || {});
+
+  let saving = Promise.resolve();
+  const save = () => {
+    if (!server) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { console.warn("store save failed", e); } return; }
+    const cur = recordsOf(db), upserts = [], deletes = [];
+    cur.forEach((v, k) => { if (server.synced.get(k) !== v) upserts.push([...k.split("\u0000"), JSON.parse(v)]); });
+    server.synced.forEach((_, k) => { if (!cur.has(k)) deletes.push(k.split("\u0000")); });
+    if (!upserts.length && !deletes.length) return;
+    const before = server.synced;
+    server.synced = cur;
+    saving = saving.then(() => fetch("/api/state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ upserts, deletes }) }))
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      .then(r => { const missed = r.prev !== server.version; server.version = r.version; server.failed = false; if (missed) pull(); })
+      .catch(e => {
+        // not stored: mark these records unsynced so the next save (or the poll below) sends them again
+        console.warn("store save failed", e);
+        upserts.forEach(([c, id]) => server.synced.set(`${c}\u0000${id}`, "\u0001unsynced"));
+        deletes.forEach(([c, id]) => server.synced.set(`${c}\u0000${id}`, before.get(`${c}\u0000${id}`) || "\u0001unsynced"));
+        if (!server.failed) window.dispatchEvent(new CustomEvent("lab:syncerror"));
+        server.failed = true;
+      });
+  };
   const uid = p => `${p}${Date.now().toString(36)}${(db.seq++).toString(36)}`;
   const now = () => new Date().toISOString();
   // local calendar date (toISOString() is UTC → "yesterday" before 9am in Korea)
@@ -775,16 +820,21 @@
         if (!kind) throw new Error("file.type");
         if (blob.size > FILE_LIMIT[kind]) throw new Error("file.size");
         const id = uid("f_");
-        await idbDo("readwrite", st => st.put(blob, id));
+        if (server) {
+          const r = await fetch(`/api/files/${id}`, { method: "PUT", headers: { "Content-Type": blob.type }, body: blob });
+          if (!r.ok) throw new Error("file.upload");
+        } else await idbDo("readwrite", st => st.put(blob, id));
         save();  // persists the id sequence
         return { id, name: name || blob.name || id, type: blob.type, size: blob.size, kind };
       },
       async url(id) {
+        if (server) return `/api/files/${encodeURIComponent(id)}`;
         if (fileUrls[id]) return fileUrls[id];
         const b = await idbDo("readonly", st => st.get(id)).catch(() => null);
         return b ? (fileUrls[id] = URL.createObjectURL(b)) : null;
       },
       async remove(id) {
+        if (server) { await fetch(`/api/files/${encodeURIComponent(id)}`, { method: "DELETE" }); return; }
         await idbDo("readwrite", st => st.delete(id));
         if (fileUrls[id]) { URL.revokeObjectURL(fileUrls[id]); delete fileUrls[id]; }
       },
@@ -905,31 +955,36 @@
 
     admin: {
       exportJSON() { requireAdmin(); return JSON.stringify({ exportedAt: now(), db }, null, 1); },
-      async importJSON(text) { requireAdmin(); const j = JSON.parse(text); db = Object.assign(empty(), j.db || j); save(); },
-      async reset() { requireAdmin(); localStorage.removeItem(KEY); localStorage.removeItem(SESSION); try { indexedDB.deleteDatabase(FILES_DB); } catch (e) {} },
+      async importJSON(text) { requireAdmin(); const j = JSON.parse(text); db = Object.assign(empty(), j.db || j); save(); await saving; },
+      async reset() {
+        requireAdmin();
+        if (server) { db = empty(); save(); await saving; } else localStorage.removeItem(KEY);
+        localStorage.removeItem(SESSION); try { indexedDB.deleteDatabase(FILES_DB); } catch (e) {}
+      },
       log() { return db.log; },
     },
   };
   window.Store = Store;
 
-  // ---------------------------------------------------------------- MCP bridge (dev server only)
-  // snapshot: the built dataset + social data, without password hashes → data/live_snapshot.json
-  function pushSnapshot() {
+  // ---------------------------------------------------------------- MCP (served by scripts/serve.py)
+  // snapshot: the built dataset + social data, without password hashes — what the MCP server reads
+  function snapshot() {
     const users = Object.values(db.users).map(u => ({ id: u.id, name: u.name, role: u.role, color: u.color || null, quota: u.quota || {}, disabled: !!u.disabled }));
-    const body = JSON.stringify({
+    return {
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
       clusters: SEED.clusters, terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
-      reading: db.reading, notifications: db.notifications, tagOps: db.tagOps, mcpApplied: db.mcpApplied || [],
+      reading: db.reading, notifications: db.notifications, tagOps: db.tagOps,
       studies: Object.values(db.studies).map(st => ({ ...st, paperId: Store.studies.paperOf(st)?.id || st.paperId,
         picks: Object.fromEntries(Object.entries(st.picks || {}).map(([u, pk]) => [u, { ...pk, paperId: Store.studies.pickPaper(pk)?.id || pk.paperId }])) })),
       studyQuestions: Object.values(db.studyQs),
-    });
-    fetch("/api/snapshot", { method: "PUT", headers: { "Content-Type": "application/json" }, body })
-      .then(r => { if (r.status === 404 || r.status === 501 || r.status === 405) bridgeOk = false; })
-      .catch(() => { bridgeOk = false; });
+    };
   }
-  // outbox: ops queued by the MCP server on behalf of a member → applied here, once each
+  // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
+  // and stores the result; a hosted DB would do the same in an RPC / edge function.
+  const OPS = new Set(["draft", "comment", "reading.add", "study.question", "study.notesDraft",
+    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"]);
   async function applyOp(op) {
+    if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
     const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"];
@@ -964,24 +1019,36 @@
     } finally { actingAs = null; }
   }
   const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"]);
-  async function pollOutbox() {
-    if (!bridgeOk) return;
-    let ops;
-    try { const r = await fetch("/mcp/outbox.json", { cache: "no-store" }); if (!r.ok) return; ops = await r.json(); } catch (e) { return; }
-    const done = new Set(db.mcpApplied || []);
-    const fresh = (Array.isArray(ops) ? ops : []).filter(o => o && o.id && !done.has(o.id));
-    if (!fresh.length) return;
-    let applied = 0, needsReload = false;
-    for (const op of fresh) {
-      try { await applyOp(op); applied++; if (RELOADING.has(op.op)) needsReload = true; }
-      catch (e) { log("mcp.rejected", `${op.op} (${e.message})`); }
-      (db.mcpApplied ||= []).push(op.id);
-    }
-    db.mcpApplied = db.mcpApplied.slice(-2000);
-    save();
-    window.dispatchEvent(new CustomEvent("lab:mcp", { detail: { applied, needsReload } }));
+  if (HEADLESS) { window.__LABSIDIAN_HEADLESS__({ applyOp, snapshot, db: () => db }); return; }
+
+  // ---------------------------------------------------------------- server sync: changes made elsewhere (MCP, other tabs)
+  async function pull() {
+    if (!server) return;
+    await saving;
+    let r;
+    try { r = await fetch(`/api/changes?since=${server.version}`, { cache: "no-store" }).then(x => x.json()); } catch (e) { return; }
+    if (server.failed) save();  // the server is back: resend what didn't get stored
+    if (r.version === server.version) return;
+    const st = await fetch("/api/state", { cache: "no-store" }).then(x => x.json()).catch(() => null);
+    if (!st) return;
+    await saving;
+    if ([...recordsOf(db)].some(([k, v]) => server.synced.get(k) !== v)) return;  // local edits not sent yet → next round
+    db = Object.assign(empty(), st.db);
+    server.version = st.version; server.synced = recordsOf(db);
+    buildDataset();
+    const ops = (r.ops || []).filter(o => o.status === "ok");
+    window.dispatchEvent(new CustomEvent("lab:mcp", { detail: { applied: ops.length, needsReload: ops.some(o => RELOADING.has(o.op)) } }));
   }
-  if (bridgeOk) pushSnapshot();
-  pollOutbox();
-  setInterval(pollOutbox, 6000);
+  if (server) setInterval(() => { if (!document.hidden) pull(); }, 3000);
+
+  // attachments that lived in this browser's IndexedDB move to the server together with the data
+  if (migrateFiles) (async () => {
+    try {
+      const ids = await idbDo("readonly", st => st.getAllKeys());
+      for (const id of ids) {
+        const b = await idbDo("readonly", st => st.get(id));
+        if (b) await fetch(`/api/files/${encodeURIComponent(id)}`, { method: "PUT", headers: { "Content-Type": b.type }, body: b });
+      }
+    } catch (e) { console.warn("attachment migration failed", e); }
+  })();
 })();

@@ -21,7 +21,8 @@
       "n.studyInvite": "{a}님이 논문 스터디에 초대했어요", "n.studyJoin": "{a}님이 내 스터디에 참가했어요", "n.studyQuestion": "{a}님이 스터디에 질문을 올렸어요",
       "n.studyClosed": "{a}님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요",
       "tm.all": "모든 학기", "tm.title": "볼 학기", "tm.hint": "여러 학기를 함께 볼 수 있어요. 그래프·사람·논문 목록에 적용돼요.", "tm.apply": "적용",
-      "mcp.applied": "내 AI(MCP) 요청 {n}건을 반영했어요", "mcp.reload": "새로고침해서 보기",
+      "mcp.applied": "AI(MCP) 요청 {n}건이 반영됐어요", "mcp.reload": "새로고침해서 보기",
+      "sync.error": "서버에 저장하지 못했어요 — scripts/serve.py가 켜져 있는지 확인해 주세요. 다시 연결되면 자동으로 보내요.",
     },
     en: {
       "a.title": "Lab Paper Diary", "a.id": "Name", "a.pw": "Password", "a.login": "Sign in", "a.fail": "Wrong name or password",
@@ -40,7 +41,8 @@
       "n.studyInvite": "{a} invited you to a paper study", "n.studyJoin": "{a} joined your study", "n.studyQuestion": "{a} posted a question to a study",
       "n.studyClosed": "{a} finished a study — see the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow — your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today — your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes",
       "tm.all": "All terms", "tm.title": "Terms to show", "tm.hint": "Pick one or several terms. Applies to the graph, people and paper lists.", "tm.apply": "Apply",
-      "mcp.applied": "Applied {n} request(s) from your AI (MCP)", "mcp.reload": "Reload to see",
+      "mcp.applied": "Applied {n} AI (MCP) request(s)", "mcp.reload": "Reload to see",
+      "sync.error": "Couldn't save to the server — is scripts/serve.py running? Changes are sent again once it's back.",
     },
   });
 
@@ -264,6 +266,7 @@
   if (!me) { document.body.classList.add("locked"); loginScreen(); return; }
   header(me);
   if (me.mustChange) passwordForm(true);
+  window.addEventListener("lab:syncerror", () => LabToast("⚠️ " + t("sync.error"), 8000));
   window.addEventListener("lab:mcp", e => {
     const { applied, needsReload } = e.detail;
     updateBell();

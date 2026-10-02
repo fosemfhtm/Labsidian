@@ -2,36 +2,34 @@
 
 Run (stdio):  .venv/Scripts/python mcp/labsidian_mcp.py
 Identity:     LABSIDIAN_USER=<your name as on the site>   (mock: trusted as-is; the DB version uses a login token)
-Site URL:     LABSIDIAN_URL=http://localhost:8765          (used for "open this" links)
+Server:       LABSIDIAN_URL=http://localhost:8765          the Labsidian server (scripts/serve.py) — real lab;
+              http://localhost:8766 = the demo lab (serve.py --demo), which is where MCP changes get tested
 
-Data source (until the DB exists)
-  read : data/live_snapshot.json — pushed by the open site via scripts/serve.py (everything, incl. comments)
-         falls back to site/data.js (the imported diary only) if no snapshot yet
-  write: ops are appended to data/mcp_outbox.json; the open site applies them within a few seconds
-         (drafts land in the member's "my page", comments/merges show up live). Nothing is published for you —
-         reviews are created as *drafts* that the member checks and publishes.
+The server owns the data (one SQLite file). This MCP server reads its snapshot and sends it one command per write;
+the server applies the command right away with the site's own rules and answers ok or the reason it refused.
+Nothing is published for you — reviews are created as *drafts* that the member checks and publishes.
 Admin:        a second server entry with LABSIDIAN_USER=<an admin> (e.g. "admin") gets the admin_* tools —
               terms, diary duty, roles/accounts, tags. Passwords never go through MCP (temp passwords stay in the site).
 
-Backend contract — what a DB version has to provide (the tools only use these two):
+Backend contract — what a hosted DB version has to provide (the tools only use these two):
   DB.data()       the snapshot shape: users, people, papers, reviews, topics, terms, comments, studies, …
-  DB.enqueue(op)  one command {"op": <name>, "actor": <user id>, ...}; the backend applies it as that user and
-                  enforces roles itself (here: the open site's applyOp in store.js; with a DB: an RPC / edge
-                  function that takes the actor from the login token instead of trusting "actor").
+  DB.apply(op)    one command {"op": <name>, "actor": <user id>, ...}; the backend applies it as that user and
+                  enforces roles itself (here: POST /api/ops → site/store.js applyOp run headless; hosted: an RPC /
+                  edge function that takes the actor from the login token instead of trusting "actor").
   ops: draft · comment · reading.add · study.question · study.notesDraft
        admin: tag.merge · tag.rename · tag.create · quota.set · term.save · user.role · user.disable
-With Supabase this file swaps LocalBackend for a DB backend; the tool surface stays the same.
+Every command and its result is kept in the server's ops table (GET /api/ops, or SELECT * FROM ops).
 """
 import json
 import math
 import os
 import re
-import tempfile
 import time
+import urllib.error
+import urllib.request
 import uuid
 from collections import Counter
 from datetime import date
-from pathlib import Path
 
 try:  # mcp >= 2 renamed FastMCP → MCPServer
     from mcp.server.mcpserver import MCPServer as FastMCP
@@ -40,12 +38,9 @@ except ImportError:
     from mcp.server.fastmcp import FastMCP
     from mcp.server.fastmcp.exceptions import ToolError
 
-ROOT = Path(__file__).resolve().parent.parent
-# data/demo = the fake demo lab (serve.py --demo); also the default on a fresh clone, which has no real lab data
-DATA = ROOT / os.environ.get("LABSIDIAN_DATA", "data" if (ROOT / "data" / "diary.json").exists() else "data/demo")
-IMPORT = ROOT / "site" / ("data.js" if DATA.resolve() == (ROOT / "data").resolve() else f"data.{DATA.name}.js")
-SNAPSHOT, OUTBOX = DATA / "live_snapshot.json", DATA / "mcp_outbox.json"
 SITE = os.environ.get("LABSIDIAN_URL", "http://localhost:8765").rstrip("/")
+# the server listens on 127.0.0.1 only; "localhost" would try IPv6 first and wait ~2 s per request on Windows
+API = re.sub(r"//localhost(?=[:/]|$)", "//127.0.0.1", SITE)
 ME = os.environ.get("LABSIDIAN_USER", "").strip()
 
 mcp = FastMCP("labsidian", instructions=(
@@ -65,34 +60,34 @@ def norm_title(t):
     return re.sub(r"[^0-9a-z가-힣]+", "", t)
 
 
-class LocalBackend:
+class ServerBackend:
+    """the local Labsidian server (scripts/serve.py); a hosted DB later changes the URL and adds a login token"""
+    _http = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never route localhost through a system proxy
+
     def __init__(self):
-        self._mtime, self.d = None, None
+        self.version, self.d = None, None
+
+    def call(self, path, body=None):
+        req = urllib.request.Request(API + path, data=None if body is None else json.dumps(body).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"}, method="GET" if body is None else "POST")
+        try:
+            with self._http.open(req, timeout=120) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read())
+            except ValueError:
+                raise ToolError(f"Labsidian server error {e.code} at {SITE}{path}")
+        except (urllib.error.URLError, OSError):
+            raise ToolError(f"The Labsidian server isn't running at {SITE} — start it with: python scripts/serve.py")
 
     def data(self):
-        src = SNAPSHOT if SNAPSHOT.exists() else IMPORT
-        m = (src, src.stat().st_mtime, IMPORT.stat().st_mtime if IMPORT.exists() else None)
-        if m != self._mtime:
-            self._mtime = m
-            if src == SNAPSHOT:
-                self.d = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-                self.d["live"] = True
-                # people added by a newer import (e.g. an older diary) get accounts once the site loads it;
-                # know them already so admin ops for them can be queued before the snapshot catches up
-                if IMPORT.exists() and IMPORT.stat().st_mtime > SNAPSHOT.stat().st_mtime:
-                    raw = IMPORT.read_text(encoding="utf-8")
-                    known = {u["id"] for u in self.d["users"]}
-                    self.d["users"] += [{"id": p["id"], "name": p["name"], "role": "member", "quota": {}}
-                                        for p in json.loads(raw[raw.index("=") + 1:].strip().rstrip(";"))["people"] if p["id"] not in known]
-            else:
-                raw = IMPORT.read_text(encoding="utf-8")
-                d = json.loads(raw[raw.index("=") + 1:].strip().rstrip(";"))
-                d["users"] = [{"id": p["id"], "name": p["name"], "role": "member", "quota": {}} for p in d["people"]]
-                d.update(comments=[], reactions={}, reading={}, notifications={}, tagOps=[], mcpApplied=[], live=False,
-                         terms=[{"id": "2026H1", "label": "2026 상반기", "start": "2026-01-01", "end": "2026-06-30", "target": 110},
-                                {"id": "2026H2", "label": "2026 하반기", "start": "2026-07-01", "end": "2026-12-31", "target": 110}])
-                self.d = d
-            d = self.d
+        v = self.call("/api/version")["version"]
+        if v != self.version or self.d is None:
+            r = self.call("/api/snapshot")
+            if "snapshot" not in r:
+                raise ToolError(f"Labsidian server: {r.get('error')}")
+            self.version, d = r["version"], r["snapshot"]
             d["P"] = {p["id"]: p for p in d["people"]}
             d["PA"] = {p["id"]: p for p in d["papers"]}
             d["R"] = {r["id"]: r for r in d["reviews"]}
@@ -100,8 +95,9 @@ class LocalBackend:
             d["U"] = {u["id"]: u for u in d["users"]}
             for p in d["papers"]:
                 p["_key"] = norm_title(p["title"])
-                p["_hay"] = (p["title"] + " " + p.get("authors", "") + " " + p.get("venueNorm", "") + " " + p.get("abstract", "") + " " +
+                p["_hay"] = (p["title"] + " " + (p.get("authors") or "") + " " + (p.get("venueNorm") or "") + " " + (p.get("abstract") or "") + " " +
                              " ".join(d["R"][r]["content"] + " " + d["R"][r]["memo"] for r in p["reviews"] if r in d["R"] and not self._blind(d, d["R"][r]))).lower()
+            self.d = d
         return self.d
 
     @staticmethod
@@ -115,20 +111,15 @@ class LocalBackend:
             return False
         return not any(x["paper"] == r["paper"] and x["person"] == me_["id"] for x in d["reviews"])
 
-    def enqueue(self, op):
+    def apply(self, op):
         op = {"id": "mcp_" + uuid.uuid4().hex[:12], "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **op}
-        done = set(self.data().get("mcpApplied") or [])
-        ops = json.loads(OUTBOX.read_text(encoding="utf-8")) if OUTBOX.exists() else []
-        ops = [o for o in ops if o.get("id") not in done] + [op]   # prune what the site already applied
-        OUTBOX.parent.mkdir(exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=OUTBOX.parent, suffix=".tmp")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(ops, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, OUTBOX)
+        r = self.call("/api/ops", op)
+        if not r.get("ok"):
+            raise ToolError(f"Labsidian refused {op['op']}: {r.get('error')}")
         return op
 
 
-DB = LocalBackend()
+DB = ServerBackend()
 
 
 def person(name_or_id):
@@ -210,11 +201,11 @@ def quota(u, term):
 # ------------------------------------------------------------------ read tools
 @mcp.tool()
 def whoami() -> dict:
-    """Who this MCP server acts as, and whether the data is live (from the open site) or the imported diary only."""
+    """Who this MCP server acts as, which Labsidian server it talks to and how much is in it."""
     d = DB.data()
     u = person(ME) if ME else None
-    return {"user": u and {"id": u["id"], "name": u["name"], "role": u.get("role")}, "liveData": d.get("live", False),
-            "papers": len(d["papers"]), "reviews": len(d["reviews"]), "site": SITE}
+    return {"user": u and {"id": u["id"], "name": u["name"], "role": u.get("role")}, "server": SITE, "dataVersion": DB.version,
+            "papers": len(d["papers"]), "reviews": len(d["reviews"])}
 
 
 @mcp.tool()
@@ -370,10 +361,9 @@ def my_inbox(limit: int = 20) -> list:
             for n in (d.get("notifications") or {}).get(u["id"], [])[:limit]]
 
 
-# ------------------------------------------------------------------ write tools (queued → applied by the open site)
-def _queued(op, extra=None):
-    return {"queued": op["id"], "note": "The open Labsidian site applies this within a few seconds." +
-            ("" if DB.data().get("live") else " (No live snapshot yet — open the site via scripts/serve.py.)"), **(extra or {})}
+# ------------------------------------------------------------------ write tools (applied by the server as the member)
+def _done(op, extra=None):
+    return {"applied": op["id"], "note": "Done — open pages pick it up within a few seconds.", **(extra or {})}
 
 
 @mcp.tool()
@@ -399,10 +389,10 @@ def create_draft(title: str, summary: str, memo: str, rating: int, tags: list[st
         except ValueError:
             raise ToolError("diary_date must be YYYY-MM-DD")
     tags = [t if not t.startswith("f:") else "f:" + re.sub(r"[^0-9a-z가-힣_-]+", "-", t[2:].lower()).strip("-")[:40] for t in (tags or [])]
-    op = DB.enqueue({"op": "draft", "actor": u["id"], "summary": title[:60], "data": {
+    op = DB.apply({"op": "draft", "actor": u["id"], "summary": title[:60], "data": {
         "title": title, "content": summary, "memo": memo, "rating": int(rating), "tags": tags or [], "link": link, "venue": venue,
         "authors": authors, "year": year, "abstract": abstract, "date": diary_date or date.today().isoformat(), "source": "mcp"}})
-    return _queued(op, {"open": f"{SITE}/#/write?mcp={op['id']}"})
+    return _done(op, {"open": f"{SITE}/#/write?mcp={op['id']}"})
 
 
 @mcp.tool()
@@ -418,15 +408,15 @@ def add_comment(review_id: str, body: str, kind: str = "comment", reply_to: str 
         parent = next((c for c in d.get("comments", []) if c["id"] == reply_to), None)
         if not parent or parent["reviewId"] != review_id or parent.get("parent"):
             raise ToolError("reply_to must be a top-level comment_id on the same review (see get_paper)")
-    op = DB.enqueue({"op": "comment", "actor": u["id"], "reviewId": review_id, "kind": kind, "body": body, "parent": reply_to or None, "summary": body[:60]})
-    return _queued(op, {"open": f"{SITE}/#/paper/{d['R'][review_id]['paper']}"})
+    op = DB.apply({"op": "comment", "actor": u["id"], "reviewId": review_id, "kind": kind, "body": body, "parent": reply_to or None, "summary": body[:60]})
+    return _done(op, {"open": f"{SITE}/#/paper/{d['R'][review_id]['paper']}"})
 
 
 @mcp.tool()
 def add_to_reading_list(paper_ref: str) -> dict:
     """Add a lab paper to my reading list."""
     u, p = me(), paper(paper_ref)
-    return _queued(DB.enqueue({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "summary": p["title"][:60]}))
+    return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "summary": p["title"][:60]}))
 
 
 
@@ -509,7 +499,7 @@ def add_study_question(study_id: str, question: str) -> dict:
         raise ToolError("this study is finished")
     if not question.strip():
         raise ToolError("empty question")
-    return _queued(DB.enqueue({"op": "study.question", "actor": u["id"], "studyId": st["id"], "body": question.strip()[:1000], "summary": question[:60]}),
+    return _done(DB.apply({"op": "study.question", "actor": u["id"], "studyId": st["id"], "body": question.strip()[:1000], "summary": question[:60]}),
                    {"open": f"{SITE}/#/study/{st['id']}"})
 
 
@@ -521,7 +511,7 @@ def draft_study_notes(study_id: str, conclusion: str, open_questions: str = "", 
     st = _study(study_id)
     if u["id"] not in st["members"] and u.get("role") != "admin":
         raise ToolError("only study members can draft its notes — join the study on the site first")
-    return _queued(DB.enqueue({"op": "study.notesDraft", "actor": u["id"], "studyId": st["id"], "conclusion": conclusion, "open": open_questions,
+    return _done(DB.apply({"op": "study.notesDraft", "actor": u["id"], "studyId": st["id"], "conclusion": conclusion, "open": open_questions,
                                "next": follow_ups, "summary": st["title"][:60]}), {"open": f"{SITE}/#/study/{st['id']}"})
 
 # ------------------------------------------------------------------ admin tools
@@ -535,7 +525,7 @@ def admin_merge_tags(from_tag: str, into_tag: str) -> dict:
             raise ToolError(f"unknown tag {t}")
     if from_tag[0] != into_tag[0] or from_tag == into_tag:
         raise ToolError("can only merge two different tags of the same axis")
-    return _queued(DB.enqueue({"op": "tag.merge", "actor": u["id"], "from": from_tag, "into": into_tag, "summary": f"{from_tag} → {into_tag}"}))
+    return _done(DB.apply({"op": "tag.merge", "actor": u["id"], "from": from_tag, "into": into_tag, "summary": f"{from_tag} → {into_tag}"}))
 
 
 @mcp.tool()
@@ -547,7 +537,7 @@ def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color:
     t = d["T"].get(tag_id)
     if not t:
         raise ToolError(f"unknown tag {tag_id}")
-    return _queued(DB.enqueue({"op": "tag.rename", "actor": u["id"], "tagId": tag_id, "label": label_ko or t["label"],
+    return _done(DB.apply({"op": "tag.rename", "actor": u["id"], "tagId": tag_id, "label": label_ko or t["label"],
                                "labelEn": label_en or t.get("labelEn"), "color": color or None, "summary": tag_id}))
 
 
@@ -559,7 +549,7 @@ def admin_create_tag(axis: str, label_ko: str, label_en: str, color: str = "#9da
     u = require_admin()
     if axis not in ("domain", "method"):
         raise ToolError("axis must be domain or method")
-    return _queued(DB.enqueue({"op": "tag.create", "actor": u["id"], "axis": axis, "label": label_ko, "labelEn": label_en, "color": color, "summary": label_ko}))
+    return _done(DB.apply({"op": "tag.create", "actor": u["id"], "axis": axis, "label": label_ko, "labelEn": label_en, "color": color, "summary": label_ko}))
 
 
 @mcp.tool()
@@ -582,7 +572,7 @@ def admin_set_member_quota(name: str, exempt: bool | None = None, start_date: st
         q["targets"] = {(term or term_for()["id"]): int(target)}
     if not q:
         raise ToolError("nothing to change")
-    return _queued(DB.enqueue({"op": "quota.set", "actor": u["id"], "member": m["id"], "quota": q, "summary": f"{m['name']} {q}"}))
+    return _done(DB.apply({"op": "quota.set", "actor": u["id"], "member": m["id"], "quota": q, "summary": f"{m['name']} {q}"}))
 
 
 @mcp.tool()
@@ -612,11 +602,11 @@ def admin_update_member(name: str, role: str = "", disabled: bool | None = None)
         raise ToolError("nothing to change")
     ops = []
     if role:
-        ops.append(DB.enqueue({"op": "user.role", "actor": u["id"], "member": m["id"], "role": role, "summary": f"{m['name']} → {role}"}))
+        ops.append(DB.apply({"op": "user.role", "actor": u["id"], "member": m["id"], "role": role, "summary": f"{m['name']} → {role}"}))
     if disabled is not None:
-        ops.append(DB.enqueue({"op": "user.disable", "actor": u["id"], "member": m["id"], "disabled": bool(disabled),
+        ops.append(DB.apply({"op": "user.disable", "actor": u["id"], "member": m["id"], "disabled": bool(disabled),
                                "summary": f"{m['name']} {'disabled' if disabled else 'enabled'}"}))
-    return _queued(ops[-1], {"ops": [o["id"] for o in ops]})
+    return _done(ops[-1], {"ops": [o["id"] for o in ops]})
 
 
 @mcp.tool()
@@ -624,7 +614,7 @@ def admin_save_term(term_id: str, label: str, start: str, end: str, target: int)
     """[admin] Create or update a term (e.g. 2027H1, "2027 상반기", 2027-01-01, 2027-06-30, 110 diaries)."""
     u = require_admin()
     date.fromisoformat(start), date.fromisoformat(end)
-    return _queued(DB.enqueue({"op": "term.save", "actor": u["id"], "term": {"id": term_id, "label": label, "start": start, "end": end, "target": int(target)}, "summary": term_id}))
+    return _done(DB.apply({"op": "term.save", "actor": u["id"], "term": {"id": term_id, "label": label, "start": start, "end": end, "target": int(target)}, "summary": term_id}))
 
 
 if __name__ == "__main__":
