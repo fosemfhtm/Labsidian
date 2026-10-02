@@ -12,11 +12,10 @@
 
 ![그래프 — 논문 지도 위의 사람 네트워크](docs/labsidian_demo.gif)
 
-**▶ 전체 데모 영상 (2분 20초)** — 한 멤버의 한 주를 따라가면서 모든 기능을 봐요. 영상 속 연구실과 리뷰는 가상 데이터예요.
+**▶ 전체 데모 영상 (2분 24초)** — 한 멤버의 한 주를 따라가면서 모든 기능을 봐요. 영상 속 연구실과 리뷰는 가상 데이터예요.
 
-<!-- 영상 올리기: 이 저장소의 아무 이슈 창에 video/remotion/out/labsidian_demo_720p.mp4 를 끌어다 놓으면 생기는
-     https://github.com/user-attachments/assets/… 주소를 아래 줄에 붙여넣으면 README 안에서 바로 재생돼요. -->
-https://github.com/user-attachments/assets/REPLACE-WITH-UPLOADED-VIDEO-URL
+<!-- 영상을 바꿀 때: 이슈 창에 video/remotion/out/labsidian_demo_720p.mp4 를 끌어다 놓고 생기는 주소로 아래 줄을 교체 -->
+https://github.com/user-attachments/assets/72d9b3d5-0d11-4704-ac68-0c455598de82
 
 | 시각 | 장면 |
 |---|---|
