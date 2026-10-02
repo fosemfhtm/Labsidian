@@ -21,7 +21,7 @@
       "ad.ops": "태그 변경 이력", "ad.undo": "되돌리기", "ad.domain": "분야", "ad.method": "방법론", "ad.free": "키워드",
       "ad.termLabel": "이름", "ad.start": "시작", "ad.end": "끝", "ad.target": "목표 편수", "ad.addTerm": "학기 추가",
       "ad.targetAuto": "자동 (작성일 수)", "ad.offDays": "연구실 쉬는 날", "ad.offHint": "주말과 공휴일(대체공휴일 포함)은 자동으로 빠져요. 셧다운·학회처럼 연구실이 쉬는 평일만 넣으면 그만큼 작성 목표가 줄어요 (학기 목표 편수를 비워 두면 '작성일 수'가 목표). 선거일·임시공휴일처럼 자동으로 모르는 휴일은 '공휴일'로 추가하세요.",
-      "ad.autoHolidays": "자동 공휴일 {y}",
+      "ad.autoHolidays": "자동 공휴일 {y}", "ad.noOff": "아직 없어요 — 셧다운이나 학회 기간을 넣어 주세요",
       "ad.kind": "종류", "ad.kind.holiday": "공휴일", "ad.kind.shutdown": "셧다운", "ad.kind.event": "학회·행사", "ad.offLabel": "이름", "ad.addOff": "쉬는 날 추가", "ad.remove": "삭제",
       "ad.export": "전체 변경 데이터 JSON 내보내기", "ad.import": "JSON 가져오기", "ad.resetAll": "이 브라우저의 데이터 초기화",
       "ad.resetConfirm": "이 브라우저에 저장된 계정·리뷰·댓글을 모두 지울까요? (가져온 다이어리 원본은 남아요)",
@@ -46,7 +46,7 @@
       "ad.ops": "Tag change history", "ad.undo": "Undo", "ad.domain": "Field", "ad.method": "Method", "ad.free": "Keyword",
       "ad.termLabel": "Label", "ad.start": "Start", "ad.end": "End", "ad.target": "Target", "ad.addTerm": "Add term",
       "ad.targetAuto": "auto (writing days)", "ad.offDays": "Lab days off", "ad.offHint": "Weekends and public holidays (substitute days included) never count. Add the lab's own days off — shutdowns, conferences — and targets shrink to match (leave a term's target empty to use the number of writing days). Holidays the rules can't know, like elections or one-off days, go in as 'Public holiday'.",
-      "ad.autoHolidays": "Automatic public holidays {y}",
+      "ad.autoHolidays": "Automatic public holidays {y}", "ad.noOff": "None yet — add shutdowns or conference weeks",
       "ad.kind": "Kind", "ad.kind.holiday": "Public holiday", "ad.kind.shutdown": "Shutdown", "ad.kind.event": "Conference / event", "ad.offLabel": "Name", "ad.addOff": "Add day off", "ad.remove": "Remove",
       "ad.export": "Export all changes as JSON", "ad.import": "Import JSON", "ad.resetAll": "Reset this browser's data",
       "ad.resetConfirm": "Delete all accounts, reviews and comments stored in this browser? (The imported diary stays)",
@@ -212,11 +212,11 @@
         <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" placeholder="${t("ad.targetAuto")}" style="width:120px">
         <button class="btn primary small">${t("ad.addTerm")}</button></form></div>
       <div class="card" style="margin-top:14px"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
-        <table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
+        ${S.calendar.list().length ? `<table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
         ${S.calendar.list().map(o => `<tr data-off="${esc(o.id)}"><td>${o.start}</td><td>${o.end}</td><td>${esc(o.label)}</td><td>${t("ad.kind." + o.kind)}</td>
-          <td><button class="btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>
+          <td><button class="btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">${t("ad.noOff")}</p>`}
         <form class="inline-form" id="ad-off"><b>${t("ad.addOff")}</b><input type="date" name="start" required><input type="date" name="end">
-          <input name="label" placeholder="${t("ad.offLabel")}" required><select name="kind">${["holiday", "shutdown", "event"].map(k => `<option value="${k}">${t("ad.kind." + k)}</option>`).join("")}</select>
+          <input name="label" placeholder="${t("ad.offLabel")}" required><select name="kind">${["shutdown", "event", "holiday"].map(k => `<option value="${k}">${t("ad.kind." + k)}</option>`).join("")}</select>
           <button class="btn primary small">${t("ad.addOff")}</button></form>
         <p class="hint" style="margin-top:12px"><b>${t("ad.autoHolidays", { y: S.today().slice(0, 4) })}</b> · ${S.calendar.holidays(S.today().slice(0, 4))
           .filter(h => !S.calendar.isWeekend(h.date)).map(h => `${+h.date.slice(5, 7)}/${+h.date.slice(8)} ${esc(h.label)}`).join(", ")}</p></div>`;

@@ -159,6 +159,9 @@ input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px
 .tag-input { background: var(--fill-4); border: 0; border-radius: 10px; }
 .drop { border: 1.5px dashed var(--separator); border-radius: 12px; }
 input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(--accent); }
+/* a native select's option list ignores the translucent field fill (Windows Chrome painted white text on light grey):
+   give it the elevated surface + label colour so it reads in both themes */
+select option, select optgroup { background-color: var(--sys-bg-3); color: var(--label); }
 .fld > span, .fld > label, label.fld > span { color: var(--label-2); }
 
 /* ---------- menus, popovers, notifications ---------- */
