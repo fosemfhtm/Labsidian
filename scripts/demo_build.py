@@ -134,6 +134,12 @@ def main():
             leaks += [f"social.json: real name {n}" for n in names if n in t]
             if grams(t) & real_grams:
                 leaks.append(f"social.json: copied run “{next(iter(grams(t) & real_grams))}”")
+    # the demo film's sources (recording script, terminal scene, overlays) must not carry a real name or review either
+    for src in [*(ROOT / "video").glob("*.py"), *(ROOT / "video").glob("*.html"), *(ROOT / "video" / "remotion" / "src").glob("*")]:
+        txt = src.read_text(encoding="utf-8", errors="ignore")
+        leaks += [f"video/{src.name}: real name {n}" for n in names if n in txt]
+        if grams(txt) & real_grams:
+            leaks.append(f"video/{src.name}: copied run “{next(iter(grams(txt) & real_grams))}”")
     real_prof, demo_prof = profiles(real), profiles(entries)
     print("closest real member (topic cosine):")
     for name, v in demo_prof.items():

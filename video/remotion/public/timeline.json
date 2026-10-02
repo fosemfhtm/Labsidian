@@ -1,0 +1,598 @@
+{
+ "fps": 30,
+ "width": 1920,
+ "height": 1080,
+ "video": "raw.mp4",
+ "scenes": [
+  {
+   "id": "opening",
+   "chip": "",
+   "ko": "",
+   "en": "",
+   "act": null,
+   "overlay": "opening",
+   "hero": 0,
+   "spots": [],
+   "order": 0,
+   "t0": 229.96900000001187,
+   "t1": 235.57800000000861
+  },
+  {
+   "id": "login",
+   "chip": "로그인",
+   "ko": "아이디는 이름 하나 — 계정은 관리자가 만들어줘요",
+   "en": "Your name is your ID — accounts are issued by the admin",
+   "act": [
+    "월요일",
+    "지난주에 무슨 일이 있었지?"
+   ],
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 1,
+   "t0": 0.735000000015134,
+   "t1": 8.735000000015134
+  },
+  {
+   "id": "feed",
+   "chip": "홈 피드",
+   "ko": "새 다이어리만이 아니라 질문·답글·새로 열린 스터디까지, 한 피드에",
+   "en": "New diaries plus questions, replies and new studies — one feed",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 9.047000000020489,
+     "x": 386,
+     "y": 76,
+     "w": 315.84375,
+     "h": 49.5,
+     "label": "전체 · 내 관심 분야 · 질문 · 함께 읽은 논문",
+     "t1": 11.047000000020489
+    },
+    {
+     "t0": 14.28200000000652,
+     "x": 386,
+     "y": 127.5,
+     "w": 806,
+     "h": 119.25,
+     "label": "질문 · 답글 · 스터디 개설",
+     "t1": 16.682000000006518
+    }
+   ],
+   "order": 2,
+   "t0": 8.735000000015134,
+   "t1": 18.78200000000652
+  },
+  {
+   "id": "bell",
+   "chip": "알림",
+   "ko": "내 리뷰에 온 질문, @멘션, 스터디 초대는 알림으로",
+   "en": "Questions on your reviews, mentions and study invites arrive as notifications",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 21.14100000000326,
+     "x": 1468,
+     "y": 50,
+     "w": 396,
+     "h": 522.5,
+     "label": "",
+     "t1": 23.541000000003258
+    }
+   ],
+   "order": 3,
+   "t0": 18.78200000000652,
+   "t1": 23.937999999994645
+  },
+  {
+   "id": "reply",
+   "chip": "댓글·답글",
+   "ko": "답글은 그 자리에서 — @로 부르면 그 사람에게 알림이 가요",
+   "en": "Reply right there — @mention someone and they get notified",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 4,
+   "t0": 23.937999999994645,
+   "t1": 36.01600000000326
+  },
+  {
+   "id": "map",
+   "chip": "지식 그래프",
+   "ko": "연구실이 읽은 논문 전부가 한 장의 지도 — 비슷한 논문은 가까이 있어요",
+   "en": "Every paper the lab has read, on one map — similar papers sit close together",
+   "act": [
+    "화요일",
+    "이번 주엔 뭘 읽지?"
+   ],
+   "overlay": null,
+   "hero": 5,
+   "spots": [],
+   "order": 5,
+   "t0": 39.40700000000652,
+   "t1": 49.203000000008615
+  },
+  {
+   "id": "people",
+   "chip": "사람 노드",
+   "ko": "사람은 자기가 읽은 논문들 한가운데 — 누가 어느 분야에 있는지 보여요",
+   "en": "Each member sits among the papers they read — you see who works where",
+   "act": null,
+   "overlay": null,
+   "hero": 4,
+   "spots": [],
+   "order": 6,
+   "t0": 49.203000000008615,
+   "t1": 54.39100000000326
+  },
+  {
+   "id": "overlap",
+   "chip": "겹치는 관심사",
+   "ko": "관심사가 겹치는 사람은 지도에서 바로 보여요",
+   "en": "Overlapping interests show up right on the map",
+   "act": null,
+   "overlay": null,
+   "hero": 4,
+   "spots": [],
+   "order": 7,
+   "t0": 54.39100000000326,
+   "t1": 59.719000000011874
+  },
+  {
+   "id": "filters",
+   "chip": "필터",
+   "ko": "분야·방법론·학회·연도·별점으로 거르기",
+   "en": "Filter by field, method, venue, year, rating",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 8,
+   "t0": 59.719000000011874,
+   "t1": 68.25
+  },
+  {
+   "id": "local",
+   "chip": "로컬 그래프",
+   "ko": "한 편을 고르면 그 주변 — 읽은 사람, 비슷한 논문, 인용 관계",
+   "en": "Pick one paper and see its neighbourhood — readers, similar papers, citations",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 71.01600000000326,
+     "x": 429.09375,
+     "y": 98,
+     "w": 513.8125,
+     "h": 58,
+     "label": "깊이 1 · 2",
+     "t1": 72.61600000000325
+    }
+   ],
+   "order": 9,
+   "t0": 68.25,
+   "t1": 73.81299999999464
+  },
+  {
+   "id": "react",
+   "chip": "반응 · 읽을 목록",
+   "ko": "좋았던 리뷰엔 👍, 읽고 싶은 논문은 읽을 목록에",
+   "en": "👍 a review you liked; save a paper to your reading list",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 10,
+   "t0": 73.81299999999464,
+   "t1": 82.23500000001513
+  },
+  {
+   "id": "people_page",
+   "chip": "사람",
+   "ko": "연구실 전체가 어디를 읽는지, 그리고 사람마다 어디에 관심이 있는지",
+   "en": "What the whole lab reads, and what each member cares about",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 83.56299999999464,
+     "x": 386,
+     "y": 156.5,
+     "w": 1148,
+     "h": 491.5,
+     "label": "연구실 전체 — 분야 · 방법론",
+     "t1": 85.96299999999465
+    },
+    {
+     "t0": 87.57800000000861,
+     "x": 386,
+     "y": 102,
+     "w": 384,
+     "h": 249.5,
+     "label": "관심 분야 · 주별 작성 · 가장 비슷한 사람",
+     "t1": 89.77800000000862
+    }
+   ],
+   "order": 11,
+   "t0": 82.23500000001513,
+   "t1": 90.17200000002049
+  },
+  {
+   "id": "person",
+   "chip": "사람 상세",
+   "ko": "사람별 관심 분야·방법론, 관심사가 비슷한 사람, 그 사람이 좋아할 만한 논문",
+   "en": "Per member: fields, methods, who thinks alike, and papers they'd like",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 92.18799999999464,
+     "x": 1400,
+     "y": 182,
+     "w": 492,
+     "h": 428.5,
+     "label": "읽은 논문 · 평균 별점 · 관심 분야",
+     "t1": 93.98799999999464
+    },
+    {
+     "t0": 95.59400000001187,
+     "x": 1400,
+     "y": 201,
+     "w": 492,
+     "h": 190,
+     "label": "관심사가 비슷한 사람 · 함께 읽은 논문",
+     "t1": 97.79400000001188
+    }
+   ],
+   "order": 12,
+   "t0": 90.17200000002049,
+   "t1": 98.0
+  },
+  {
+   "id": "recs",
+   "chip": "추천",
+   "ko": "내 관심 분야에서 다른 사람이 읽은 것 중 가까운 논문부터",
+   "en": "Papers others read in your fields, closest to yours first",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 13,
+   "t0": 98.0,
+   "t1": 101.20300000000861
+  },
+  {
+   "id": "search",
+   "chip": "논문 검색",
+   "ko": "연구실 리뷰 전체를 검색 — 제목뿐 아니라 리뷰 본문까지",
+   "en": "Search everything the lab wrote — titles and the reviews themselves",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 14,
+   "t0": 101.20300000000861,
+   "t1": 108.82800000000861
+  },
+  {
+   "id": "dup",
+   "chip": "다이어리 쓰기",
+   "ko": "이미 읽은 사람이 있으면 알려줘요 — 그 리뷰부터 읽고 시작",
+   "en": "If someone already read it, you'll know — start from their review",
+   "act": [
+    "목요일",
+    "읽었으니 쓰자"
+   ],
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 114.06299999999464,
+     "x": 1178,
+     "y": 156.5,
+     "w": 356,
+     "h": 128,
+     "label": "",
+     "t1": 116.46299999999465
+    }
+   ],
+   "order": 15,
+   "t0": 108.82800000000861,
+   "t1": 117.17200000002049
+  },
+  {
+   "id": "lookup",
+   "chip": "서지 정보 자동",
+   "ko": "링크 하나면 제목·저자·학회·초록은 자동",
+   "en": "Paste a link — title, authors, venue and abstract fill themselves",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 120.89100000000326,
+     "x": 402,
+     "y": 331,
+     "w": 760,
+     "h": 80,
+     "label": "",
+     "t1": 123.09100000000326
+    }
+   ],
+   "order": 16,
+   "t0": 117.17200000002049,
+   "t1": 123.29700000002049
+  },
+  {
+   "id": "tags",
+   "chip": "태그 · 별점 · 메모",
+   "ko": "태그는 추천에서 고르고, 메모는 솔직하게",
+   "en": "Pick tags from the suggestions; be honest in the memo",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 123.29700000002049,
+     "x": 1194,
+     "y": 222,
+     "w": 324,
+     "h": 127,
+     "label": "",
+     "t1": 124.89700000002048
+    }
+   ],
+   "order": 17,
+   "t0": 123.29700000002049,
+   "t1": 132.56299999999464
+  },
+  {
+   "id": "dot",
+   "chip": "지도에 바로",
+   "ko": "쓰는 순간 지도에 올라가요",
+   "en": "The moment you publish, it's on the map",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 18,
+   "t0": 135.64100000000326,
+   "t1": 139.0470000000205
+  },
+  {
+   "id": "me",
+   "chip": "내 페이지",
+   "ko": "이번 학기 작성률과 캘린더, 기존 양식 docx로 내보내기",
+   "en": "This term's progress and calendar — export to the lab's .docx format",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 140.375,
+     "x": 386,
+     "y": 150.5,
+     "w": 575,
+     "h": 247.5,
+     "label": "",
+     "t1": 142.175
+    },
+    {
+     "t0": 142.73500000001513,
+     "x": 1289.625,
+     "y": 100.5,
+     "w": 161.296875,
+     "h": 46,
+     "label": "",
+     "t1": 144.13500000001514
+    }
+   ],
+   "order": 19,
+   "t0": 139.06299999999464,
+   "t1": 146.23500000001513
+  },
+  {
+   "id": "shared",
+   "chip": "함께 읽은 논문",
+   "ko": "같은 논문을 각자 어떻게 읽었는지 나란히",
+   "en": "The same paper, everyone's take, side by side",
+   "act": [
+    "금요일",
+    "같이 이야기하기"
+   ],
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 150.84400000001187,
+     "x": 352,
+     "y": -129.5,
+     "w": 1216,
+     "h": 472.5,
+     "label": "",
+     "t1": 152.84400000001187
+    }
+   ],
+   "order": 20,
+   "t0": 146.23500000001513,
+   "t1": 153.0470000000205
+  },
+  {
+   "id": "study",
+   "chip": "논문 스터디",
+   "ko": "스터디 전까지 질문은 블라인드 — 먼저 생각하고 모여요",
+   "en": "Before the meeting, write first and read later — think before you gather",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 157.03200000000652,
+     "x": 336,
+     "y": 287.671875,
+     "w": 656,
+     "h": 148,
+     "label": "모임 준비 체크리스트",
+     "t1": 158.83200000000653
+    },
+    {
+     "t0": 160.61000000001513,
+     "x": 336,
+     "y": 487.171875,
+     "w": 1248,
+     "h": 35.5,
+     "label": "",
+     "t1": 162.61000000001513
+    }
+   ],
+   "order": 21,
+   "t0": 153.0470000000205,
+   "t1": 162.81299999999464
+  },
+  {
+   "id": "question",
+   "chip": "질문 보드",
+   "ko": "궁금한 점을 미리 올리고 👍로 투표 — 많이 받은 순서로 이야기해요",
+   "en": "Post questions ahead, vote with 👍 — the most-voted go first",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 169.0470000000205,
+     "x": 352,
+     "y": 670.171875,
+     "w": 860,
+     "h": 75.5,
+     "label": "",
+     "t1": 170.64700000002048
+    }
+   ],
+   "order": 22,
+   "t0": 162.81299999999464,
+   "t1": 170.86000000001513
+  },
+  {
+   "id": "notes",
+   "chip": "정리 노트",
+   "ko": "끝난 스터디는 정리 노트로 남아요 — 결론, 남은 질문, 다음에 읽을 논문",
+   "en": "Finished studies keep their notes — conclusions, open questions, what to read next",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 172.36000000001513,
+     "x": 336,
+     "y": 345.171875,
+     "w": 836,
+     "h": 499.5,
+     "label": "",
+     "t1": 174.76000000001514
+    }
+   ],
+   "order": 23,
+   "t0": 170.86000000001513,
+   "t1": 176.53200000000652
+  },
+  {
+   "id": "mcp",
+   "chip": "내 AI 연결 (MCP)",
+   "ko": "내 Claude·Codex를 연결하면, 연구실 리뷰를 근거로 답해요",
+   "en": "Connect your own Claude or Codex — it answers from the lab's reviews",
+   "act": [
+    "그리고",
+    "내 AI와 함께"
+   ],
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 24,
+   "t0": 176.59400000001187,
+   "t1": 188.84400000001187
+  },
+  {
+   "id": "draft",
+   "chip": "AI 초안",
+   "ko": "AI는 초안까지만 — 읽고 고치고, 게시는 내가",
+   "en": "The AI only drafts — you read, edit and publish",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [
+    {
+     "t0": 199.4220000000205,
+     "x": 402,
+     "y": 237,
+     "w": 760,
+     "h": 35.5,
+     "label": "",
+     "t1": 201.4220000000205
+    }
+   ],
+   "order": 25,
+   "t0": 195.61000000001513,
+   "t1": 203.9220000000205
+  },
+  {
+   "id": "timelapse",
+   "chip": "타임랩스",
+   "ko": "매주 쓰는 다이어리가 한 학기 뒤엔 이렇게",
+   "en": "A weekly diary, one term later",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 26,
+   "t0": 207.0470000000205,
+   "t1": 213.82800000000861
+  },
+  {
+   "id": "en",
+   "chip": "English",
+   "ko": "English UI too",
+   "en": "한국어 / English",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 27,
+   "t0": 214.625,
+   "t1": 216.51600000000326
+  },
+  {
+   "id": "light",
+   "chip": "라이트 테마",
+   "ko": "라이트 테마도",
+   "en": "Light theme too",
+   "act": null,
+   "overlay": null,
+   "hero": 0,
+   "spots": [],
+   "order": 28,
+   "t0": 219.51600000000326,
+   "t1": 221.31299999999464
+  },
+  {
+   "id": "final",
+   "chip": "",
+   "ko": "",
+   "en": "",
+   "act": null,
+   "overlay": "ending",
+   "hero": 0,
+   "spots": [],
+   "order": 999,
+   "t0": 224.76600000000326,
+   "t1": 229.76600000000326
+  }
+ ]
+}

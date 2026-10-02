@@ -10,7 +10,22 @@
 
 로그인 화면에서 아무 멤버나 고르면 바로 들어가져요. 데모는 **가상의 연구실**(멤버 10명 · 리뷰 250편)이고, 데모에서 바꾼 내용은 내 브라우저에만 저장돼요.
 
-![그래프 — 논문 지도 위의 사람 네트워크](docs/screenshots/graph.png)
+![그래프 — 논문 지도 위의 사람 네트워크](docs/labsidian_demo.gif)
+
+**▶ 전체 데모 영상 (2분 20초)** — 한 멤버의 한 주를 따라가면서 모든 기능을 봐요. 영상 속 연구실과 리뷰는 가상 데이터예요.
+
+<!-- 영상 올리기: 이 저장소의 아무 이슈 창에 video/remotion/out/labsidian_demo_720p.mp4 를 끌어다 놓으면 생기는
+     https://github.com/user-attachments/assets/… 주소를 아래 줄에 붙여넣으면 README 안에서 바로 재생돼요. -->
+https://github.com/user-attachments/assets/REPLACE-WITH-UPLOADED-VIDEO-URL
+
+| 시각 | 장면 |
+|---|---|
+| 0:05 | **월요일** — 로그인 · 홈 피드(다이어리 · 질문 · 답글 · 스터디) · 알림 · 답글(@멘션) |
+| 0:29 | **화요일** — 그래프(주제 군집 · 사람 노드 · 겹치는 관심사 · 필터 · 로컬 그래프) · 반응·읽을 목록 · 사람 페이지(연구실 전체 분야 · 관심사가 비슷한 사람 · 추천) · 검색 |
+| 1:15 | **목요일** — 다이어리 쓰기(이미 읽은 사람 알림 · 링크로 서지 정보 · 태그 추천) · 지도에 바로 · 내 페이지(작성률 · docx) |
+| 1:37 | **금요일** — 함께 읽은 논문 · 논문 스터디(블라인드 · 질문 보드 · 정리 노트) |
+| 1:57 | **그리고** — 내 Claude·Codex 연결(MCP) · AI 초안 → 내가 게시 |
+| 2:11 | 타임랩스 · English · 라이트 테마 |
 
 ## 주요 기능
 
@@ -145,6 +160,24 @@ python scripts/serve.py 8766 --demo
 
 </details>
 
+<details>
+<summary>데모 영상 다시 만들기</summary>
+
+촬영은 Playwright(깨끗한 화면 녹화 + 장면·스포트라이트 타임라인), 편집은 Remotion(막 카드 · 자막 · 칩 · 스포트라이트)이 해요. 자막은 `timeline.json`에만 있어서, 문구를 고치면 녹화 없이 렌더만 다시 하면 돼요.
+
+```bash
+python scripts/serve.py 8766 --demo
+.venv/Scripts/python video/record.py              # Playwright → video/remotion/public/{raw.mp4, timeline.json}
+cd video/remotion && npm install
+npm run render            # → out/labsidian_demo.mp4 (1080p)
+npm run render:readme     # → out/labsidian_demo_720p.mp4 (10MB 이하 — 이슈 창에 끌어다 놓고 주소를 README에)
+npm run gif               # → docs/labsidian_demo.gif (README 맨 위, 12초)
+```
+
+`scripts/demo_build.py`의 누출 검사가 `video/`의 대본·터미널 장면·오버레이에도 실명이나 실제 리뷰 문장이 없는지 확인해요.
+
+</details>
+
 ## 구조
 
 ```
@@ -158,7 +191,8 @@ site/                     정적 사이트 (빌드 없음)
 scripts/                  다이어리 파싱 → 메타데이터 보강 → 의미 지도 → 사이트 빌드, 개발 서버
 mcp/labsidian_mcp.py      Claude · Codex용 MCP 서버
 data/demo/                가상 연구실 원본
-docs/                     기획안(PLAN.md) · 디자인(DESIGN.md) · 스크린샷
+video/                    데모 영상 — record.py(Playwright 촬영) · remotion/(편집·렌더)
+docs/                     기획안(PLAN.md) · 디자인(DESIGN.md) · 스크린샷 · 데모 GIF
 ```
 
 `main`에 push하면 [GitHub Actions](.github/workflows/pages.yml)가 `site/`를 GitHub Pages에 배포해요. 이때 `data.demo.js`가 `data.js` 자리에 들어가요.

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Terminal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root { --bg: #16161e; --win: #1b1b24; --line: #2f2f3d; --text: #dcdce6; --dim: #7c7c92; --acc: #a882ff; --ok: #73daca; --warn: #e0af68; }
+  html, body { margin: 0; height: 100%; background: radial-gradient(ellipse at 40% 30%, #22202e, #121218); font-family: Pretendard, sans-serif; }
+  .win { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 1320px; height: 740px; background: var(--win);
+    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; display: flex; flex-direction: column; }
+  .bar { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 14px; }
+  .bar i { width: 12px; height: 12px; border-radius: 50%; background: #3a3a48; display: inline-block; }
+  .bar span { margin-left: 12px; }
+  .body { flex: 1; padding: 26px 34px; font-family: "Cascadia Code", Consolas, monospace; font-size: 19px; line-height: 1.65; color: var(--text); white-space: pre-wrap; overflow: hidden; }
+  .body .ko { font-family: Pretendard, sans-serif; }
+  .prompt { color: var(--acc); font-weight: 700; }
+  .tool { color: var(--dim); font-size: 16px; }
+  .tool b { color: var(--ok); font-weight: 600; }
+  .ans { font-family: Pretendard, sans-serif; font-size: 20px; line-height: 1.7; }
+  .ans b { color: #fff; }
+  .caret { display: inline-block; width: 10px; height: 22px; background: var(--acc); vertical-align: -4px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="bar"><i></i><i></i><i></i><span>~/research — claude · labsidian MCP connected</span></div>
+  <div class="body" id="out"></div>
+</div>
+<script>
+// The answer below is based on the demo lab's data (data/demo): 20 delay-related transit papers, 14 read by 강도윤.
+const out = document.getElementById("out");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const add = (html, cls) => { const d = document.createElement("div"); if (cls) d.className = cls; d.innerHTML = html; out.appendChild(d); return d; };
+async function type(el, text, ms = 38) { for (const ch of text) { el.insertAdjacentText("beforeend", ch); await sleep(ms); } }
+async function stream(el, html, ms = 16) {
+  // reveal an HTML string word by word; re-render the whole prefix so open tags (<b>…) stay intact
+  const cuts = [];
+  let inTag = false;
+  for (let i = 0; i < html.length; i++) {
+    if (html[i] === "<") inTag = true;
+    else if (html[i] === ">") inTag = false;
+    else if (!inTag && html[i] === " ") cuts.push(i);
+  }
+  cuts.push(html.length);
+  for (const k of cuts) { el.innerHTML = html.slice(0, k); await sleep(ms); }
+}
+window.play = async () => {
+  const q = add('<span class="prompt">&gt; </span><span class="ko" id="q"></span><span class="caret" id="c"></span>');
+  await sleep(500);
+  await type(document.getElementById("q"), "Labsidian에서 열차 지연 예측 논문들 누가 어떻게 봤는지 정리해줘. 내가 안 읽은 것 위주로", 42);
+  document.getElementById("c").remove();
+  await sleep(500);
+  add("");
+  for (const [name, args] of [["search_papers", 'query: "delay", tag: "대중교통·철도"'], ["get_person", '"강도윤"'], ["get_paper", '"Railway Network Delay Evolution: A Heterogeneous Graph…"'], ["get_paper", '"Simulation-Driven Railway Delay Prediction…"']]) {
+    add(`⏺ <b>labsidian · ${name}</b>(${args})`, "tool"); await sleep(380);
+  }
+  await sleep(300);
+  add("");
+  const a = add("", "ans");
+  await stream(a, `대중교통·철도 태그에서 지연(delay) 관련 논문은 <b>20편</b>이에요. 한서윤 님이 쓴 5편을 빼면 거의 <b>강도윤</b> 님이 읽었어요(14편).<br><br>` +
+    `• <b>강도윤</b> — ★4는 2편: <b>Railway Network Delay Evolution</b>(이종 GNN, 2023)과 <b>Simulation-Driven Railway Delay Prediction</b>(모방학습, 2025). 전자는 역·열차·선로를 다른 종류의 노드로 두고 상호작용을 본 점을 좋게 봤고, “baseline이 headway 정보를 받았는지 확인할 것”이라는 메모를 남겼어요.<br>` +
+    `• 나머지 12편은 ★3 이하 — 확산 모델(2021), 겨울 기후 영향(2022), 시스템 리스크(2023) 같은 지연 전파 쪽이에요.<br><br>` +
+    `처음이라면 <b>Railway Network Delay Evolution</b>(강도윤 ★4) → <b>Spatio-Temporal Cascading Effects of Train Delays</b>(2025) 순서를 추천해요. 둘 다 아직 안 읽으셨어요.`, 20);
+  return true;
+};
+</script>
+</body>
+</html>

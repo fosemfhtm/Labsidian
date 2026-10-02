@@ -1,0 +1,28 @@
+{
+  "name": "labsidian-video",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "node render.mjs",
+    "render:all": "node render.mjs --all",
+    "render:readme": "ffmpeg -y -loglevel error -i out/labsidian_demo.mp4 -vf scale=1280:720 -c:v libx264 -preset slow -crf 25 -movflags +faststart -an out/labsidian_demo_720p.mp4",
+    "hero": "remotion render Hero out/hero.mp4 --crf 18",
+    "gif": "npm run hero && ffmpeg -y -loglevel error -i out/hero.mp4 -vf \"fps=12,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=bayer:bayer_scale=5\" ../../docs/labsidian_demo.gif"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.532",
+    "@remotion/cli": "^4.0.532",
+    "@remotion/fonts": "^4.0.532",
+    "@remotion/renderer": "^4.0.532",
+    "@remotion/transitions": "^4.0.532",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.532"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
