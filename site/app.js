@@ -274,7 +274,7 @@
     return `
       <div class="kv">${t("d.cluster")}${parent ? ` · ${esc(clusterName(parent))}` : ""}</div>
       <h2><span class="dot-lg" style="background:${(parent || c).color}"></span>${esc(clusterName(c))}</h2>
-      <div class="kv">${esc(c.keywords.join(", "))}</div>
+      <div class="kv">${esc((c.custom?.keywords || c.keywords).join(", "))}</div>
       <div class="stat-row">
         <div class="stat"><b>${list.length}</b><span>${t("d.papers")}</span></div>
         <div class="stat"><b>${whoArr.length}</b><span>${t("d.readers")}</span></div>

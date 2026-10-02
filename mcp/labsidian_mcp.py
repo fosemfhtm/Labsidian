@@ -644,20 +644,26 @@ def admin_list_clusters(level: str = "c", parent: str = "", samples: int = 8) ->
             continue
         mine = sorted((x for x in d["papers"] if x.get(level) == c["id"]), key=lambda x: (-len(x["reviews"]), -(x.get("rating") or 0)))
         out.append({"id": c["id"], "parent": c.get("parent"), "papers": len(mine), "name": {"ko": cluster_name(c), "en": cluster_name(c, "en")},
-                    "namedByAdmin": bool(c.get("custom")), "automaticName": {"ko": c["ko"], "en": c["en"]}, "keywords": c.get("keywords"),
+                    "namedByAdmin": bool(c.get("custom")), "automaticName": {"ko": c["ko"], "en": c["en"]},
+                    "keywords": (c.get("custom") or {}).get("keywords") or c.get("keywords"), "automaticKeywords": c.get("keywords"),
                     "sampleTitles": [x["title"] for x in mine[:max(1, min(samples, 30))]]})
     return out
 
 
 @mcp.tool()
-def admin_name_cluster(cluster_id: str, label_ko: str, label_en: str = "") -> dict:
+def admin_name_cluster(cluster_id: str, label_ko: str, label_en: str = "", keywords: list[str] | None = None) -> dict:
     """[admin] Name a map region (id from admin_list_clusters), e.g. "전기차 충전 인프라" / "EV charging infrastructure".
-    Both labels empty = back to the automatic name. The name stays with the region's papers across map rebuilds."""
+    keywords: up to 5 short words shown in small print under a big region's name (first 3 on the map); leave out to
+    keep the ones set before. Both labels empty = back to the automatic name and keywords. The name stays with the
+    region's papers across map rebuilds."""
     u, d = require_admin(), DB.data()
     c = next((x for x in d.get("clusters") or [] if x["id"] == cluster_id), None)
     if not c:
         raise ToolError(f"no region {cluster_id!r} — use admin_list_clusters")
+    if keywords is not None and (len(keywords) > 5 or any(len(k) > 40 for k in keywords)):
+        raise ToolError("keywords: at most 5, each up to 40 characters")
     return _done(DB.apply({"op": "cluster.name", "actor": u["id"], "clusterId": cluster_id, "ko": label_ko.strip(), "en": label_en.strip(),
+                           **({"keywords": keywords} if keywords is not None else {}),
                            "summary": f"{cluster_id} → {label_ko or label_en or '(auto)'}"}))
 
 

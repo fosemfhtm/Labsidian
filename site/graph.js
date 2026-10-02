@@ -318,7 +318,7 @@ function buildLabels() {
   labelLayer.innerHTML = sorted.map(c => {
     const col = c.level === "c" ? c.color : CL[c.parent]?.color;
     return c.level === "c"
-      ? `<div class="cl coarse" data-id="${c.id}" style="--c:${col}"><b>${esc(clusterName(c))}</b><span>${esc(c.keywords.slice(0, 3).join(" · "))}</span></div>`
+      ? `<div class="cl coarse" data-id="${c.id}" style="--c:${col}"><b>${esc(clusterName(c))}</b><span>${esc((c.custom?.keywords || c.keywords).slice(0, 3).join(" · "))}</span></div>`
       : `<div class="cl fine" data-id="${c.id}" style="--c:${col}">${esc(clusterName(c))}</div>`;
   }).join("");
   labelLayer.onclick = e => {

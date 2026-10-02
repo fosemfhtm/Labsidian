@@ -393,7 +393,8 @@
     pairs.sort((a, b) => b[0] - a[0]).forEach(([, key, c]) => {
       if (c.custom || usedKeys.has(key)) return;
       usedKeys.add(key);
-      c.custom = { ko: db.clusterNames[key].ko, en: db.clusterNames[key].en }; c.customKey = key;
+      const n = db.clusterNames[key];
+      c.custom = { ko: n.ko, en: n.en, ...(n.keywords?.length ? { keywords: n.keywords } : {}) }; c.customKey = key;
     });
   }
 
@@ -1058,8 +1059,13 @@
         const c = (SEED.clusters || []).find(x => x.id === op.clusterId); if (!c) throw new Error("cluster.missing");
         const ko = String(op.ko || "").trim().slice(0, 60), en = String(op.en || "").trim().slice(0, 60);
         if (!ko && !en) { if (c.customKey) delete db.clusterNames[c.customKey]; }  // back to the automatic name
-        else db.clusterNames[c.customKey || uid("cn_")] = { level: c.level, ko: ko || en, en: en || ko,
-          members: [...(clusterMembers()[c.id] || [])], by: op.actor, at: now() };
+        else {
+          const prev = c.customKey && db.clusterNames[c.customKey];
+          // keywords: the small line under a region's name — given ones replace, none given keeps what an admin set before
+          const keywords = Array.isArray(op.keywords) ? op.keywords.map(k => String(k).trim().slice(0, 40)).filter(Boolean).slice(0, 5) : prev?.keywords;
+          db.clusterNames[c.customKey || uid("cn_")] = { level: c.level, ko: ko || en, en: en || ko, ...(keywords?.length ? { keywords } : {}),
+            members: [...(clusterMembers()[c.id] || [])], by: op.actor, at: now() };
+        }
         log("cluster.name", `${c.id} → ${ko || en || "(auto)"}`); save(); buildDataset();
       }
       if (op.op === "paper.tags") {

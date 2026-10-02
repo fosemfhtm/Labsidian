@@ -132,7 +132,7 @@ env = { LABSIDIAN_USER = "한서윤" }
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 리뷰 비교, 질문 보드, 정리 노트) |
 | `add_study_question` `draft_study_notes` | 스터디 질문 올리기, 정리 노트 **초안** |
 | `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_merge_tags` `admin_rename_tag` `admin_create_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기 설정, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
-| `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름 짓기(지도를 다시 만들어도 그 논문들을 따라감), 규칙이 잘못 붙인 논문 분야·방법 태그 고치기 |
+| `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름·키워드 짓기(지도를 다시 만들어도 그 논문들을 따라감), 규칙이 잘못 붙인 논문 분야·방법 태그 고치기 |
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
