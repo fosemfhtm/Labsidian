@@ -12,7 +12,8 @@ site/data.js
 vault/
 *.docx
 
-# demo video tooling + shots (recorded on the real lab data) — share inside the lab only
+# demo video tooling (record.py / terminal.html script the real lab's members) — share inside the lab only
+# README screenshots of the fake demo lab live in docs/screenshots/
 video/
 
 __pycache__/
