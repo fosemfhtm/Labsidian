@@ -25,6 +25,9 @@ html:not([data-layout="sidebar"]) #nav .ic { display: none; }
 [data-layout="bar"] .top-right .btn.primary { background: var(--accent); box-shadow: none; }
 [data-layout="bar"] .drawer { top: calc(var(--top-h) + 10px); }
 [data-layout="bar"] .menu { top: calc(var(--top-h) + 6px); }
+/* the bar is attached (--top-h = its own height), so floating graph controls need their own gap: 12px, same as their side inset */
+[data-layout="bar"] #view-graph .g-toolbar { top: calc(var(--top-h) + 12px); }
+[data-layout="bar"] #view-graph .focus-bar { top: calc(var(--top-h) + 64px); }
 
 /* ================= sidebar: Apple Music web ================= */
 [data-layout="sidebar"] { --side-w: 248px; --top-h: 12px; }

@@ -74,6 +74,11 @@ body.locked main, body.locked .top nav, body.locked #search { visibility: hidden
 .rv-foot { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
 .rf { background: none; border: 1px solid transparent; border-radius: 8px; padding: 2px 8px; font-size: 12px; color: var(--text-3); cursor: pointer; text-decoration: none; display: inline-flex; gap: 4px; align-items: center; }
 .rf:hover { background: var(--panel-2); color: var(--text); }
+@media (pointer: coarse) {   /* touch: ~36px tall targets for the review actions, expand and back links */
+  .rf { min-height: 36px; padding: 0 12px; }
+  .rv-toggle { padding: 10px 12px 8px 0; }
+  .back { padding: 8px 12px 8px 0; margin-bottom: 2px; }
+}
 .rf.on { color: var(--accent); border-color: rgb(var(--accent-rgb) / .35); background: rgb(var(--accent-rgb) / .12); }
 .tags-row.small { margin-top: 6px; }
 .translation { margin-top: 8px; background: rgb(var(--cyan) / .06); border: 1px solid rgb(var(--cyan) / .2); border-radius: 10px; padding: 8px 10px; font-size: 13px; white-space: pre-wrap; }
@@ -205,7 +210,7 @@ details.fld summary { cursor: pointer; }
   .menu-notif { width: calc(100vw - 24px); right: 12px; }
   .top-right { gap: 4px; }
   .user-btn { padding: 2px; }
-  .tbl { font-size: 12px; }
+  .tbl { font-size: 12px; word-break: keep-all; }
 }
 
 /* ---- v5: full pages, term picker, MCP, duties ---- */
@@ -321,7 +326,7 @@ details.fld summary { cursor: pointer; }
 @media (max-width: 900px) {
   .home-grid { grid-template-columns: minmax(0, 1fr); }
   .home-side { position: static; order: -1; }
-  .home-side .card:not(.compose) { display: none; }
+  .home-side .card:not(.compose, .week) { display: none; }   /* the rest live in feed tabs / the study tab; this week's writers don't */
 }
 
 /* paper study */
@@ -477,7 +482,7 @@ details.fld summary { cursor: pointer; }
 .st-discussed { margin-top: 12px; max-width: 820px; }
 .st-discussed h4 { margin: 0 0 8px; font-size: 13px; }
 .dq { font-size: 13px; color: var(--text-2); padding: 4px 0; border-top: 1px solid var(--line); }
-@media (max-width: 900px) { .st-two { grid-template-columns: 1fr; } .st-hero h1 { font-size: 22px; } .st-manage .menu-pop { right: auto; left: 0; } }
+@media (max-width: 900px) { .st-two { grid-template-columns: 1fr; } .st-hero h1 { font-size: 22px; } .st-manage .menu-pop { max-width: calc(100vw - 32px); } }
 .st-todo-done { margin: 0 0 14px; font-size: 13px; color: rgb(var(--green)); }
 
 /* KO/EN lives in the header on desktop, in the user menu on phones */

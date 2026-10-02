@@ -135,7 +135,7 @@
           ${UI.avatar(c.author)}<div><div class="q">${esc(c.body.slice(0, 90))}</div><div class="m">→ ${name(r.person)} · ${esc(UI.PA[r.paper].title.slice(0, 50))}</div></div></div>`; }).join("")
           || `<p class="muted">${t("h.noOpenQ")}</p>`}</div>
       <div class="card"><h4>${t("h.together")}</h4><div class="mini-list">${together.map(p => UI.miniPaper(p)).join("")}</div></div>
-      <div class="card"><h4>${t("h.thisWeek")}</h4>
+      <div class="card week"><h4>${t("h.thisWeek")}</h4>
         <div class="week-writers">${Object.entries(writers).map(([id, n]) => `<span class="ww" data-open="person:${id}">${UI.avatar(id)}${name(id)}${n > 1 ? ` <span class="m">×${n}</span>` : ""}</span>`).join("")
           || `<p class="muted">${t("h.nobodyYet")}</p>`}</div></div>`;
   }

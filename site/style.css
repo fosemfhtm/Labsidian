@@ -148,13 +148,15 @@ select {
 .shared-item { margin-bottom: 18px; }
 .shared-item h3 { margin: 0 0 4px; font-size: 16px; cursor: pointer; }
 .shared-item h3:hover { color: var(--accent); }
-.rev-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-top: 12px; }
+.rev-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 10px; margin-top: 12px; }
 
 /* review block */
 .review { border-left: 3px solid var(--line); background: var(--bg-2); border-radius: 0 8px 8px 0; padding: 10px 12px; }
 .rv-head { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
 .rv-head b { font-weight: 600; cursor: pointer; }
 .rv-head .date { color: var(--text-3); margin-left: auto; }
+.rv-head { flex-wrap: wrap; row-gap: 2px; }   /* narrow boxes: the date drops to its own line instead of names/dates breaking mid-word */
+.rv-head b, .rv-head .date { white-space: nowrap; }
 .rv-body { white-space: pre-wrap; color: var(--text-2); font-size: 13px; max-height: 9.5em; overflow: hidden; position: relative; }
 .rv-body.open { max-height: none; }
 .rv-body:not(.open)::after {
