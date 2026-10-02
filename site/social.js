@@ -6,7 +6,7 @@
   I18N.extend({
     ko: {
       "s.like": "좋아요", "s.want": "나도 읽어볼래요", "s.comments": "댓글", "s.translate": "번역", "s.edit": "수정",
-      "s.addReading": "읽을 목록에 추가", "s.inReading": "읽을 목록에 있음", "s.writeThis": "이 논문 다이어리 쓰기",
+      "s.addReading": "읽을 목록에 추가", "s.inReading": "읽을 목록에 있음", "s.myDiary": "내 다이어리 수정", "rv.mine": "내 다이어리", "s.writeThis": "이 논문 다이어리 쓰기",
       "s.kind.comment": "댓글", "s.kind.question": "질문", "s.kind.idea": "아이디어", "s.reply": "답글", "s.resolve": "해결됨으로 표시",
       "s.resolved": "해결됨", "s.reopen": "다시 열기", "s.delete": "삭제", "s.post": "남기기", "s.ph": "@이름으로 언급할 수 있어요",
       "s.noComments": "아직 댓글이 없어요. 첫 질문을 남겨보세요.", "s.translated": "번역 (브라우저 내장 번역 · 기기 안에서 처리)",
@@ -15,7 +15,7 @@
     },
     en: {
       "s.like": "Like", "s.want": "Want to read", "s.comments": "Comments", "s.translate": "Translate", "s.edit": "Edit",
-      "s.addReading": "Add to reading list", "s.inReading": "In reading list", "s.writeThis": "Write a diary for this paper",
+      "s.addReading": "Add to reading list", "s.inReading": "In reading list", "s.myDiary": "Edit my diary", "rv.mine": "My diary", "s.writeThis": "Write a diary for this paper",
       "s.kind.comment": "Comment", "s.kind.question": "Question", "s.kind.idea": "Idea", "s.reply": "Reply", "s.resolve": "Mark resolved",
       "s.resolved": "Resolved", "s.reopen": "Reopen", "s.delete": "Delete", "s.post": "Post", "s.ph": "Mention people with @name",
       "s.noComments": "No comments yet. Ask the first question.", "s.translated": "Translation (browser built-in · on-device)",

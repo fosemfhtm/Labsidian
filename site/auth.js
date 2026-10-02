@@ -12,7 +12,7 @@
       "a.pwWrong": "현재 비밀번호가 맞지 않아요", "a.pwShort": "6자 이상으로 해주세요", "a.cancel": "취소",
       "a.demoPick": "데모 계정으로 둘러보기", "a.demoHint": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 이 브라우저에만 저장돼요.",
       "a.demoAdmin": "관리자", "a.orPw": "이름·비밀번호로 로그인",
-      "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
+      "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.reading": "읽을 목록", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
       "n.title": "알림", "n.empty": "새 알림이 없어요", "n.readAll": "모두 읽음",
       "n.curation": "이번 달 태그·지도 정리할 때예요 — 비슷한 태그 합치기, 지도 영역 이름 확인 (내 AI에게 시켜도 돼요)",
       "n.comment": "{a}님이 내 리뷰에 댓글을 남겼어요", "n.question": "{a}님이 내 리뷰에 질문했어요", "n.idea": "{a}님이 내 리뷰에 아이디어를 남겼어요",
@@ -33,7 +33,7 @@
       "a.pwWrong": "Current password is wrong", "a.pwShort": "Use at least 6 characters", "a.cancel": "Cancel",
       "a.demoPick": "Explore with a demo account", "a.demoHint": "A fictional lab. Pick any member to sign in — your changes stay in this browser only.",
       "a.demoAdmin": "Admin", "a.orPw": "Sign in with name & password",
-      "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
+      "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.reading": "Reading list", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
       "n.title": "Notifications", "n.empty": "No new notifications", "n.readAll": "Mark all read",
       "n.curation": "Time for this month's tidy-up — merge similar tags, check the map's region names (or ask your AI)",
       "n.comment": "{a} commented on your review", "n.question": "{a} asked a question on your review", "n.idea": "{a} left an idea on your review",
@@ -189,7 +189,7 @@
   }
   function userMenu() {
     const me = S.auth.current();
-    return `<a href="#/me" data-go>${t("m.me")}</a><a href="#/write" data-go>${t("m.write")}</a>
+    return `<a href="#/me" data-go>${t("m.me")}</a><a href="#/reading" data-go>${t("m.reading")}</a><a href="#/write" data-go>${t("m.write")}</a>
       <button data-act="pw">${t("m.pw")}</button>${me.role === "admin" ? `<a href="#/admin" data-go>${t("m.admin")}</a>` : ""}
       <hr><div class="menu-theme"><span>${t("m.theme")}</span><div class="seg">${["auto", "light", "dark"].map(v => `<button data-theme-set="${v}" class="${(document.documentElement.dataset.theme || "auto") === v ? "on" : ""}">${t("m." + v)}</button>`).join("")}</div></div>
       <div class="menu-theme menu-lang"><span>${t("m.lang")}</span><div class="seg">${["ko", "en"].map(v => `<button data-lang-set="${v}" class="${lang === v ? "on" : ""}">${v.toUpperCase()}</button>`).join("")}</div></div>

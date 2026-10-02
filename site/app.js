@@ -114,18 +114,25 @@
     document.body.appendChild(box);
   });
 
+  // my own diary on a paper → its pages offer "edit my diary" instead of writing a second one
+  const myReviewOn = p => { const me = window.Store?.auth.current(); return me ? p.reviews.map(id => R[id]).find(r => r && r.person === me.id) || null : null; };
+  const writeBtn = p => { const mine = myReviewOn(p);
+    return mine ? `<a class="btn primary" href="#/write?review=${mine.id}">✎ ${t("s.myDiary")}</a>` : `<a class="btn primary" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>`; };
+  const readingBtn = p => (myReviewOn(p) ? "" : `<button class="btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>`);
   const reviewHtml = (r, opts = {}) => {
     const p = P[r.person] || { name: t("unknownPerson"), color: "#555" };
+    const mine = window.Store?.auth.current()?.id === r.person;
     // study "write first, then read": hidden until I post my own entry on this paper
     if (window.Store?.studies.hidden(r)) return `<div class="review blind" id="rv-${r.id}" data-review="${r.id}" style="border-left-color:${p.color}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b><span class="date">${esc(r.date)}</span></div>
       <p class="blind-msg">🙈 ${t("st.blindMsg")} <a class="link-btn" href="#/write?study=${r.studyId}">${t("st.writeMine")}</a></p></div>`;
     const long = !opts.full && r.content.length > 380;
-    return `<div class="review ${opts.full ? "full" : ""}" id="rv-${r.id}" data-review="${r.id}" style="border-left-color:${p.color}">
+    return `<div class="review ${opts.full ? "full" : ""} ${mine ? "mine" : ""}" id="rv-${r.id}" data-review="${r.id}" style="border-left-color:${p.color}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b>${stars(r.rating)}
         <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>${regBadge(r)}
+        ${mine ? `<span class="reg mine">${t("rv.mine")}</span>` : ""}
         ${r.studyId && window.Store?.studies.get(r.studyId) ? `<a class="reg study" href="#/study/${r.studyId}">${t("st.reviewBadge")}</a>` : ""}</div>
       ${r.content ? `<div class="rv-body ${long ? "" : "open"}">${esc(r.content)}</div>
         ${long ? `<button class="rv-toggle">${t("rv.expand")}</button>` : ""}` : ""}
@@ -305,8 +312,8 @@
         ${c ? `<span class="tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
       <div class="btn-row">
         ${p.x != null ? `<button class="btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
-        ${window.Store ? `<button class="btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>
-        <a class="btn primary" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>` : ""}
+        ${window.Store ? `${readingBtn(p)}
+        ${writeBtn(p)}` : ""}
       </div>
       <div class="stat-row">
         <div class="stat"><b>${p.rating ? p.rating.toFixed(1) : "-"}</b><span>${t("d.avg")}</span></div>
@@ -440,8 +447,8 @@
         <div class="btn-row">
           ${(() => { const f = p.reviews.filter(x => !window.Store?.studies.hidden(R[x])).flatMap(x => R[x].files || []).find(f => f.kind === "pdf"); return f ? `<a class="btn" data-fid="${esc(f.id)}" target="_blank" rel="noopener">${t("d.pdf")}</a>` : ""; })()}
           ${p.x != null ? `<button class="btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
-          ${window.Store ? `<button class="btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>
-          <a class="btn primary" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>` : ""}
+          ${window.Store ? `${readingBtn(p)}
+          ${writeBtn(p)}` : ""}
         </div>
       </div>
       <div class="dp-grid">
@@ -527,7 +534,7 @@
   initPaperFilters();
   window.addEventListener("hashchange", route);
 
-  window.LabUI = { openDrawer, closeDrawer, esc, stars, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay,
+  window.LabUI = { openDrawer, closeDrawer, esc, stars, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
     rerender, P, T, PA, R, CL, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place
   document.addEventListener("DOMContentLoaded", () => { window.I18N.apply(); route(); });

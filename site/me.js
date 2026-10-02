@@ -11,7 +11,7 @@
       "me.left": "학기 종료까지 작성일 {d}일", "me.legendWrote": "작성", "me.legendHoliday": "공휴일", "me.legendLab": "연구실 쉬는 날 (셧다운·학회 등)", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
       "me.calendar": "작성 캘린더", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주", "me.drift": "관심사 변화 (월별)",
       "me.reviews": "내 리뷰", "me.noReviews": "이 학기엔 아직 리뷰가 없어요", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
-      "me.reading": "읽을 목록", "me.noReading": "📚 버튼으로 담은 논문이 여기 모여요", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
+      "me.reading": "읽을 목록", "me.noReading": "링크나 PDF로 읽을 논문을 모아 보세요", "me.readingAll": "읽을 목록 전체", "me.calWrite": "이 날짜로 다이어리 쓰기", "me.calNone": "작성 없음", "me.dow": "일월화수목금토", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
       "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기", "me.remove": "빼기",
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
@@ -23,7 +23,7 @@
       "me.left": "{d} writing days left in term", "me.legendWrote": "Wrote", "me.legendHoliday": "Public holiday", "me.legendLab": "Lab day off (shutdown, conference …)", "me.ended": "Term ended", "me.inc90": "90% (top incentive)", "me.inc70": "70%",
       "me.calendar": "Writing calendar", "me.streak": "{n}-week streak", "me.best": "best {n} weeks", "me.drift": "Interest drift (by month)",
       "me.reviews": "My reviews", "me.noReviews": "No reviews this term yet", "me.draft": "Saved draft", "me.continue": "Continue",
-      "me.reading": "Reading list", "me.noReading": "Papers you save with 📚 show up here", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
+      "me.reading": "Reading list", "me.noReading": "Collect papers to read by link or PDF", "me.readingAll": "Whole reading list", "me.calWrite": "Write a diary for this day", "me.calNone": "Nothing written", "me.dow": "SMTWTFS", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
       "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary", "me.remove": "Remove",
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
       "me.color": "My colour", "me.exempt": "written · no diary duty this term",
@@ -114,6 +114,38 @@
     reading();
   }
 
+  // calendar cells: hover → that day's entries (or the day off); click → open the entry, or write one for that day
+  function calendarTips(mine, person) {
+    const cal = $("#me-cal", view), tip = $(".cal-tip", cal), byDay = {};
+    mine.forEach(r => (byDay[r.date] ||= []).push(r));
+    let pinned = null;
+    const body = (day, full) => {
+      const rs = byDay[day] || [], off = S.calendar.offDay(day), d = new Date(day + "T00:00:00");
+      const head = `<b>${d.getMonth() + 1}/${d.getDate()} (${t("me.dow")[d.getDay()]})</b>${off ? ` · <span class="cal-off">${esc(off.label)}</span>` : ""}`;
+      const list = rs.length ? rs.map(r => `<a class="cal-rv" data-paper="${r.paper}" data-review="${r.id}">${esc(UI.PA[r.paper]?.title || "")}</a>`).join("")
+        : `<span class="muted">${t("me.calNone")}</span>`;
+      return head + `<div class="cal-list">${list}</div>` + (full && person && !rs.length ? `<a class="btn small primary" href="#/write?date=${day}">✎ ${t("me.calWrite")}</a>` : "");
+    };
+    const place = el => {
+      const a = el.getBoundingClientRect(), b = cal.getBoundingClientRect();
+      tip.hidden = false;
+      tip.style.left = Math.max(0, Math.min(b.width - tip.offsetWidth, a.left - b.left + a.width / 2 - tip.offsetWidth / 2)) + "px";
+      tip.style.top = (a.bottom - b.top + 6) + "px";
+    };
+    cal.querySelectorAll("i[data-day]").forEach(el => {
+      el.onmouseenter = () => { if (pinned) return; tip.innerHTML = body(el.dataset.day, false); tip.classList.remove("pinned"); place(el); };
+      el.onmouseleave = () => { if (!pinned) tip.hidden = true; };
+      el.onclick = e => {
+        e.stopPropagation();
+        const rs = byDay[el.dataset.day] || [];
+        if (rs.length === 1) { window.LabOpenReview?.(rs[0].paper, rs[0].id); return; }
+        pinned = el.dataset.day; tip.innerHTML = body(pinned, true); tip.classList.add("pinned"); place(el);
+      };
+    });
+    tip.onclick = e => { const a = e.target.closest(".cal-rv"); if (a) window.LabOpenReview?.(a.dataset.paper, a.dataset.review); };
+    document.addEventListener("click", e => { if (pinned && !tip.contains(e.target)) { pinned = null; tip.hidden = true; } });
+  }
+
   function calendar(term, mine, person) {
     const counts = {};
     mine.forEach(r => (counts[r.date] = (counts[r.date] || 0) + 1));
@@ -125,13 +157,14 @@
     for (let w = 0; w < weeks; w++) for (let d = 0; d < 5; d++) {
       const day = addDays(first, w * 7 + d), c = counts[day] || 0, out = day < term.start || day > term.end;
       const off = !out && S.calendar.offDay(day), cls = [out && "out", day === S.today() && "today", off && (off.kind === "holiday" ? "off-holiday" : "off-lab")];
-      html += `<i class="${cls.filter(Boolean).join(" ")}" style="grid-column:${w + 1};grid-row:${d + 1};${c ? `background:${color};opacity:${Math.min(1, 0.45 + c * 0.3)}` : ""}" title="${day}${off ? " · " + esc(off.label) : ""}${c ? " · " + c : ""}"></i>`;
+      html += `<i class="${cls.filter(Boolean).join(" ")}" ${out ? "" : `data-day="${day}"`} style="grid-column:${w + 1};grid-row:${d + 1};${c ? `background:${color};opacity:${Math.min(1, 0.45 + c * 0.3)}` : ""}"></i>`;
     }
     html += "</div>";
     html += `<div class="cal-legend"><span><i style="background:${color}"></i>${t("me.legendWrote")}</span><span><i class="off-holiday"></i>${t("me.legendHoliday")}</span><span><i class="off-lab"></i>${t("me.legendLab")}</span></div>`;
     // months axis
     html += `<div class="cal-months">${[...new Set(Array.from({ length: weeks }, (_, w) => addDays(first, w * 7 + 6).slice(0, 7)).filter(m => m >= term.start.slice(0, 7) && m <= term.end.slice(0, 7)))].map(m => `<span>${+m.slice(5)}${lang === "ko" ? "월" : ""}</span>`).join("")}</div>`;
-    $("#me-cal", view).innerHTML = html;
+    $("#me-cal", view).innerHTML = html + `<div class="cal-tip" hidden></div>`;
+    calendarTips(mine, person);
     // streaks in weeks (any review that week)
     const wk = d => Math.floor(days("2020-01-06", d) / 7);
     const set = new Set(mine.map(r => wk(r.date)));
@@ -178,11 +211,12 @@
   }
 
   function reading() {
-    const list = S.reading.list().map(x => UI.PA[x.paperId]).filter(Boolean);
-    $("#me-reading", view).innerHTML = list.map(p => `<div class="mini" data-open="paper:${p.id}"><span class="t">${esc(p.title)}</span>
-      <span class="m">${p.readers.map(r => UI.avatar(r)).join("")}</span><button class="m link-btn" data-unread="${p.id}">${t("me.remove")}</button></div>`).join("")
-      || `<div class="muted">${t("me.noReading")}</div>`;
-    view.querySelectorAll("[data-unread]").forEach(b => b.onclick = async e => { e.stopPropagation(); await S.reading.toggle(b.dataset.unread); reading(); });
+    const list = S.reading.list(), st = x => (x.written ? "written" : x.status), by = s => list.filter(x => st(x) === s);
+    const active = [...by("reading"), ...by("read"), ...by("todo")].slice(0, 6);
+    $("#me-reading", view).innerHTML = `<div class="rl-counts">${["reading", "todo", "read"].map(s => `<a href="#/reading"><b>${by(s).length}</b>${t("rl.s." + s)}</a>`).join("")}</div>`
+      + (active.map(x => `<div class="mini" ${x.paperId ? `data-open="paper:${esc(x.paperId)}"` : `onclick="location.hash='#/reading'"`}><span class="t">${esc(x.title)}</span>
+        <span class="m rl-dot st-${st(x)}">${t("rl.s." + st(x))}</span></div>`).join("") || `<div class="muted">${t("me.noReading")}</div>`)
+      + `<a class="link-btn rl-all" href="#/reading">${t("me.readingAll")} →</a>`;
   }
 
   // same layout as the lab's Word diary: date header, then 논문/Link/저널/저자/Rating/내용/Memo

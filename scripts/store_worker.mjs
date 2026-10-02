@@ -28,6 +28,7 @@ function boot(db) {
   const isDb = k => k.startsWith("labsidian.db.");
   const ctx = {
     LAB: lab(), console, setTimeout, clearTimeout, setInterval: () => 0, crypto: globalThis.crypto, TextEncoder, URL, structuredClone,
+    fetch: globalThis.fetch,  // paper lookups (DOI / arXiv) for reading-list items added through MCP
     location: { hostname: "headless" },
     localStorage: { getItem: k => (isDb(k) ? saved : null), setItem: (k, v) => { if (isDb(k)) saved = v; }, removeItem: () => {} },
     __LABSIDIAN_HEADLESS__: h => { api = h; },

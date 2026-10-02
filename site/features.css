@@ -521,3 +521,50 @@ details.fld summary { cursor: pointer; }
 @media (max-width: 760px) { .lang.gate-lang { display: flex; } }
 @media (max-width: 420px) { .top .logo { font-size: 0; gap: 0; } }   /* mark only: the wordmark doesn't fit beside the controls */
 @media (max-width: 360px) { .top #nav a { padding: 6px 2px; font-size: 12px; } }   /* small phones: all six tabs still fit (English is the longest) */
+
+/* ---------- my own diary stands out among the others on a paper ---------- */
+.review.mine { background: color-mix(in srgb, var(--accent, #6155f5) 7%, transparent); }
+.reg.mine { color: var(--accent, #6155f5); border-color: currentColor; }
+
+/* ---------- writing calendar: hover / click ---------- */
+#me-cal { position: relative; }
+.cal-grid i[data-day] { cursor: pointer; transition: transform .08s ease; }
+.cal-grid i[data-day]:hover { transform: scale(1.45); outline: 1px solid var(--text-2, #999); z-index: 1; position: relative; }
+.cal-tip { position: absolute; z-index: 5; min-width: 180px; max-width: 280px; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.45;
+  background: var(--bg-1, #1c1c1e); border: 1px solid var(--line, rgba(127,127,127,.3)); box-shadow: 0 6px 24px rgba(0,0,0,.28); pointer-events: none; }
+.cal-tip.pinned { pointer-events: auto; }
+.cal-tip .cal-off { color: #ff6b5e; }
+.cal-tip .cal-list { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 2px; }
+.cal-tip .cal-rv { color: var(--text-1, inherit); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-tip .cal-rv:hover { text-decoration: underline; }
+.cal-tip .btn { margin-top: 6px; }
+
+/* ---------- reading list ---------- */
+#view-reading.dropping { outline: 2px dashed var(--accent, #6155f5); outline-offset: -8px; }
+.rl-add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.rl-add-row input { flex: 1 1 260px; min-width: 0; }
+.rl-nudge { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: rgba(255, 159, 10, .12); color: #ff9f0a; font-size: 13px; }
+.rl-sec { margin-top: 14px; }
+.rl-sec > summary { list-style: none; cursor: pointer; }
+.rl-sec > summary h3 { display: inline; }
+.rl-list { display: flex; flex-direction: column; }
+.rl-item { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line, rgba(127,127,127,.18)); }
+.rl-item:first-child { border-top: 0; }
+.rl-main { min-width: 0; flex: 1; }
+.rl-title { font-weight: 600; line-height: 1.35; }
+.rl-title a { cursor: pointer; }
+.rl-meta { font-size: 12px; margin-top: 2px; }
+.rl-badges { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; margin-top: 4px; }
+.rl-lab { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2, inherit); }
+.rl-note { margin-top: 6px; font-size: 13px; white-space: pre-wrap; color: var(--text-2, inherit); border-left: 2px solid var(--line, #555); padding-left: 8px; }
+.rl-note-edit { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.rl-note-edit textarea { width: 100%; }
+.rl-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: 0 1 auto; max-width: 60%; }
+@media (max-width: 720px) { .rl-item { flex-direction: column; } .rl-actions { max-width: none; justify-content: flex-start; } }
+.rl-counts { display: flex; gap: 8px; margin-bottom: 8px; }
+.rl-counts a { flex: 1; text-align: center; padding: 6px 4px; border-radius: 8px; background: var(--bg-2); font-size: 12px; color: var(--text-2, inherit); }
+.rl-counts b { display: block; font-size: 18px; color: var(--text-1, inherit); }
+.rl-dot { font-size: 11px; }
+.rl-dot.st-reading { color: #0a84ff; } .rl-dot.st-read { color: #ff9f0a; } .rl-dot.st-written { color: #30d158; }
+.rl-all { display: inline-block; margin-top: 8px; }
+.rl-home { display: inline-block; margin-top: 4px; font-size: 12px; }

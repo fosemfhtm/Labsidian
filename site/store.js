@@ -313,7 +313,7 @@
           const [ax, k] = [tid.slice(0, 1), tid.slice(2)];
           if (ax === "d") dom.add(k); else if (ax === "m") met.add(k); else free.add(tid);
         }));
-        p.domains = [...dom]; if (!p.domains.length) p.domains = ["core"];
+        p.domains = [...dom];  // may be empty: a general AI paper only has methods
         p.methods = [...met]; p.free = [...free];
         p.readers = [...new Set(rs.map(r => r.person))].sort();
         const ratings = rs.map(r => r.rating).filter(Boolean);
@@ -465,6 +465,8 @@
     return [...found];
   }
   const reviewById = id => SEED.allReviews.find(r => r.id === id);
+  const fileInUse = fid => SEED.allReviews.some(r => (r.files || []).some(f => f.id === fid))
+    || Object.values(db.reading).some(l => (l || []).some(x => (x.files || []).some(f => f.id === fid)));
 
   // ---------------------------------------------------------------- lab calendar
   // a diary is owed on every weekday that isn't a public holiday (computed below) or one of the lab's own days off
@@ -961,8 +963,26 @@
       },
     },
 
+    // reading list: lab papers saved with 📚 (or via 👀 / a study) and papers a member adds themselves (link, title, PDF).
+    // status todo → reading → read; "written" once they've posted a diary on it. Stored items: { id, paperId } for a
+    // lab paper, or { id, title, link, authors, venue, year, abstract, key } for one of their own; + status, note, files.
     reading: {
-      list() { const me = current(); return me ? db.reading[me.id] || [] : []; },
+      list(uid) {
+        const u = uid || current()?.id; if (!u) return [];
+        const mine = SEED.allReviews.filter(r => r.person === u);
+        return (db.reading[u] || []).map(x => {
+          const p = x.paperId ? SEED.allPapers.find(q => q.id === x.paperId) : (x.key && SEED.allPapers.find(q => q.key === x.key)) || null;
+          const written = mine.find(r => (p && r.paper === p.id) || (x.key && r.paperKey === x.key));
+          return {
+            id: x.id || "rd_" + x.paperId, paperId: p?.id || null, status: x.status || "todo", note: x.note || "", files: x.files || [],
+            addedAt: x.at, startedAt: x.startedAt || null, readAt: x.readAt || null, source: x.source || (x.paperId ? "lab" : "self"),
+            title: p?.title || x.title || "(untitled)", link: p?.link || x.link || "", authors: p?.authors || x.authors || "",
+            venue: p?.venueNorm || p?.venue || x.venue || "", year: p?.year || x.year || "", abstract: p?.abstract || x.abstract || "",
+            readers: p ? p.readers.filter(r => r !== u) : [], written: written?.id || null,
+          };
+        });
+      },
+      get(id) { return Store.reading.list().find(x => x.id === id) || null; },
       has(paperId) { return Store.reading.list().some(x => x.paperId === paperId); },
       _add(paperId) { const me = current(); if (!me) return; const l = (db.reading[me.id] ||= []); if (!l.some(x => x.paperId === paperId)) l.unshift({ paperId, at: now() }); },
       async toggle(paperId) {
@@ -971,6 +991,50 @@
         if (i >= 0) l.splice(i, 1); else l.unshift({ paperId, at: now() });
         save();
         return i < 0;
+      },
+      // a paper of my own (or a lab paper) — returns the item id; the same paper twice just returns the first
+      async add(data) {
+        const me = requireUser();
+        const title = String(data.title || "").trim().slice(0, 300); if (!title && !data.paperId) throw new Error("reading.title");
+        const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(title));
+        const key = known ? known.key : normTitle(title);
+        const l = (db.reading[me.id] ||= []);
+        const dup = l.find(x => (known && x.paperId === known.id) || (x.key && x.key === key));
+        if (dup) return dup.id || "rd_" + dup.paperId;
+        const base = { id: uid("rd_"), at: now(), status: ["todo", "reading", "read"].includes(data.status) ? data.status : "todo",
+          note: String(data.note || "").slice(0, 2000), files: cleanFiles(data.files), source: data.source || "self" };
+        l.unshift(known ? { ...base, paperId: known.id } : { ...base, key, title, link: String(data.link || "").slice(0, 500),
+          authors: String(data.authors || "").slice(0, 500), venue: String(data.venue || "").slice(0, 200), year: String(data.year || "").slice(0, 4),
+          abstract: String(data.abstract || "").slice(0, 5000) });
+        log("reading.add", title || known.title); save();
+        return base.id;
+      },
+      async update(id, patch) {
+        const me = requireUser();
+        const x = (db.reading[me.id] || []).find(y => (y.id || "rd_" + y.paperId) === id); if (!x) throw new Error("reading.missing");
+        x.id ||= id;
+        if ("status" in patch && ["todo", "reading", "read"].includes(patch.status) && patch.status !== x.status) {
+          x.status = patch.status;
+          if (patch.status === "reading") x.startedAt ||= now();
+          if (patch.status === "read") { x.startedAt ||= now(); x.readAt = now(); }
+          if (patch.status === "todo") { delete x.startedAt; delete x.readAt; }
+        }
+        if ("note" in patch) x.note = String(patch.note || "").slice(0, 2000);
+        if ("files" in patch) {
+          const next = cleanFiles(patch.files), keep = new Set(next.map(f => f.id));
+          await Promise.all((x.files || []).filter(f => !keep.has(f.id) && !fileInUse(f.id)).map(f => Store.files.remove(f.id).catch(() => {})));
+          x.files = next;
+        }
+        if (!x.paperId) ["title", "link", "authors", "venue", "year", "abstract"].forEach(k => { if (k in patch) x[k] = String(patch[k] || "").slice(0, k === "abstract" ? 5000 : 500); });
+        if ("title" in patch && !x.paperId) x.key = normTitle(x.title);
+        save();
+      },
+      async remove(id) {
+        const me = requireUser();
+        const l = db.reading[me.id] || [], i = l.findIndex(y => (y.id || "rd_" + y.paperId) === id); if (i < 0) return;
+        const [x] = l.splice(i, 1);
+        await Promise.all((x.files || []).filter(f => !fileInUse(f.id)).map(f => Store.files.remove(f.id).catch(() => {})));
+        save();
       },
     },
 
@@ -1094,7 +1158,7 @@
     return {
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
       clusters: SEED.clusters, terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
-      reading: db.reading, notifications: db.notifications, tagOps: db.tagOps, offDays: Object.values(db.offDays),
+      reading: Object.fromEntries(Object.keys(db.reading).map(u => [u, Store.reading.list(u)])), notifications: db.notifications, tagOps: db.tagOps, offDays: Object.values(db.offDays),
       // computed here so the MCP server never re-implements the duty rules (working days, holidays, start/end dates)
       duties: Object.fromEntries((db.terms || []).map(t => [t.id, Object.fromEntries(Object.keys(db.users).map(u => [u, Store.quota(u, t)]))])),
       holidays: [...new Set((db.terms || []).flatMap(t => [+t.start.slice(0, 4), +t.end.slice(0, 4)]))].flatMap(y => Store.calendar.holidays(y)),
@@ -1107,7 +1171,7 @@
   // and stores the result; a hosted DB would do the same in an RPC / edge function.
   const OPS = new Set(["draft", "comment", "reading.add", "study.question", "study.notesDraft",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
-    "offday.save", "offday.remove"]);
+    "offday.save", "offday.remove", "reading.update"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
@@ -1130,7 +1194,16 @@
         st.notesDraft = { conclusion: op.conclusion || "", open: op.open || "", next: op.next || "", by: op.actor, at: now() };
         (db.notifications[op.actor] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: op.actor, type: "studyNotesDraft", studyId: st.id, excerpt: st.title });
       }
-      if (op.op === "reading.add") { if (!Store.reading.has(op.paperId)) await Store.reading.toggle(op.paperId); }
+      if (op.op === "reading.add") {
+        if (op.paperId) { if (!Store.reading.has(op.paperId)) await Store.reading.toggle(op.paperId); }
+        else {  // a paper of their own: a link / DOI / arXiv id is looked up like in the write form
+          const meta = op.input ? await Store.lookup(op.input) : null;
+          if (op.input && !meta && /^https?:|^10\.\d/.test(op.input) && !op.title) throw new Error("lookup.failed");
+          await Store.reading.add({ ...(meta || {}), title: meta?.title || op.title || op.input, link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""),
+            note: op.note, status: op.status, source: "mcp" });
+        }
+      }
+      if (op.op === "reading.update") await Store.reading.update(op.itemId, op.patch || {});
       if (op.op === "tag.merge") await Store.tags.merge(op.from, op.into);
       if (op.op === "tag.rename") await Store.tags.rename(op.tagId, op.label, op.labelEn, op.color);
       if (op.op === "tag.create") await Store.tags.create({ axis: op.axis, label: op.label, labelEn: op.labelEn, color: op.color });

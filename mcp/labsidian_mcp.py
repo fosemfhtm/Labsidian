@@ -16,7 +16,7 @@ Backend contract — what a hosted DB version has to provide (the tools only use
   DB.apply(op)    one command {"op": <name>, "actor": <user id>, ...}; the backend applies it as that user and
                   enforces roles itself (here: POST /api/ops → site/store.js applyOp run headless; hosted: an RPC /
                   edge function that takes the actor from the login token instead of trusting "actor").
-  ops: draft · comment · reading.add · study.question · study.notesDraft
+  ops: draft · comment · reading.add · reading.update · study.question · study.notesDraft
        admin: tag.merge · tag.rename · tag.create · quota.set · term.save · user.role · user.disable
 Every command and its result is kept in the server's ops table (GET /api/ops, or SELECT * FROM ops).
 """
@@ -432,10 +432,51 @@ def add_comment(review_id: str, body: str, kind: str = "comment", reply_to: str 
 
 
 @mcp.tool()
-def add_to_reading_list(paper_ref: str) -> dict:
-    """Add a lab paper to my reading list."""
-    u, p = me(), paper(paper_ref)
-    return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "summary": p["title"][:60]}))
+def my_reading_list(status: str = "") -> list:
+    """My reading list: papers to read (todo), being read (reading), read but not written up (read), and ones I already
+    wrote a diary on (written). Each item has an id for update_reading_item, the paper's details and my note."""
+    u = me()
+    items = (DB.data().get("reading") or {}).get(u["id"]) or []
+    state = lambda x: "written" if x.get("written") else x.get("status", "todo")
+    if status and status not in ("todo", "reading", "read", "written"):
+        raise ToolError("status: todo | reading | read | written")
+    return [{"id": x["id"], "status": state(x), "title": x["title"], "authors": x.get("authors"), "venue": x.get("venue"), "year": x.get("year"),
+             "link": x.get("link"), "note": x.get("note"), "addedAt": x.get("addedAt"), "readAt": x.get("readAt"), "hasPdf": bool(x.get("files")),
+             "labPaper": x.get("paperId"), "readInLabBy": [_name(r) for r in x.get("readers") or []]}
+            for x in items if not status or state(x) == status]
+
+
+@mcp.tool()
+def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", note: str = "") -> dict:
+    """Add a paper to my reading list: a lab paper (paper_ref = id or title from search_papers), or any paper by link /
+    DOI / arXiv id (looked up for title, authors, abstract) or just its title. An optional note says why I want to read it."""
+    u = me()
+    if paper_ref:
+        p = paper(paper_ref)
+        return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "summary": p["title"][:60]}))
+    if not (link or title):
+        raise ToolError("give paper_ref, link or title")
+    try:
+        op = DB.apply({"op": "reading.add", "actor": u["id"], "input": (link or title).strip(), "title": title.strip(), "link": link.strip(),
+                       "note": note, "summary": (title or link)[:60]})
+    except ToolError as e:
+        if "lookup.failed" in str(e):
+            raise ToolError("couldn't find the paper behind that link — call again with its title as well")
+        raise
+    return _done(op, {"open": f"{SITE}/#/reading"})
+
+
+@mcp.tool()
+def update_reading_item(item_id: str, status: str = "", note: str | None = None) -> dict:
+    """Move a reading-list item (id from my_reading_list) to todo / reading / read, or replace its note.
+    To write it up, use create_draft with the paper's title and link."""
+    u = me()
+    if status and status not in ("todo", "reading", "read"):
+        raise ToolError("status: todo | reading | read")
+    patch = {**({"status": status} if status else {}), **({"note": note} if note is not None else {})}
+    if not patch:
+        raise ToolError("nothing to change")
+    return _done(DB.apply({"op": "reading.update", "actor": u["id"], "itemId": item_id, "patch": patch, "summary": f"{item_id} {patch}"}))
 
 
 
@@ -716,14 +757,13 @@ def admin_name_cluster(cluster_id: str, label_ko: str, label_en: str = "", keywo
 @mcp.tool()
 def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
     """[admin] Replace a paper's field/method tags (ids from list_tags, "d:…" and "m:…") when the keyword rules got
-    it wrong. Tags members put on their own reviews still add on top. Empty list = back to the automatic tags."""
+    it wrong. Fields are transport problems only — a general AI paper gets method tags and no field. Tags members put
+    on their own reviews still add on top. Empty list = back to the automatic tags."""
     u, d = require_admin(), DB.data()
     p = paper(paper_ref)
     bad = [t for t in tags if t not in d["T"] or d["T"][t]["axis"] not in ("domain", "method")]
     if bad:
         raise ToolError(f"not field/method tags: {bad} — use list_tags")
-    if tags and not any(t.startswith("d:") for t in tags):
-        raise ToolError("give at least one field tag (d:…)")
     return _done(DB.apply({"op": "paper.tags", "actor": u["id"], "paperId": p["id"], "tags": tags,
                            "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": brief(p)["title"]})
 

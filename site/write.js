@@ -19,7 +19,8 @@
       "w.content.ph": "Problem:\nMethod:\nResult:\nContribution:", "w.memo.ph": "한계, 가정, 내 연구와의 연결…",
       "w.memoHint": "2024년 5월부터 critic 있는 리뷰만 인정돼요", "w.tags": "태그", "w.tags.ph": "태그 검색 · Enter로 새 키워드 태그",
       "w.publish": "게시하기", "w.saveEdit": "수정 저장", "w.delete": "삭제", "w.discard": "새로 쓰기", "w.saved": "임시저장됨 {time}",
-      "w.restored": "임시저장된 글을 불러왔어요", "w.need.title": "논문 제목을 입력해주세요", "w.need.rating": "별점을 골라주세요",
+      "w.restored": "임시저장된 글을 불러왔어요", "w.fromReading": "읽을 목록에서 가져왔어요 — 논문 정보와 PDF가 채워져 있어요",
+      "w.already": "{date}에 이 논문 다이어리를 이미 썼어요.", "w.editMine": "그 다이어리 수정하기", "w.need.title": "논문 제목을 입력해주세요", "w.need.rating": "별점을 골라주세요",
       "w.need.body": "내용이나 Memo를 써주세요", "w.done": "게시했어요 ✓", "w.updated": "수정했어요 ✓", "w.deleted": "삭제했어요", "w.confirmDelete": "이 리뷰를 삭제할까요?",
       "w.dup": "이미 연구실에서 읽은 논문이에요", "w.dupBy": "{names} 님이 읽었어요", "w.dupOpen": "리뷰 보기",
       "w.suggest": "추천 태그", "w.suggestHint": "비슷한 논문들의 태그 + 키워드 규칙 (클릭해서 추가)", "w.similar": "비슷한 논문", "w.forbidden": "본인 리뷰만 수정할 수 있어요",
@@ -36,7 +37,8 @@
       "w.content.ph": "Problem:\nMethod:\nResult:\nContribution:", "w.memo.ph": "Limitations, assumptions, link to your research…",
       "w.memoHint": "Since May 2024 only reviews with a critique count", "w.tags": "Tags", "w.tags.ph": "Search tags · Enter adds a keyword tag",
       "w.publish": "Publish", "w.saveEdit": "Save changes", "w.delete": "Delete", "w.discard": "Start over", "w.saved": "Draft saved {time}",
-      "w.restored": "Restored your saved draft", "w.need.title": "Please enter the paper title", "w.need.rating": "Please pick a rating",
+      "w.restored": "Restored your saved draft", "w.fromReading": "From your reading list — the paper and its PDF are filled in",
+      "w.already": "You already wrote a diary on this paper ({date}).", "w.editMine": "Edit that one", "w.need.title": "Please enter the paper title", "w.need.rating": "Please pick a rating",
       "w.need.body": "Please write a summary or a memo", "w.done": "Published ✓", "w.updated": "Saved ✓", "w.deleted": "Deleted", "w.confirmDelete": "Delete this review?",
       "w.dup": "Someone in the lab already read this paper", "w.dupBy": "Read by {names}", "w.dupOpen": "See reviews",
       "w.suggest": "Suggested tags", "w.suggestHint": "From similar papers' tags + keyword rules (click to add)", "w.similar": "Similar papers", "w.forbidden": "You can only edit your own reviews",
@@ -50,7 +52,7 @@
   document.querySelector("main").appendChild(view);
 
   let files = [], addedNow = new Set(), study = null, pick = null, fromDraft = false, prePaper = null;
-  let form = null, tags = [], rating = 0, editing = null, mcpDraft = null, saveTimer = null, suggestTimer = null;
+  let form = null, tags = [], rating = 0, editing = null, mcpDraft = null, saveTimer = null, suggestTimer = null, fromReading = null;
 
   const field = (id, label, input) => `<label class="fld" for="${id}"><span>${label}</span>${input}</label>`;
 
@@ -64,6 +66,9 @@
     const studyPaper = pick ? S.studies.pickPaper(pick) : study ? S.studies.paperOf(study) : null;
     prePaper = params.get("paper") ? UI.PA[params.get("paper")] : editing ? UI.PA[editing.paper] : studyPaper;
     mcpDraft = params.get("mcp") ? S.drafts.mcp().find(d => d.id === params.get("mcp")) || null : null;
+    fromReading = !editing && !study && params.get("reading") ? S.reading.get(params.get("reading")) : null;  // #/reading → write it up
+    if (!prePaper && fromReading?.paperId) prePaper = UI.PA[fromReading.paperId];
+    const myOld = !editing && prePaper ? prePaper.reviews.map(id => UI.R[id]).find(r => r && r.person === me.id) : null;
     const term = S.terms.current();
     const mineInTerm = UI.R ? Object.values(UI.R).filter(r => r.person === me.id && r.date >= term.start && r.date <= term.end).length : 0;
 
@@ -76,6 +81,8 @@
           <div class="muted" id="w-fetch-status"></div>`}
           <p class="restored" id="w-restored" hidden>${t("w.restored")} <button type="button" class="link-btn" id="w-discard">${t("w.discard")}</button></p>
           ${mcpDraft ? `<p class="restored mcp">🤖 ${t("w.fromMcp")}</p>` : ""}
+          ${fromReading ? `<p class="restored">📚 ${t("w.fromReading")}</p>` : ""}
+          ${myOld ? `<p class="restored">${t("w.already", { date: esc(myOld.date) })} <a class="link-btn" href="#/write?review=${myOld.id}">${t("w.editMine")}</a></p>` : ""}
           ${study ? `<p class="restored study">${t(pick ? "w.forPick" : "w.forStudy", { title: esc(study.title) })}</p>` : ""}
           ${!editing && !mcpDraft && S.drafts.mcp().length ? `<p class="restored mcp">🤖 ${t("w.mcpWaiting", { n: S.drafts.mcp().length })}
             ${S.drafts.mcp().map(d => `<a class="link-btn" href="#/write?mcp=${d.id}">${esc(d.title || "(untitled)")}</a>`).join(" · ")}</p>` : ""}
@@ -126,13 +133,15 @@
       set("w-date", editing.date); set("w-content", editing.content); set("w-memo", editing.memo);
       rating = editing.rating; tags = [...(editing.tags || [])]; files = [...(editing.files || [])];
     } else {
-      set("w-date", S.today());
-      const d = S.drafts.get();
+      set("w-date", /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") || "") ? params.get("date") : S.today());  // from a calendar day
+      const d = fromReading ? null : S.drafts.get();
       if (mcpDraft) {
         ["title", "venue", "year", "link", "authors", "abstract", "date", "content", "memo"].forEach(k => set("w-" + k, mcpDraft[k]));
         rating = mcpDraft.rating || 0; tags = [...(mcpDraft.tags || [])];
         const known = S.findPaper(mcpDraft.title);
         if (known && !mcpDraft.venue) { set("w-venue", known.venueNorm || known.venue); set("w-authors", known.authors); set("w-link", known.link); }
+      } else if (fromReading && !prePaper) {
+        ["title", "venue", "year", "link", "authors", "abstract"].forEach(k => set("w-" + k, fromReading[k]));
       } else if (study && !prePaper) {
         set("w-title", pick ? pick.title : study.title); set("w-link", pick ? pick.link : study.link);
       } else if (prePaper) {
@@ -144,6 +153,7 @@
         $("#w-restored", view).hidden = false;
       }
     }
+    if (fromReading) files = [...fromReading.files];  // the PDF saved with it comes along
     paintStars(); paintTags(); paintFiles(); dateHint(); refreshSide();
     wire();
   }
@@ -228,7 +238,7 @@
 
   function changed() {
     clearTimeout(suggestTimer); suggestTimer = setTimeout(refreshSide, 350);
-    if (editing || mcpDraft || study || (prePaper && !fromDraft)) return;
+    if (editing || mcpDraft || study || fromReading || (prePaper && !fromDraft)) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const at = S.drafts.save(collect());

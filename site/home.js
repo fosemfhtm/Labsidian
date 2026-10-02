@@ -9,7 +9,7 @@
 
   I18N.extend({
     ko: {
-      "h.compose": "이번 주 논문 다이어리를 써볼까요?", "h.composeBtn": "✎ 다이어리 쓰기", "h.progress": "{term} · {n}/{target}편",
+      "h.compose": "이번 주 논문 다이어리를 써볼까요?", "h.reading": "읽는 중 {a}편 · 다 읽고 정리 전 {b}편", "h.composeBtn": "✎ 다이어리 쓰기", "h.progress": "{term} · {n}/{target}편",
       "h.progressExempt": "{term} · {n}편 (작성 의무 없음)", "h.weekDone": "이번 주 작성 ✓", "h.weekTodo": "이번 주 아직 안 썼어요",
       "h.tab.all": "전체", "h.tab.mine": "내 관심 분야", "h.tab.q": "질문", "h.tab.shared": "함께 읽은 논문",
       "h.posted": "{t} 게시", "h.alsoRead": "{names} 님도 읽은 논문",
@@ -20,7 +20,7 @@
       "h.nobodyYet": "아직 아무도 안 썼어요", "h.studyOpened": "{a} 님이 논문 스터디를 열었어요", "h.studies": "다가오는 스터디", "h.noStudies": "열린 스터디가 없어요", "h.openStudy": "스터디 열기", "h.resolved": "해결됨", "h.ago.now": "방금", "h.ago.m": "{n}분 전", "h.ago.h": "{n}시간 전", "h.ago.d": "{n}일 전",
     },
     en: {
-      "h.compose": "Write this week's paper diary?", "h.composeBtn": "✎ Write diary", "h.progress": "{term} · {n}/{target}",
+      "h.compose": "Write this week's paper diary?", "h.reading": "Reading {a} · read, not written up {b}", "h.composeBtn": "✎ Write diary", "h.progress": "{term} · {n}/{target}",
       "h.progressExempt": "{term} · {n} (no quota)", "h.weekDone": "This week done ✓", "h.weekTodo": "Nothing yet this week",
       "h.tab.all": "All", "h.tab.mine": "My fields", "h.tab.q": "Questions", "h.tab.shared": "Read together",
       "h.posted": "posted {t}", "h.alsoRead": "also read by {names}",
@@ -122,7 +122,9 @@
       <div class="card compose">
         <div class="compose-row">${UI.avatar(me.id, true)}<div><b>${t("h.compose")}</b>
           <div class="muted">${q.exempt ? t("h.progressExempt", { term: esc(term.label), n: inTerm }) : t("h.progress", { term: esc(term.label), n: inTerm, target: q.target })}
-            · <span class="${weekDone ? "wk-ok" : "wk-todo"}">${t(weekDone ? "h.weekDone" : "h.weekTodo")}</span></div></div></div>
+            · <span class="${weekDone ? "wk-ok" : "wk-todo"}">${t(weekDone ? "h.weekDone" : "h.weekTodo")}</span></div>
+          ${(() => { const rl = S.reading.list().filter(x => !x.written), a = rl.filter(x => x.status === "reading").length, b = rl.filter(x => x.status === "read").length;
+            return a || b ? `<a class="rl-home" href="#/reading">📚 ${t("h.reading", { a, b })}</a>` : ""; })()}</div></div>
         <a class="btn primary wide" href="#/write">${t("h.composeBtn")}</a>
       </div>
       <div class="card"><h4>${t("h.studies")}</h4>
