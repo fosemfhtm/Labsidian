@@ -30,12 +30,14 @@
   const empty = () => ({
     version: 1, users: {}, reviews: {}, reviewEdits: {}, comments: {}, reactions: {}, reading: {},
     notifications: {}, drafts: {}, tagOps: [], terms: null, log: [], seq: 1, studies: {}, studyQs: {},
+    paperTags: {}, clusterNames: {},  // admin corrections: a paper's domain/method tags · a map region's name
   });
   // Local server (scripts/serve.py): the source of truth is its SQLite file. The page loads it once, sends only the
   // records it changed, and picks up changes made elsewhere (MCP ops, other tabs). Static host (GitHub Pages) or the
   // headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
-  const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs"];
+  const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
+    "paperTags", "clusterNames"];
   const recordsOf = d => {
     const m = new Map();
     Object.entries(d).forEach(([k, v]) => {
@@ -277,6 +279,8 @@
       const papers = [], byKey = {}, byId = {}, fresh = [];
       ORIG.papers.forEach(p => {
         const q = { ...p, reviews: [], key: normTitle(p.title), free: [] };
+        const fix = db.paperTags[p.id];  // set by an admin (or their AI): replaces the keyword-rule tags
+        if (fix) Object.assign(q, { domains: fix.domains, methods: fix.methods, tagsFixed: true });
         papers.push(q); byKey[q.key] = q; byId[q.id] = q;
       });
       reviews.forEach(r => {
@@ -289,6 +293,8 @@
             p = { id: "np_" + key.slice(0, 40), key, title: m.title || "(untitled)", link: m.link || "", venue: m.venue || "", venueNorm: m.venue || "",
               venueType: /arxiv/i.test(m.venue || "") ? "preprint" : "", authors: m.authors || "", year: m.year ? +m.year : null, abstract: m.abstract || "",
               citations: null, refs: [], reviews: [], domains: [], methods: [], free: [], fresh: true };
+            const fix = db.paperTags[p.id];
+            if (fix) Object.assign(p, { domains: fix.domains, methods: fix.methods, tagsFixed: true });
             papers.push(p); byKey[key] = p; byId[p.id] = p; fresh.push(p);
           }
           r.paper = p.id;
@@ -362,6 +368,32 @@
       allPapers: full.live, allReviews,
       terms: sel.length ? sel : [...new Set(allReviews.map(r => r.term))].sort(),
       termDefs: db.terms, viewTerms: sel,
+    });
+    nameClusters();
+  }
+
+  // map regions get new ids every time the map is rebuilt, so a name is kept with the papers the region had when it
+  // was named; each current region takes the name whose papers it shares most (Jaccard >= 0.5, one name per region)
+  function clusterMembers() {
+    const m = {};
+    SEED.allPapers.forEach(p => { if (p.c) (m[p.c] ||= new Set()).add(p.id); if (p.f) (m[p.f] ||= new Set()).add(p.id); });
+    return m;
+  }
+  function nameClusters() {
+    const members = clusterMembers(), pairs = [];
+    (SEED.clusters || []).forEach(c => { delete c.custom; delete c.customKey; });
+    Object.entries(db.clusterNames).forEach(([key, n]) => (SEED.clusters || []).forEach(c => {
+      if (c.level !== n.level) return;
+      const cur = members[c.id] || new Set();
+      const shared = n.members.filter(id => cur.has(id)).length;
+      const j = shared / (cur.size + n.members.length - shared || 1);
+      if (j >= 0.5) pairs.push([j, key, c]);
+    }));
+    const usedKeys = new Set();
+    pairs.sort((a, b) => b[0] - a[0]).forEach(([, key, c]) => {
+      if (c.custom || usedKeys.has(key)) return;
+      usedKeys.add(key);
+      c.custom = { ko: db.clusterNames[key].ko, en: db.clusterNames[key].en }; c.customKey = key;
     });
   }
 
@@ -793,7 +825,7 @@
         return Object.entries(want).filter(([pid, us]) => us.size >= 2 && !open.has(pid) && SEED.allPapers.some(p => p.id === pid))
           .map(([pid, us]) => ({ paperId: pid, members: [...us] })).sort((a, b) => b.members.length - a.members.length).slice(0, limit);
       },
-      // D-1 / D-day reminder for the signed-in member, once per study date
+      // D-1 / D-day reminder for the signed-in member, once per study date (+ an admin's monthly tidy-up nudge)
       remind() {
         const me = current(); if (!me) return;
         const d0 = today(), d1 = (() => { const x = new Date(d0 + "T00:00:00"); x.setDate(x.getDate() + 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; })();
@@ -807,6 +839,13 @@
             type: (st.date === d0 ? "studyToday" : "studyTomorrow") + (todo ? "Todo" : ""), studyId: st.id, excerpt: st.title });
           changed = true;
         });
+        // admins: once a month, a nudge to tidy tags and map region names (by hand, or by asking their own AI)
+        const month = d0.slice(0, 7), u = db.users[me.id];
+        if (me.role === "admin" && u && u.curationReminded !== month) {
+          u.curationReminded = month;
+          (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: null, type: "curation" });
+          changed = true;
+        }
         if (changed) save();
       },
     },
@@ -982,12 +1021,12 @@
   // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
   // and stores the result; a hosted DB would do the same in an RPC / edge function.
   const OPS = new Set(["draft", "comment", "reading.add", "study.question", "study.notesDraft",
-    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"]);
+    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
-    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"];
+    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags"];
     if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
     try {
@@ -1015,18 +1054,37 @@
         if (op.op === "user.role") await Store.users.setRole(op.member, op.role === "admin" ? "admin" : "member");
         else await Store.users.setDisabled(op.member, !!op.disabled);
       }
+      if (op.op === "cluster.name") {
+        const c = (SEED.clusters || []).find(x => x.id === op.clusterId); if (!c) throw new Error("cluster.missing");
+        const ko = String(op.ko || "").trim().slice(0, 60), en = String(op.en || "").trim().slice(0, 60);
+        if (!ko && !en) { if (c.customKey) delete db.clusterNames[c.customKey]; }  // back to the automatic name
+        else db.clusterNames[c.customKey || uid("cn_")] = { level: c.level, ko: ko || en, en: en || ko,
+          members: [...(clusterMembers()[c.id] || [])], by: op.actor, at: now() };
+        log("cluster.name", `${c.id} → ${ko || en || "(auto)"}`); save(); buildDataset();
+      }
+      if (op.op === "paper.tags") {
+        const p = SEED.allPapers.find(x => x.id === op.paperId); if (!p) throw new Error("paper.missing");
+        const ids = (op.tags || []).map(cleanTag).filter(Boolean);
+        if (ids.some(t => !/^[dm]:/.test(t) || !SEED.topics.some(x => x.id === t))) throw new Error("tag.unknown");
+        if (!ids.length) delete db.paperTags[p.id];  // back to the keyword-rule tags
+        else db.paperTags[p.id] = { domains: ids.filter(t => t[0] === "d").map(t => t.slice(2)), methods: ids.filter(t => t[0] === "m").map(t => t.slice(2)),
+          by: op.actor, at: now() };
+        log("paper.tags", `${p.title.slice(0, 60)} → ${ids.join(", ") || "(auto)"}`); save(); buildDataset();
+      }
       log("mcp." + op.op, `${actor.name}: ${op.summary || ""}`);
     } finally { actingAs = null; }
   }
-  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"]);
+  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags"]);
   if (HEADLESS) { window.__LABSIDIAN_HEADLESS__({ applyOp, snapshot, db: () => db }); return; }
 
   // ---------------------------------------------------------------- server sync: changes made elsewhere (MCP, other tabs)
+  let misses = 0, ticks = 0;
   async function pull() {
     if (!server) return;
     await saving;
     let r;
-    try { r = await fetch(`/api/changes?since=${server.version}`, { cache: "no-store" }).then(x => x.json()); } catch (e) { return; }
+    try { r = await fetch(`/api/changes?since=${server.version}`, { cache: "no-store" }).then(x => x.json()); misses = 0; }
+    catch (e) { misses++; return; }  // server down: poll less and less often (up to once a minute) until it's back
     if (server.failed) save();  // the server is back: resend what didn't get stored
     if (r.version === server.version) return;
     const st = await fetch("/api/state", { cache: "no-store" }).then(x => x.json()).catch(() => null);
@@ -1035,11 +1093,15 @@
     if ([...recordsOf(db)].some(([k, v]) => server.synced.get(k) !== v)) return;  // local edits not sent yet → next round
     db = Object.assign(empty(), st.db);
     server.version = st.version; server.synced = recordsOf(db);
+    ensureSeed();  // the server's data may have been reset meanwhile
     buildDataset();
     const ops = (r.ops || []).filter(o => o.status === "ok");
     window.dispatchEvent(new CustomEvent("lab:mcp", { detail: { applied: ops.length, needsReload: ops.some(o => RELOADING.has(o.op)) } }));
   }
-  if (server) setInterval(() => { if (!document.hidden) pull(); }, 3000);
+  if (server) {
+    setInterval(() => { if (!document.hidden && ++ticks % Math.min(2 ** misses, 20) === 0) pull(); }, 3000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });  // back to this tab → catch up now
+  }
 
   // attachments that lived in this browser's IndexedDB move to the server together with the data
   if (migrateFiles) (async () => {

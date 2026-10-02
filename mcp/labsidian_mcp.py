@@ -166,6 +166,17 @@ def tag_label(tid):
     return f"{t['label']} / {t.get('labelEn', '')}" if t else tid
 
 
+def cluster_name(c, lang="ko"):
+    """what the site shows for a map region: an admin's name, else fine = top keywords, coarse = topic (+ keyword)"""
+    if not c:
+        return None
+    if c.get("custom"):
+        return c["custom"][lang]
+    if c["level"] == "f" and c.get("keywords"):
+        return " · ".join(c["keywords"][:2])
+    return c[lang]
+
+
 def paper_tags(p):
     return [f"d:{x}" for x in p.get("domains", [])] + [f"m:{x}" for x in p.get("methods", [])] + list(p.get("free", []))
 
@@ -261,7 +272,7 @@ def get_paper(paper_ref: str, include_comments: bool = True) -> dict:
                                 for c in d.get("comments", []) if c["reviewId"] == rid]
         reviews.append(item)
     return {**brief(p), "authors": p.get("authors"), "link": p.get("link"), "abstract": p.get("abstract"),
-            "cluster": (next((c for c in d.get("clusters", []) if c["id"] == p.get("c")), {}) or {}).get("ko"),
+            "cluster": cluster_name(next((c for c in d.get("clusters", []) if c["id"] == p.get("c")), None)),
             "similar": [brief(d["PA"][q]) for q, _ in p.get("nb", [])[:5] if q in d["PA"]], "reviews": reviews}
 
 
@@ -615,6 +626,54 @@ def admin_save_term(term_id: str, label: str, start: str, end: str, target: int)
     u = require_admin()
     date.fromisoformat(start), date.fromisoformat(end)
     return _done(DB.apply({"op": "term.save", "actor": u["id"], "term": {"id": term_id, "label": label, "start": start, "end": end, "target": int(target)}, "summary": term_id}))
+
+
+# ------------------------------------------------------------------ curation (an admin's AI tidies what rules can't)
+@mcp.tool()
+def admin_list_clusters(level: str = "c", parent: str = "", samples: int = 8) -> list:
+    """[admin] Regions of the paper map with their current name, the automatic name, keywords and sample paper titles —
+    to judge whether a name fits. level "c" = big topics, "f" = sub-topics (narrow with parent, e.g. "c3").
+    Region ids change when the map is rebuilt; names set with admin_name_cluster follow their papers."""
+    require_admin()
+    d = DB.data()
+    if level not in ("c", "f"):
+        raise ToolError('level must be "c" or "f"')
+    out = []
+    for c in d.get("clusters") or []:
+        if c["level"] != level or (parent and c.get("parent") != parent):
+            continue
+        mine = sorted((x for x in d["papers"] if x.get(level) == c["id"]), key=lambda x: (-len(x["reviews"]), -(x.get("rating") or 0)))
+        out.append({"id": c["id"], "parent": c.get("parent"), "papers": len(mine), "name": {"ko": cluster_name(c), "en": cluster_name(c, "en")},
+                    "namedByAdmin": bool(c.get("custom")), "automaticName": {"ko": c["ko"], "en": c["en"]}, "keywords": c.get("keywords"),
+                    "sampleTitles": [x["title"] for x in mine[:max(1, min(samples, 30))]]})
+    return out
+
+
+@mcp.tool()
+def admin_name_cluster(cluster_id: str, label_ko: str, label_en: str = "") -> dict:
+    """[admin] Name a map region (id from admin_list_clusters), e.g. "전기차 충전 인프라" / "EV charging infrastructure".
+    Both labels empty = back to the automatic name. The name stays with the region's papers across map rebuilds."""
+    u, d = require_admin(), DB.data()
+    c = next((x for x in d.get("clusters") or [] if x["id"] == cluster_id), None)
+    if not c:
+        raise ToolError(f"no region {cluster_id!r} — use admin_list_clusters")
+    return _done(DB.apply({"op": "cluster.name", "actor": u["id"], "clusterId": cluster_id, "ko": label_ko.strip(), "en": label_en.strip(),
+                           "summary": f"{cluster_id} → {label_ko or label_en or '(auto)'}"}))
+
+
+@mcp.tool()
+def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
+    """[admin] Replace a paper's field/method tags (ids from list_tags, "d:…" and "m:…") when the keyword rules got
+    it wrong. Tags members put on their own reviews still add on top. Empty list = back to the automatic tags."""
+    u, d = require_admin(), DB.data()
+    p = paper(paper_ref)
+    bad = [t for t in tags if t not in d["T"] or d["T"][t]["axis"] not in ("domain", "method")]
+    if bad:
+        raise ToolError(f"not field/method tags: {bad} — use list_tags")
+    if tags and not any(t.startswith("d:") for t in tags):
+        raise ToolError("give at least one field tag (d:…)")
+    return _done(DB.apply({"op": "paper.tags", "actor": u["id"], "paperId": p["id"], "tags": tags,
+                           "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": brief(p)["title"]})
 
 
 if __name__ == "__main__":

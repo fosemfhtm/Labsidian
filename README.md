@@ -132,11 +132,13 @@ env = { LABSIDIAN_USER = "한서윤" }
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 리뷰 비교, 질문 보드, 정리 노트) |
 | `add_study_question` `draft_study_notes` | 스터디 질문 올리기, 정리 노트 **초안** |
 | `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_merge_tags` `admin_rename_tag` `admin_create_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기 설정, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
+| `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름 짓기(지도를 다시 만들어도 그 논문들을 따라감), 규칙이 잘못 붙인 논문 분야·방법 태그 고치기 |
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
 - "이 PDF 읽고 다이어리 초안 만들어줘"
 - (관리자) "비슷한 태그 찾아서 병합 계획 보여주고, 내가 OK하면 병합해줘"
+- (관리자) "지도 영역 이름 중에 내용이랑 안 맞는 거 찾아서 새 이름 제안해줘" — 관리자에게는 매달 1일 사이트 알림으로 정리할 때라고 알려줘요
 
 > **지금은** 로컬 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). MCP는 서버 API로 읽고, 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려줘요. 모든 요청과 결과는 DB의 `ops` 테이블(또는 `GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요 — 8765 실제, 8766 데모. 공개 데모(GitHub Pages)에서는 동작하지 않아요.
 > 동작 확인(데모 서버 `python scripts/serve.py 8766 --demo`): `python mcp/smoke_test.py 한서윤`

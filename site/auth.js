@@ -14,6 +14,7 @@
       "a.demoAdmin": "관리자", "a.orPw": "이름·비밀번호로 로그인",
       "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
       "n.title": "알림", "n.empty": "새 알림이 없어요", "n.readAll": "모두 읽음",
+      "n.curation": "이번 달 태그·지도 정리할 때예요 — 비슷한 태그 합치기, 지도 영역 이름 확인 (내 AI에게 시켜도 돼요)",
       "n.comment": "{a}님이 내 리뷰에 댓글을 남겼어요", "n.question": "{a}님이 내 리뷰에 질문했어요", "n.idea": "{a}님이 내 리뷰에 아이디어를 남겼어요",
       "n.reply": "{a}님이 내 댓글에 답글을 남겼어요", "n.mention": "{a}님이 나를 언급했어요", "n.like": "{a}님이 내 리뷰를 좋아해요",
       "n.want": "{a}님이 내 리뷰를 보고 읽을 목록에 담았어요", "n.sameRead": "{a}님도 내가 읽은 논문을 읽었어요",
@@ -34,6 +35,7 @@
       "a.demoAdmin": "Admin", "a.orPw": "Sign in with name & password",
       "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
       "n.title": "Notifications", "n.empty": "No new notifications", "n.readAll": "Mark all read",
+      "n.curation": "Time for this month's tidy-up — merge similar tags, check the map's region names (or ask your AI)",
       "n.comment": "{a} commented on your review", "n.question": "{a} asked a question on your review", "n.idea": "{a} left an idea on your review",
       "n.reply": "{a} replied to your comment", "n.mention": "{a} mentioned you", "n.like": "{a} liked your review",
       "n.want": "{a} added a paper from your review to their reading list", "n.sameRead": "{a} also read a paper you reviewed",
@@ -219,7 +221,7 @@
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="link-btn" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
       (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-type="${n.type}">
-        ${UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
+        ${n.type === "curation" ? `<span class="avatar" style="background:rgb(var(--indigo));color:#fff">🧹</span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="empty">${t("n.empty")}</div>`);
   }
@@ -232,6 +234,7 @@
   }
   // where a notification leads (used by the bell and the my-page inbox)
   function openNotif(d) {
+    if (d.type === "curation") { location.hash = "#/admin?tab=tags"; return; }
     if (d.draft) { location.hash = "#/write?mcp=" + d.draft; return; }
     if (d.study) {
       const tab = { studyClosed: "notes", studyNotesDraft: "notes", studyQuestion: "prep" }[d.type];

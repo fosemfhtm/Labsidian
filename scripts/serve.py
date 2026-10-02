@@ -42,7 +42,8 @@ DB_PATH = DATA / "labsidian.db"
 LEGACY = DATA / "live_snapshot.json"  # left by the old localStorage bridge → that browser still has data to move over
 MAX_BODY, MAX_FILE = 50 * 1024 * 1024, 25 * 1024 * 1024
 # must match COLLS in site/store.js: each entry of these is its own record, every other top-level key is one "_meta" record
-COLLS = ("users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs")
+COLLS = ("users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
+         "paperTags", "clusterNames")
 CONTENT = tuple(c for c in COLLS if c != "users")
 
 

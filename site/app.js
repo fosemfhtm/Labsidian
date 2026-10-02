@@ -11,7 +11,8 @@
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const initial = name => /^[A-Za-z]/.test(name) ? name[0].toUpperCase() : name.slice(-2);
   const tl = x => (lang === "en" ? x.labelEn : x.label) || x.label;
-  const clusterName = c => c ? (c.level === "f" && c.keywords?.length ? c.keywords.slice(0, 2).join(" · ") : (lang === "en" ? c.en : c.ko)) : "";
+  const clusterName = c => !c ? "" : c.custom ? (lang === "en" ? c.custom.en : c.custom.ko)  // named by an admin
+    : c.level === "f" && c.keywords?.length ? c.keywords.slice(0, 2).join(" · ") : (lang === "en" ? c.en : c.ko);
   const topicIds = p => [...p.domains.map(d => "d:" + d), ...p.methods.map(m => "m:" + m)];
 
   const paperTopicCount = {};
