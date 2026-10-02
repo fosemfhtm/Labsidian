@@ -1,0 +1,641 @@
+{
+ "studies": [
+  {
+   "paper": "LLGformer: Learnable Long-range Graph Transformer for Traffic Flow Prediction",
+   "host": "hsy",
+   "presenter": "cmj",
+   "dayOffset": -52,
+   "time": "15:00",
+   "place": "7층 회의실",
+   "desc": "LLGformer 같이 읽어요. 최민재 발표로 learnable long-range graph 구조랑 attention 부분 위주로 보고, 각자 자기 data(승하차, trajectory, 철도 로그)에 붙일 수 있을지 얘기해봐요.",
+   "members": [
+    "hsy",
+    "cmj",
+    "prr",
+    "kdy",
+    "itk",
+    "yhn"
+   ],
+   "blind": false,
+   "bring": false,
+   "closed": true,
+   "picks": [],
+   "questions": [
+    {
+     "author": "kdy",
+     "body": "Which history span counts as 'long-range' here: a full week, several weeks? And is there a comparison against simply feeding a longer window to a plain Transformer, so we can tell whether the learnable graph or the longer history carries the gain?",
+     "votes": [
+      "prr",
+      "hsy",
+      "itk"
+     ],
+     "done": true
+    },
+    {
+     "author": "prr",
+     "body": "The graph links different time slices and locations directly, so I assume attention cost grows with locations x slices. How much do the two optimization strategies actually bring training and inference cost back down?",
+     "votes": [
+      "kdy",
+      "cmj",
+      "hsy",
+      "yhn"
+     ],
+     "done": true
+    },
+    {
+     "author": "hsy",
+     "body": "실험 4개 dataset이 모두 도로 traffic flow인데, 승하차 같은 transit data처럼 요일 주기가 더 강한 data에서는 long-range가 더 잘 먹힐까요?",
+     "votes": [
+      "cmj",
+      "itk",
+      "yhn"
+     ],
+     "done": true
+    },
+    {
+     "author": "itk",
+     "body": "Manual graph 대신 learnable graph를 쓴 게 성능 향상에 얼마나 기여하는지 ablation으로 따로 보여주나요? Social-STGCNN 같은 fixed adjacency랑 직접 비교가 있는지 궁금해요.",
+     "votes": [
+      "cmj",
+      "kdy"
+     ],
+     "done": true
+    }
+   ],
+   "notes": {
+    "by": "hsy",
+    "conclusion": "- 핵심은 두 가지: (1) 짧은 window 대신 long-range history로 periodicity를 입력 단계에서 다루고, (2) 수작업 graph 대신 learnable spatio-temporal graph 위에서 attention을 돌린다는 점.\n- time slice와 location이 한 graph에서 직접 interact한다는 설계는 모두 흥미롭다고 봄. 특히 요일 주기가 강한 transit 승하차 data에 잘 맞을 것 같다는 의견이 많았음.\n- 다만 'SOTA를 크게 앞선다'는 보고가 long history 덕인지 learnable graph 덕인지는 ablation 표를 더 확인해야 판단 가능.\n- optimization strategy 두 개는 부가 요소가 아니라 long-range를 실용적으로 쓰기 위한 전제에 가깝다는 게 중론.",
+    "open": "- 입력이 길어질 때 memory/계산량이 dataset 규모(노드 수)에 따라 어떻게 커지는지 정량적으로 확인 못 함.\n- 센서 count가 아닌 개인 trajectory나 sparse한 data에서도 learnable graph가 안정적으로 학습되는지.\n- 철도 delay처럼 방향성이 있는 data에 같은 구조를 쓸 수 있는지.",
+    "next": "- 다음 스터디는 LLM 기반 personal mobility generation 논문(Large Language Models as Urban Residents)으로 하고, 각자 관련 논문 하나씩 가져오기.\n- 민재가 LLGformer ablation 표 정리해서 위키에 올리기."
+   }
+  },
+  {
+   "paper": "Large Language Models as Urban Residents: An LLM Agent Framework for Personal Mobility Generation",
+   "host": "prr",
+   "presenter": "itk",
+   "dayOffset": -19,
+   "time": "17:00",
+   "place": "Zoom",
+   "desc": "Let's read the LLM agent framework for personal mobility generation together. Taegyeong presents; everyone brings one related paper (LLM agents, mobility generation or evaluation) so we can compare how each one checks realism.",
+   "members": [
+    "itk",
+    "prr",
+    "yhn",
+    "cmj",
+    "hsy",
+    "lkb"
+   ],
+   "blind": false,
+   "bring": true,
+   "closed": true,
+   "picks": [
+    {
+     "uid": "itk",
+     "paper": "When Plausible Is Not Realistic: Evaluating Human Mobility in LLM-Based Urban Simulation",
+     "why": "LLM agent가 만든 이동이 얼마나 현실적인지 검증하는 framework라서 가져왔어요. 이 논문 평가 방식이랑 같이 비교해보면 좋을 것 같아요."
+    },
+    {
+     "uid": "prr",
+     "paper": "MobilityGPT: Enhanced Human Mobility Modeling with a GPT model",
+     "why": "Another way to generate trajectories, with a GPT trained on real data. Useful to compare against the agent approach on trip length and radius distributions."
+    },
+    {
+     "uid": "cmj",
+     "paper": "Social-Implicit: Rethinking Trajectory Prediction Evaluation and The Effectiveness of Implicit Maximum Likelihood Estimation",
+     "why": "생성 모델 평가를 Best-of-N ADE/FDE로만 하는 게 맞냐는 얘기라서 가져옴. 생성된 activity나 trajectory 평가에도 spread를 같이 봐야 한다는 관점이 겹침."
+    },
+    {
+     "uid": "lkb",
+     "paper": "LLMLight: Large language models as traffic signal control agents",
+     "why": "LLM as decision agent, but on a real control task. Latency and cost questions are the same."
+    }
+   ],
+   "questions": [
+    {
+     "author": "cmj",
+     "body": "Self-consistency로 LLM을 real activity data에 align한다고 하는데, 개인 단위로 맞추는 건가요 아니면 population 단위 분포를 맞추는 건가요?",
+     "votes": [
+      "hsy",
+      "yhn",
+      "prr"
+     ],
+     "done": true
+    },
+    {
+     "author": "yhn",
+     "body": "Retrieval-augmented 전략이 interpretable하다는 근거는 뭔가요? 관측이 없는 새로운 유형의 거주자에게도 같은 방식이 통할지 궁금해요.",
+     "votes": [
+      "itk",
+      "cmj"
+     ],
+     "done": true
+    },
+    {
+     "author": "prr",
+     "body": "LLM generation is slow and costly. How would this scale to a whole city's population, and is there a cheaper way to reuse the generated activity patterns?",
+     "votes": [
+      "lkb",
+      "hsy",
+      "itk",
+      "yhn"
+     ],
+     "done": true
+    },
+    {
+     "author": "lkb",
+     "body": "Which baselines? Does it beat a plain frequency or Markov activity generator by a margin worth the cost?",
+     "votes": [
+      "prr",
+      "cmj"
+     ],
+     "done": true
+    }
+   ],
+   "notes": {
+    "by": "prr",
+    "conclusion": "- The paper is best read as a pipeline: individual activity patterns and motivations go in, a self-consistency step aligns the LLM with real activity data, and retrieval makes the generated activities explainable.\n- The group agreed the semantic side is the real gain over earlier generators; processing semantic data and handling several tasks in one model is hard to get otherwise.\n- Comparing with the paper Taegyeong brought showed that plausible-sounding activity chains do not guarantee realistic trip length, OD flow or dwell time.\n- Cost was the main practical worry: nobody saw a path to a full city population with per-agent LLM calls.",
+    "open": "- Is self-consistency alignment per person or per population, and how much real activity data does it need?\n- How does it compare with a simple frequency or Markov baseline on distribution-level metrics?\n- Can retrieved evidence stay interpretable for residents unlike anyone in the data?",
+    "next": "- Taegyeong tries the trip length / OD flow / dwell time checks on a small agent set and reports back.\n- Next paper: the forward-looking dispatching strategy for dynamic ride-pooling (Haneul hosts)."
+   }
+  },
+  {
+   "paper": "A Prediction-Based Forward-Looking Vehicle Dispatching Strategy for Dynamic Ride-Pooling",
+   "host": "yhn",
+   "presenter": "itk",
+   "dayOffset": 6,
+   "time": "16:00",
+   "place": "세미나실 B",
+   "desc": "ride-pooling dispatching 논문 같이 읽어요. 이번엔 blind로 진행하니까 스터디 전에 각자 diary 먼저 쓰고, 그다음에 다른 사람 리뷰를 열어보기로 해요. 태경이 발표 맡아줘요.",
+   "members": [
+    "yhn",
+    "itk",
+    "pjh",
+    "prr",
+    "ana",
+    "hsy"
+   ],
+   "blind": true,
+   "bring": false,
+   "closed": false,
+   "picks": [],
+   "questions": [
+    {
+     "author": "itk",
+     "body": "'다음 round까지 기다리게 한다'는 옵션이 핵심인데, 승객이 이탈하거나 취소하는 걸 넣으면 distance saving 31%가 얼마나 줄어들까요?",
+     "votes": [
+      "yhn",
+      "pjh",
+      "hsy",
+      "ana"
+     ],
+     "done": false
+    },
+    {
+     "author": "yhn",
+     "body": "미래 주문이 가져올 expected distance saving을 예측해서 쓰는데, 이 예측이 틀릴 때 matching 성능이 얼마나 흔들리는지 sensitivity 분석이 있나요?",
+     "votes": [
+      "itk",
+      "prr"
+     ],
+     "done": false
+    },
+    {
+     "author": "prr",
+     "body": "The experiments use open trip data from Haikou. How much of the gain depends on that city's demand density, and would the forward-looking idea still pay off in a sparser city or at off-peak hours?",
+     "votes": [
+      "ana",
+      "hsy",
+      "yhn"
+     ],
+     "done": false
+    },
+    {
+     "author": "pjh",
+     "body": "baseline이 어떤 dispatching 전략들인지, 그리고 simulation에서 차량 대수와 수요 규모를 어떻게 잡았는지 궁금합니다.",
+     "votes": [
+      "itk"
+     ],
+     "done": false
+    }
+   ],
+   "notes": null
+  },
+  {
+   "paper": "Near time-optimal trajectory optimisation for drones in last-mile delivery using spatial reformulation approach",
+   "host": "ana",
+   "presenter": "pjh",
+   "dayOffset": 13,
+   "time": "14:00",
+   "place": "세미나실 A",
+   "desc": "Drone trajectory paper for last-mile delivery: three-stage method (spatial reformulation, flight corridor, NMPC). Jiho presents. Please bring one related paper on drone delivery or UAM planning.",
+   "members": [
+    "ana",
+    "pjh",
+    "osr",
+    "yhn",
+    "kdy"
+   ],
+   "blind": false,
+   "bring": true,
+   "closed": false,
+   "picks": [
+    {
+     "uid": "ana",
+     "paper": "Certified Learning-Enabled Noise-Aware Motion Planning for Urban Air Mobility",
+     "why": "Also a motion-planning paper, but constraint is community noise, not flight time. Would be interesting to see if the spatial reformulation could take a noise constraint."
+    },
+    {
+     "uid": "pjh",
+     "paper": "Same-Day Delivery with Drone Resupply",
+     "why": "드론 trajectory가 실제 배송 운영에서 어떤 의미인지 보려고 가져왔습니다. truck 정차 위치와 drone 착륙 조건 쪽 질문이 이 논문이랑 이어질 것 같습니다."
+    }
+   ],
+   "questions": [
+    {
+     "author": "osr",
+     "body": "true time-optimal 해를 푸는 데 걸리는 시간이 실제 배송 운영의 replanning 주기에서 문제가 될 정도인가요? 3.10%를 감수하고 92.5%를 줄이는 게 의미 있는 구간이 궁금해요.",
+     "votes": [
+      "pjh",
+      "yhn"
+     ],
+     "done": false
+    }
+   ],
+   "notes": null
+  }
+ ],
+ "comments": [
+  {
+   "key": "c1",
+   "review": {
+    "author": "hsy",
+    "paper": "Embracing Large Language Models in Traffic Flow Forecasting"
+   },
+   "author": "prr",
+   "kind": "question",
+   "body": "Using the LLM as a selector between the two branches is a neat idea. Do you know if they report how often it actually picks the better branch compared with a random pick? @한서윤",
+   "parent": null,
+   "dayOffset": -36
+  },
+  {
+   "key": "c2",
+   "review": {
+    "author": "hsy",
+    "paper": "Embracing Large Language Models in Traffic Flow Forecasting"
+   },
+   "author": "hsy",
+   "kind": "comment",
+   "body": "내가 읽은 범위에선 selector 정확도만 따로 분석한 부분은 못 찾았어요. ranking loss로 두 branch를 다시 학습시키는 게 그걸 보완하려는 것 같긴 한데 확실하진 않아요. 다시 읽고 알려줄게요!",
+   "parent": "c1",
+   "dayOffset": -35
+  },
+  {
+   "key": "c3",
+   "review": {
+    "author": "pjh",
+    "paper": "Near time-optimal trajectory optimisation for drones in last-mile delivery using spatial reformulation approach"
+   },
+   "author": "ana",
+   "kind": "comment",
+   "body": "The abstract states 3.10% longer flight time for 92.5% less computation, so the trade-off is stated clearly. I could not tell from it whether wind or other disturbances are in the real-world urban case either.",
+   "parent": null,
+   "dayOffset": -31
+  },
+  {
+   "key": "c4",
+   "review": {
+    "author": "pjh",
+    "paper": "Near time-optimal trajectory optimisation for drones in last-mile delivery using spatial reformulation approach"
+   },
+   "author": "pjh",
+   "kind": "comment",
+   "body": "ana님 말씀대로 3.10%/92.5%가 핵심이긴 한데, 외란 없이 돌린 결과면 실제 도시에서 같은 수치가 나올지는 모르겠습니다. 실험 부분은 스터디 전에 다시 확인해보겠습니다.",
+   "parent": "c3",
+   "dayOffset": -30
+  },
+  {
+   "key": "c5",
+   "review": {
+    "author": "yhn",
+    "paper": "A Prediction-Based Forward-Looking Vehicle Dispatching Strategy for Dynamic Ride-Pooling"
+   },
+   "author": "itk",
+   "kind": "comment",
+   "body": "승객을 다음 round로 미룬다는 게 좋아 보였는데, 하늘님 말대로 취소나 이탈이 생기면 얘기가 달라지겠네요. 저는 대기 수용도를 아예 변수로 넣으면 재밌겠다고 생각했어요!",
+   "parent": null,
+   "dayOffset": -27
+  },
+  {
+   "key": "c6",
+   "review": {
+    "author": "kdy",
+    "paper": "Operation design of last-mile transit service with modular vehicles"
+   },
+   "author": "hsy",
+   "kind": "question",
+   "body": "@강도윤 'significantly reducing total costs'에 숫자가 없다는 부분 저도 못 봤어요. SAC 학습에 수요 시나리오를 몇 개 썼는지는 혹시 보셨어요?",
+   "parent": null,
+   "dayOffset": -24
+  },
+  {
+   "key": "c7",
+   "review": {
+    "author": "kdy",
+    "paper": "Operation design of last-mile transit service with modular vehicles"
+   },
+   "author": "kdy",
+   "kind": "comment",
+   "body": "I did not see the number of training scenarios in the part I read. Because the SAC agent only makes the initial dispatching decision and the optimization model fills in the rest, I suspect much of the cost saving comes from that second stage, not from the policy.",
+   "parent": "c6",
+   "dayOffset": -23
+  },
+  {
+   "key": "c8",
+   "review": {
+    "author": "lkb",
+    "paper": "A Combinatorial Approach for Nonparametric Short-Term Estimation of Queue Lengths using Probe Vehicles"
+   },
+   "author": "prr",
+   "kind": "question",
+   "body": "Parameter-free sounds great for sparse data. Lukas, what penetration rate did you consider 'low' here? My phone GPS data is also very sparse, so I'm curious whether the idea carries over.",
+   "parent": null,
+   "dayOffset": -21
+  },
+  {
+   "key": "c9",
+   "review": {
+    "author": "lkb",
+    "paper": "A Combinatorial Approach for Nonparametric Short-Term Estimation of Queue Lengths using Probe Vehicles"
+   },
+   "author": "lkb",
+   "kind": "comment",
+   "body": "No fixed threshold in my notes. Depends on probe count per cycle, not a rate. Oversaturated cycles still unchecked.",
+   "parent": "c8",
+   "dayOffset": -20
+  },
+  {
+   "key": "c10",
+   "review": {
+    "author": "osr",
+    "paper": "Strategizing Equitable Transit Evacuations: A Data-Driven Reinforcement Learning Approach"
+   },
+   "author": "yhn",
+   "kind": "question",
+   "body": "형평성을 reward에 넣은 부분이 흥미로워요. 어떤 지표로 equity를 정의했는지 기억나세요? 공유 모빌리티 형평성 연구랑 비교해보고 싶어서요.",
+   "parent": null,
+   "dayOffset": -17
+  },
+  {
+   "key": "c11",
+   "review": {
+    "author": "prr",
+    "paper": "Trajectory Test-Train Overlap in Next-Location Prediction Datasets"
+   },
+   "author": "kdy",
+   "kind": "comment",
+   "body": "Same problem exists in delay prediction. Random splits across days leak the same disruption pattern into the test set. Thanks for the pointer, I will recheck how my splits were made.",
+   "parent": null,
+   "dayOffset": -14
+  },
+  {
+   "key": "c12",
+   "review": {
+    "author": "cmj",
+    "paper": "Spatiotemporal Forecasting of Incidents and Congestion with Implications for Sustainable Traffic Control"
+   },
+   "author": "prr",
+   "kind": "idea",
+   "body": "Your point about building pedestrian crash scenarios in SUMO made me wonder: could the same controlled-anomaly setup be used to stress-test next-location models under disruptions, with a matched baseline run?",
+   "parent": null,
+   "dayOffset": -12
+  },
+  {
+   "key": "c13",
+   "review": {
+    "author": "cmj",
+    "paper": "Spatiotemporal Forecasting of Incidents and Congestion with Implications for Sustainable Traffic Control"
+   },
+   "author": "cmj",
+   "kind": "comment",
+   "body": "Priya 아이디어 좋은데 mobility 쪽은 incident 이후 ground truth를 어떻게 만들지가 문제일 듯. synthetic agent trajectory에 incident를 주고 baseline run이랑 diff를 보는 식이면 가능할 것 같아요, 같이 얘기해봐요.",
+   "parent": "c12",
+   "dayOffset": -11
+  },
+  {
+   "key": "c14",
+   "review": {
+    "author": "itk",
+    "paper": "When Plausible Is Not Realistic: Evaluating Human Mobility in LLM-Based Urban Simulation"
+   },
+   "author": "cmj",
+   "kind": "idea",
+   "body": "@임태경 지표는 trip length 분포 -> OD flow -> dwell time 순으로 먼저 붙여보는 건 어때? Social-Implicit 때처럼 평가 metric을 먼저 정해두면 나중에 모델 바꿔도 비교가 돼서 편해.",
+   "parent": null,
+   "dayOffset": -9
+  },
+  {
+   "key": "c15",
+   "review": {
+    "author": "pjh",
+    "paper": "Same-Day Delivery with Drone Resupply"
+   },
+   "author": "ana",
+   "kind": "idea",
+   "body": "For the truck-stop and landing feasibility doubt: the vertiport coverage models I read for UAV planning could help screen candidate stop locations by whether a safe landing spot exists nearby.",
+   "parent": null,
+   "dayOffset": -7
+  },
+  {
+   "key": "c16",
+   "review": {
+    "author": "prr",
+    "paper": "MobilityGPT: Enhanced Human Mobility Modeling with a GPT model"
+   },
+   "author": "itk",
+   "kind": "question",
+   "body": "Priya님, free-space GPS에서 안 되는 이유가 road connectivity matrix가 핵심 ingredient라서 맞죠? 격자 단위 connectivity로 바꾸면 비슷하게 될 수도 있을까요?",
+   "parent": null,
+   "dayOffset": -5
+  }
+ ],
+ "reactions": [
+  {
+   "review": {
+    "author": "prr",
+    "paper": "Trajectory Test-Train Overlap in Next-Location Prediction Datasets"
+   },
+   "like": [
+    "kdy",
+    "hsy",
+    "cmj"
+   ],
+   "want": [
+    "cmj",
+    "lkb",
+    "itk"
+   ]
+  },
+  {
+   "review": {
+    "author": "osr",
+    "paper": "Resilient by Design: Simulating Street Network Disruptions across Every Urban Area in the World"
+   },
+   "like": [
+    "yhn",
+    "pjh"
+   ],
+   "want": [
+    "kdy",
+    "hsy",
+    "lkb"
+   ]
+  },
+  {
+   "review": {
+    "author": "itk",
+    "paper": "When Plausible Is Not Realistic: Evaluating Human Mobility in LLM-Based Urban Simulation"
+   },
+   "like": [
+    "prr",
+    "cmj",
+    "lkb"
+   ],
+   "want": [
+    "yhn"
+   ]
+  },
+  {
+   "review": {
+    "author": "cmj",
+    "paper": "From Goals, Waypoints & Paths To Long Term Human Trajectory Forecasting"
+   },
+   "like": [
+    "hsy",
+    "prr",
+    "itk"
+   ],
+   "want": [
+    "lkb"
+   ]
+  },
+  {
+   "review": {
+    "author": "kdy",
+    "paper": "Railway Network Delay Evolution: A Heterogeneous Graph Neural Network Approach"
+   },
+   "like": [
+    "hsy",
+    "osr"
+   ],
+   "want": [
+    "cmj"
+   ]
+  },
+  {
+   "review": {
+    "author": "lkb",
+    "paper": "A Combinatorial Approach for Nonparametric Short-Term Estimation of Queue Lengths using Probe Vehicles"
+   },
+   "like": [
+    "prr",
+    "kdy"
+   ],
+   "want": [
+    "prr"
+   ]
+  },
+  {
+   "review": {
+    "author": "prr",
+    "paper": "MobilityGPT: Enhanced Human Mobility Modeling with a GPT model"
+   },
+   "like": [
+    "itk",
+    "hsy",
+    "cmj"
+   ],
+   "want": [
+    "lkb"
+   ]
+  },
+  {
+   "review": {
+    "author": "pjh",
+    "paper": "Near time-optimal trajectory optimisation for drones in last-mile delivery using spatial reformulation approach"
+   },
+   "like": [
+    "ana",
+    "osr"
+   ],
+   "want": []
+  },
+  {
+   "review": {
+    "author": "ana",
+    "paper": "Optimal planning of urban air mobility systems accounting for ground access trips"
+   },
+   "like": [
+    "pjh",
+    "osr",
+    "yhn"
+   ],
+   "want": [
+    "hsy"
+   ]
+  },
+  {
+   "review": {
+    "author": "yhn",
+    "paper": "Enhancing Discrete Choice Models with Representation Learning"
+   },
+   "like": [
+    "itk",
+    "prr"
+   ],
+   "want": [
+    "prr"
+   ]
+  },
+  {
+   "review": {
+    "author": "cmj",
+    "paper": "Social-Implicit: Rethinking Trajectory Prediction Evaluation and The Effectiveness of Implicit Maximum Likelihood Estimation"
+   },
+   "like": [
+    "itk"
+   ],
+   "want": [
+    "hsy"
+   ]
+  }
+ ],
+ "reading": {
+  "hsy": [
+   "Resilient by Design: Simulating Street Network Disruptions across Every Urban Area in the World",
+   "Large Language Models are Zero-Shot Next Location Predictors",
+   "Taming the Long Tail in Human Mobility Prediction"
+  ],
+  "itk": [
+   "Trajectory Test-Train Overlap in Next-Location Prediction Datasets",
+   "Mobility-Embedded POIs: Learning What A Place Is and How It Is Used from Human Movement",
+   "Pretrained Mobility Transformer: A Foundation Model for Human Mobility"
+  ],
+  "cmj": [
+   "Trajectory Test-Train Overlap in Next-Location Prediction Datasets",
+   "Where Would I Go Next? Large Language Models as Human Mobility Predictors"
+  ],
+  "kdy": [
+   "Resilient by Design: Simulating Street Network Disruptions across Every Urban Area in the World",
+   "Assessing the Robustness and Resilience of U.S. Strategic Highways: A Network Science Perspective"
+  ],
+  "lkb": [
+   "Trajectory Test-Train Overlap in Next-Location Prediction Datasets",
+   "Resilient by Design: Simulating Street Network Disruptions across Every Urban Area in the World",
+   "MobilityGPT: Enhanced Human Mobility Modeling with a GPT model"
+  ],
+  "prr": [
+   "Valuing Time in Silicon: Can Large Language Models Replicate Human Value of Travel Time",
+   "Enhancing Discrete Choice Models with Representation Learning"
+  ]
+ }
+}

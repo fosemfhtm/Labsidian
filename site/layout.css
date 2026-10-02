@@ -1,0 +1,73 @@
+/* Desktop layout (> 760px; phones keep the two-row floating bar from apple.css).
+ *   bar     — CURRENT: thin translucent bar attached to the top (apple.com). Set on <html data-layout="bar"> in index.html.
+ *   sidebar — LEGACY / not reachable from the UI: Apple Music-web sidebar, kept for a later update
+ *             (switch by setting data-layout="sidebar"; menus already open beside it, see auth.js toggleMenu).
+ *   (no data-layout) — the older floating capsule from apple.css. */
+html:not([data-layout="sidebar"]) #nav .ic { display: none; }
+
+@media (min-width: 761px) {
+
+/* ================= bar: thin translucent bar attached to the top (apple.com) ================= */
+[data-layout="bar"] { --top-h: 52px; }
+[data-layout="bar"] .top {
+  inset: 0 0 auto 0; height: 52px; border-radius: 0; padding: 0 20px; gap: 16px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 .5px 0 var(--separator);
+}
+[data-layout="bar"] nav { background: none; padding: 0; gap: 0; }
+[data-layout="bar"] nav a { padding: 6px 12px; border-radius: 8px; opacity: 1; color: var(--label-2); }
+[data-layout="bar"] nav a:hover { background: var(--fill-4); color: var(--label); }
+[data-layout="bar"] nav a.on { background: none; box-shadow: none; color: var(--label); font-weight: 600; }
+[data-layout="bar"] #search { width: min(300px, 26vw); }
+[data-layout="bar"] .term-btn, [data-layout="bar"] .top .icon-btn.bell, [data-layout="bar"] .user-btn { background: none; }
+[data-layout="bar"] .term-btn:hover, [data-layout="bar"] .top .icon-btn.bell:hover, [data-layout="bar"] .user-btn:hover { background: var(--fill-4); }
+[data-layout="bar"] .top-right .btn.primary { background: var(--accent); box-shadow: none; }
+[data-layout="bar"] .drawer { top: calc(var(--top-h) + 10px); }
+[data-layout="bar"] .menu { top: calc(var(--top-h) + 6px); }
+
+/* ================= sidebar: Apple Music web ================= */
+[data-layout="sidebar"] { --side-w: 248px; --top-h: 12px; }
+[data-layout="sidebar"] .top {
+  inset: 0 auto 0 0; width: var(--side-w); height: auto; border-radius: 0;
+  flex-direction: column; align-items: stretch; gap: 4px; padding: 18px 12px 14px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: saturate(220%) blur(16px); backdrop-filter: saturate(220%) blur(16px);
+  box-shadow: .5px 0 0 var(--separator);
+  transition: width var(--dur) var(--ease);
+}
+[data-layout="sidebar"] .logo { padding: 2px 8px 12px; font-size: 18px; }
+[data-layout="sidebar"] #search { order: 1; width: 100%; margin: 0 0 8px; border-radius: 10px; }
+[data-layout="sidebar"] nav { order: 2; flex-direction: column; background: none; padding: 0; gap: 2px; }
+[data-layout="sidebar"] nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 14px; opacity: 1; color: var(--label); }
+[data-layout="sidebar"] #nav a .ic { display: inline-block; width: 18px; height: 18px; margin: 0; color: var(--accent); flex: none; }
+[data-layout="sidebar"] nav a:hover { background: var(--fill-4); }
+[data-layout="sidebar"] nav a.on { background: var(--fill-3); box-shadow: none; font-weight: 600; }
+[data-layout="sidebar"] .top-right { order: 3; margin-top: auto; display: grid; grid-template-columns: auto 1fr; gap: 8px; padding-top: 12px; border-top: .5px solid var(--separator); }
+[data-layout="sidebar"] .top-right .btn.primary { grid-column: 1 / -1; grid-row: 1; justify-content: center; min-height: 38px; border-radius: 10px; background: var(--accent); box-shadow: none; }
+[data-layout="sidebar"] .term-btn { grid-column: 1 / -1; justify-content: flex-start; border-radius: 10px; }
+[data-layout="sidebar"] .term-btn .caret { margin-left: auto; }
+[data-layout="sidebar"] .user-btn { justify-content: flex-start; border-radius: 10px; min-width: 0; }
+[data-layout="sidebar"] .user-btn .hide-sm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-layout="sidebar"] .top .icon-btn.bell { border-radius: 10px; }
+[data-layout="sidebar"] .lang { order: 4; align-self: flex-start; margin: 8px 0 0 2px; }
+[data-layout="sidebar"] main { padding-left: var(--side-w); transition: padding-left var(--dur) var(--ease); }
+[data-layout="sidebar"] .drawer { top: 12px; }
+[data-layout="sidebar"] .menu-notif { width: 380px; }
+
+/* graph needs the width: the sidebar collapses to icons there (HIG: collapse the sidebar when space is tight) */
+[data-layout="sidebar"] body:has(#view-graph.on) { --side-w: 68px; }
+[data-layout="sidebar"] body:has(#view-graph.on) .top { padding: 16px 10px 14px; align-items: center; }
+[data-layout="sidebar"] body:has(#view-graph.on) .logo { font-size: 0; gap: 0; padding: 2px 0 12px; }
+[data-layout="sidebar"] body:has(#view-graph.on) #search,
+[data-layout="sidebar"] body:has(#view-graph.on) .lang,
+[data-layout="sidebar"] body:has(#view-graph.on) nav a span,
+[data-layout="sidebar"] body:has(#view-graph.on) .top-right .hide-sm,
+[data-layout="sidebar"] body:has(#view-graph.on) .top-right .caret { display: none; }
+[data-layout="sidebar"] body:has(#view-graph.on) nav { align-self: stretch; }
+[data-layout="sidebar"] body:has(#view-graph.on) nav a { justify-content: center; padding: 10px 0; }
+[data-layout="sidebar"] body:has(#view-graph.on) .top-right { grid-template-columns: 1fr; justify-items: center; border-top: 0; }
+[data-layout="sidebar"] body:has(#view-graph.on) .top-right .btn.primary { width: 44px; min-height: 44px; padding: 0; border-radius: 50%; }
+[data-layout="sidebar"] body:has(#view-graph.on) .term-btn { width: 44px; padding: 0; justify-content: center; }
+[data-layout="sidebar"] body:has(#view-graph.on) .user-btn { padding: 3px; width: auto; }
+}

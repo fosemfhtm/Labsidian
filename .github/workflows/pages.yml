@@ -1,0 +1,39 @@
+# Publishes the fictional demo lab to GitHub Pages.
+# The real lab data (site/data.js) is never in the repo; the demo dataset takes its place in the deployed site.
+name: Deploy demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build demo site
+        run: |
+          mkdir _site
+          cp -r site/. _site/
+          rm -f _site/data.js
+          mv _site/data.demo.js _site/data.js
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,20 @@
+# ── Real lab data: names + full reviews. Stays on this machine, never on GitHub. ──
+# data/: only the fictional demo lab (data/demo/) is committed.
+data/*
+!data/demo/
+# demo work files (contain real reviews as style refs)
+data/demo/_work/
+# MCP bridge runtime files (rewritten by the open site / MCP server)
+data/demo/live_snapshot.json
+data/demo/mcp_outbox.json
+
+site/data.js
+vault/
+*.docx
+
+# demo video tooling + shots (recorded on the real lab data) — share inside the lab only
+video/
+
+__pycache__/
+.venv/
+.claude/settings.local.json
