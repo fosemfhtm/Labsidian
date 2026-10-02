@@ -20,6 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ROSTER = json.loads((ROOT / "data" / "roster.json").read_text(encoding="utf-8"))
 NAMES = [p["name"] for p in ROSTER]
+# typos / truncated name lines seen in the docx, e.g. {"name": "홍길동", "aliases": ["홍길"]} → whole-line match only
+ALIASES = {a: p["name"] for p in ROSTER for a in p.get("aliases", [])}
 
 DATE_RE = re.compile(r"^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})(?:~\d+)?일\s*(?:\((.*)\))?")
 FIELD_RE = re.compile(r"^(논문|Link|저널|저자|Rating|내용|Memo)\s*[:：]\s*(.*)$", re.I)
@@ -40,7 +42,7 @@ def docx_paragraphs(path):
 def find_name(line):
     """Return the last roster name appearing in a line (handles '홍길동1김철수')."""
     hits = [(line.rfind(n), n) for n in NAMES if n in line]
-    return max(hits)[1] if hits else None
+    return max(hits)[1] if hits else ALIASES.get(re.sub(r"[\d\s]+$", "", line))
 
 
 def parse(lines, term):

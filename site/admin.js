@@ -25,7 +25,7 @@
       "ad.dataNote": "지금은 데모 모드라 데이터가 이 브라우저에만 있어요. DB를 연결할 때 이 JSON으로 그대로 이관해요.",
       "ad.done": "적용했어요", "ad.when": "시각", "ad.who": "누가", "ad.what": "무엇을",
       "ad.duty": "작성 의무", "ad.dutyOn": "있음", "ad.dutyOff": "면제", "ad.rate": "작성률", "ad.term": "학기",
-      "ad.dutyHint": "시작일을 넣으면 그날부터 목표가 비례 계산돼요 (예: 9월 입학 신입생). 포닥 등은 '면제'. 목표 칸을 비우면 자동, 숫자를 넣으면 그 학기만 고정.",
+      "ad.dutyHint": "시작일·끝난 날을 넣으면 그 기간만큼 목표가 비례 계산돼요 (예: 9월 입학 신입생, 졸업·퇴소한 멤버). 포닥 등은 '면제'. 목표 칸을 비우면 자동, 숫자를 넣으면 그 학기만 고정.",
       "ad.mcpTip": "태그 정리·작성 의무 설정은 관리자 본인의 Claude/Codex에 Labsidian MCP를 연결해서 말로 시킬 수도 있어요 (README 참고).",
     },
     en: {
@@ -47,7 +47,7 @@
       "ad.dataNote": "Demo mode keeps data in this browser only. When the DB is connected, this JSON is migrated as-is.",
       "ad.done": "Applied", "ad.when": "When", "ad.who": "Who", "ad.what": "What",
       "ad.duty": "Diary duty", "ad.dutyOn": "Yes", "ad.dutyOff": "Exempt", "ad.rate": "Rate", "ad.term": "Term",
-      "ad.dutyHint": "A start date prorates the target from that day (e.g. a student joining in September). Postdocs etc. → Exempt. Leave target empty for automatic, or set a number for that term only.",
+      "ad.dutyHint": "Start / end dates prorate the target to that period (e.g. a student joining in September, a member who graduated or left). Postdocs etc. → Exempt. Leave target empty for automatic, or set a number for that term only.",
       "ad.mcpTip": "You can also ask your own Claude/Codex to clean up tags or set duties via the Labsidian MCP server (see README).",
     },
   });
@@ -77,7 +77,7 @@
     el.innerHTML = `<div class="card">
       <div class="row-between"><p class="hint">${t("ad.dutyHint")}</p>
         <label class="muted">${t("ad.term")} <select id="ad-mterm">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label></div>
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${t("ad.name")}</th><th>${t("ad.role")}</th><th>${t("ad.duty")}</th><th>${t("ad.start")}</th><th>${t("ad.target")}</th><th>${t("ad.rate")}</th><th>${t("ad.status")}</th><th></th></tr></thead><tbody>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${t("ad.name")}</th><th>${t("ad.role")}</th><th>${t("ad.duty")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th>${t("ad.rate")}</th><th>${t("ad.status")}</th><th></th></tr></thead><tbody>
       ${users.map(u => {
         const member = !!UI.P[u.id], full = S.users.get(u.id), q = member ? S.quota(u.id, term) : null, n = member ? written(u.id) : 0;
         const rate = q && !q.exempt && q.target ? Math.round(100 * n / q.target) : null;
@@ -86,6 +86,7 @@
         <td><select data-act="role"><option value="member" ${u.role === "member" ? "selected" : ""}>member</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>admin</option></select></td>
         <td>${member ? `<select data-f="exempt"><option value="0">${t("ad.dutyOn")}</option><option value="1" ${full.quota.exempt ? "selected" : ""}>${t("ad.dutyOff")}</option></select>` : "—"}</td>
         <td>${member ? `<input type="date" data-f="start" value="${full.quota.start || ""}">` : ""}</td>
+        <td>${member ? `<input type="date" data-f="end" value="${full.quota.end || ""}">` : ""}</td>
         <td>${member ? `<input type="number" min="0" data-f="target" style="width:70px" placeholder="${q.exempt ? "—" : q.auto ?? q.target}" value="${full.quota.targets?.[term.id] ?? ""}">` : ""}</td>
         <td class="nowrap">${member ? (q.exempt ? `<span class="muted">${n} · ${t("ad.dutyOff")}</span>` : `<b class="${rate >= 90 ? "ok" : rate >= 70 ? "" : "warn"}">${rate}%</b> <span class="muted">${n}/${q.target}</span>`) : ""}</td>
         <td>${u.disabled ? t("ad.disabled") : u.pending ? `<span class="pill warn">${t("ad.pending")}</span>` : t("ad.active")}</td>
@@ -104,7 +105,7 @@
       const tr = b.closest("tr"), id = tr?.dataset.id, f = k => tr.querySelector(`[data-f="${k}"]`)?.value;
       if (b.dataset.act === "role") b.onchange = async () => { await S.users.setRole(id, b.value); LabToast(t("ad.done")); };
       if (b.dataset.act === "quota") b.onclick = async () => {
-        await S.users.setQuota(id, { exempt: f("exempt") === "1", start: f("start") || null, targets: { [term.id]: f("target") === "" ? null : +f("target") } });
+        await S.users.setQuota(id, { exempt: f("exempt") === "1", start: f("start") || null, end: f("end") || null, targets: { [term.id]: f("target") === "" ? null : +f("target") } });
         LabToast(t("ad.done")); members(el);
       };
       if (b.dataset.act === "reset") b.onclick = async () => { const r = await S.users.resetPassword(id); showTemp(users.find(u => u.id === id).name, r.tempPassword); members(el); };

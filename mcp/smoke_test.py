@@ -1,6 +1,7 @@
 """Smoke test: start the MCP server over stdio like Claude/Codex would, list tools, call a few read tools.
 
-    .venv/Scripts/python mcp/smoke_test.py [user name]
+    .venv/Scripts/python mcp/smoke_test.py [user name]          (fake demo lab)
+    LABSIDIAN_DATA=data .venv/Scripts/python mcp/smoke_test.py <your name>   (real lab data, read-only calls + one rejected write)
 """
 import asyncio
 import json
@@ -15,7 +16,9 @@ SERVER = Path(__file__).with_name("labsidian_mcp.py")
 
 
 async def main():
-    env = {**os.environ, "LABSIDIAN_USER": sys.argv[1] if len(sys.argv) > 1 else "한서윤", "PYTHONIOENCODING": "utf-8"}
+    # tests run on the fake demo lab unless LABSIDIAN_DATA=data is set explicitly, so they never queue ops into real data
+    env = {"LABSIDIAN_DATA": "data/demo", **os.environ, "LABSIDIAN_USER": sys.argv[1] if len(sys.argv) > 1 else "한서윤",
+           "PYTHONIOENCODING": "utf-8"}
     params = StdioServerParameters(command=sys.executable, args=[str(SERVER)], env=env)
     async with stdio_client(params) as (r, w):
         async with ClientSession(r, w) as s:

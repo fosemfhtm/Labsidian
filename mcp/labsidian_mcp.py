@@ -10,6 +10,16 @@ Data source (until the DB exists)
   write: ops are appended to data/mcp_outbox.json; the open site applies them within a few seconds
          (drafts land in the member's "my page", comments/merges show up live). Nothing is published for you —
          reviews are created as *drafts* that the member checks and publishes.
+Admin:        a second server entry with LABSIDIAN_USER=<an admin> (e.g. "admin") gets the admin_* tools —
+              terms, diary duty, roles/accounts, tags. Passwords never go through MCP (temp passwords stay in the site).
+
+Backend contract — what a DB version has to provide (the tools only use these two):
+  DB.data()       the snapshot shape: users, people, papers, reviews, topics, terms, comments, studies, …
+  DB.enqueue(op)  one command {"op": <name>, "actor": <user id>, ...}; the backend applies it as that user and
+                  enforces roles itself (here: the open site's applyOp in store.js; with a DB: an RPC / edge
+                  function that takes the actor from the login token instead of trusting "actor").
+  ops: draft · comment · reading.add · study.question · study.notesDraft
+       admin: tag.merge · tag.rename · tag.create · quota.set · term.save · user.role · user.disable
 With Supabase this file swaps LocalBackend for a DB backend; the tool surface stays the same.
 """
 import json
@@ -61,12 +71,19 @@ class LocalBackend:
 
     def data(self):
         src = SNAPSHOT if SNAPSHOT.exists() else IMPORT
-        m = (src, src.stat().st_mtime)
+        m = (src, src.stat().st_mtime, IMPORT.stat().st_mtime if IMPORT.exists() else None)
         if m != self._mtime:
             self._mtime = m
             if src == SNAPSHOT:
                 self.d = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
                 self.d["live"] = True
+                # people added by a newer import (e.g. an older diary) get accounts once the site loads it;
+                # know them already so admin ops for them can be queued before the snapshot catches up
+                if IMPORT.exists() and IMPORT.stat().st_mtime > SNAPSHOT.stat().st_mtime:
+                    raw = IMPORT.read_text(encoding="utf-8")
+                    known = {u["id"] for u in self.d["users"]}
+                    self.d["users"] += [{"id": p["id"], "name": p["name"], "role": "member", "quota": {}}
+                                        for p in json.loads(raw[raw.index("=") + 1:].strip().rstrip(";"))["people"] if p["id"] not in known]
             else:
                 raw = IMPORT.read_text(encoding="utf-8")
                 d = json.loads(raw[raw.index("=") + 1:].strip().rstrip(";"))
@@ -181,10 +198,13 @@ def quota(u, term):
     start = max(q.get("start") or term["start"], term["start"])
     if start > term["end"]:
         return {"exempt": True, "target": 0, "notYet": True}
+    end = min(q.get("end") or term["end"], term["end"])  # graduated / left the lab
+    if end < start:
+        return {"exempt": True, "target": 0, "left": True}
     span = lambda a, b: (date.fromisoformat(b) - date.fromisoformat(a)).days + 1
-    auto = round(term.get("target", 0) * span(start, term["end"]) / span(term["start"], term["end"]))
+    auto = round(term.get("target", 0) * span(start, end) / span(term["start"], term["end"]))
     custom = (q.get("targets") or {}).get(term["id"])
-    return {"exempt": False, "start": start, "target": int(custom) if custom not in (None, "") else auto}
+    return {"exempt": False, "start": start, "end": end, "target": int(custom) if custom not in (None, "") else auto}
 
 
 # ------------------------------------------------------------------ read tools
@@ -543,21 +563,60 @@ def admin_create_tag(axis: str, label_ko: str, label_en: str, color: str = "#9da
 
 
 @mcp.tool()
-def admin_set_member_quota(name: str, exempt: bool | None = None, start_date: str = "", target: int | None = None, term: str = "") -> dict:
+def admin_set_member_quota(name: str, exempt: bool | None = None, start_date: str = "", end_date: str = "",
+                           target: int | None = None, term: str = "") -> dict:
     """[admin] Set a member's diary duty: exempt (e.g. postdocs), start_date (e.g. a new student starting in
-    September, YYYY-MM-DD; target is prorated from it), or a fixed target for one term (term id, default current)."""
+    September), end_date (graduated / left the lab — no duty after it), YYYY-MM-DD, targets are prorated to that
+    period; or a fixed target for one term (term id, default current). Pass "none" as a date to clear it."""
     u, m = require_admin(), person(name)
     q = {}
     if exempt is not None:
         q["exempt"] = bool(exempt)
-    if start_date:
-        date.fromisoformat(start_date)
-        q["start"] = start_date
+    for key, val in (("start", start_date), ("end", end_date)):
+        if val.lower() == "none":
+            q[key] = None
+        elif val:
+            date.fromisoformat(val)
+            q[key] = val
     if target is not None:
         q["targets"] = {(term or term_for()["id"]): int(target)}
     if not q:
         raise ToolError("nothing to change")
     return _queued(DB.enqueue({"op": "quota.set", "actor": u["id"], "member": m["id"], "quota": q, "summary": f"{m['name']} {q}"}))
+
+
+@mcp.tool()
+def admin_list_members(term: str = "") -> list:
+    """[admin] Every account with role, active/disabled, raw diary-duty settings and the duty for a term (default current)."""
+    require_admin()
+    d = DB.data()
+    t = next((x for x in d["terms"] if x["id"] == term), None) if term else term_for()
+    if not t:
+        raise ToolError(f"unknown term {term!r}; terms: {[x['id'] for x in d['terms']]}")
+    return [{"id": u["id"], "name": u["name"], "role": u.get("role"), "disabled": bool(u.get("disabled")),
+             "dutySettings": u.get("quota") or {}, "term": t["id"], "duty": quota(u, t) if u["id"] in d["P"] else None,
+             "written": sum(1 for r in d["reviews"] if r["person"] == u["id"] and t["start"] <= r["date"] <= t["end"])}
+            for u in d["users"]]
+
+
+@mcp.tool()
+def admin_update_member(name: str, role: str = "", disabled: bool | None = None) -> dict:
+    """[admin] Change a member's role ("member" / "admin") or disable / re-enable their account (disabled
+    accounts can't sign in and drop out of progress). Not for yourself. Creating accounts and passwords stay in the site."""
+    u, m = require_admin(), person(name)
+    if m["id"] == u["id"]:
+        raise ToolError("can't change your own role or account from here")
+    if role and role not in ("member", "admin"):
+        raise ToolError("role must be member or admin")
+    if not role and disabled is None:
+        raise ToolError("nothing to change")
+    ops = []
+    if role:
+        ops.append(DB.enqueue({"op": "user.role", "actor": u["id"], "member": m["id"], "role": role, "summary": f"{m['name']} → {role}"}))
+    if disabled is not None:
+        ops.append(DB.enqueue({"op": "user.disable", "actor": u["id"], "member": m["id"], "disabled": bool(disabled),
+                               "summary": f"{m['name']} {'disabled' if disabled else 'enabled'}"}))
+    return _queued(ops[-1], {"ops": [o["id"] for o in ops]})
 
 
 @mcp.tool()

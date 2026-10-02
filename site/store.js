@@ -442,7 +442,7 @@
       },
       async setRole(id, role) { requireAdmin(); db.users[id].role = role; log("user.role", `${db.users[id].name} → ${role}`); save(); },
       get(id) { const u = db.users[id]; return u ? { ...publicUser(u), color: u.color || null, quota: u.quota || {} } : null; },
-      // diary duty: { exempt: bool, start: "YYYY-MM-DD" | null, targets: { [termId]: n } }
+      // diary duty: { exempt: bool, start: "YYYY-MM-DD" | null, end: "YYYY-MM-DD" | null (left the lab), targets: { [termId]: n } }
       async setQuota(id, quota) {
         requireAdmin();
         const u = db.users[id]; if (!u) throw new Error("user.missing");
@@ -536,15 +536,17 @@
       setTerms(list) { try { localStorage.setItem(VIEW_KEY, JSON.stringify(list || [])); } catch (e) {} },
     },
 
-    // how many diaries a member owes in a term (prorated from their start date; exempt = none)
+    // how many diaries a member owes in a term (prorated from their start/end dates; exempt = none)
     quota(uid, term) {
       const q = db.users[uid]?.quota || {};
       if (q.exempt) return { exempt: true, target: 0, start: term.start };
       const start = q.start && q.start > term.start ? q.start : term.start;
       if (start > term.end) return { exempt: true, target: 0, start, notYet: true };
-      const auto = Math.round((term.target || 0) * (dayDiff(start, term.end) + 1) / (dayDiff(term.start, term.end) + 1));
+      const end = q.end && q.end < term.end ? q.end : term.end;  // graduated / left the lab
+      if (end < start) return { exempt: true, target: 0, start, left: true };
+      const auto = Math.round((term.target || 0) * (dayDiff(start, end) + 1) / (dayDiff(term.start, term.end) + 1));
       const custom = q.targets?.[term.id];
-      return { exempt: false, start, target: custom != null ? +custom : auto, auto, custom: custom != null };
+      return { exempt: false, start, end, target: custom != null ? +custom : auto, auto, custom: custom != null };
     },
 
     comments: {
@@ -930,7 +932,7 @@
   async function applyOp(op) {
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
-    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save"];
+    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"];
     if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
     try {
@@ -953,10 +955,15 @@
       if (op.op === "tag.create") await Store.tags.create({ axis: op.axis, label: op.label, labelEn: op.labelEn, color: op.color });
       if (op.op === "quota.set") await Store.users.setQuota(op.member, op.quota);
       if (op.op === "term.save") await Store.terms.save(op.term);
+      if (op.op === "user.role" || op.op === "user.disable") {
+        if (!db.users[op.member] || op.member === op.actor) throw new Error("forbidden");  // nobody locks themselves out
+        if (op.op === "user.role") await Store.users.setRole(op.member, op.role === "admin" ? "admin" : "member");
+        else await Store.users.setDisabled(op.member, !!op.disabled);
+      }
       log("mcp." + op.op, `${actor.name}: ${op.summary || ""}`);
     } finally { actingAs = null; }
   }
-  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save"]);
+  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable"]);
   async function pollOutbox() {
     if (!bridgeOk) return;
     let ops;

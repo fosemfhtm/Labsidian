@@ -120,6 +120,7 @@ env = { LABSIDIAN_USER = "한서윤" }
 ```
 
 `LABSIDIAN_USER`는 사이트의 멤버 이름이에요(데모에서는 `한서윤`, `박지호` 등).
+관리자 작업용으로는 같은 명령을 이름만 바꿔 한 번 더 등록하면 돼요(예: `claude mcp add labsidian-admin -e LABSIDIAN_USER=admin -- ...`).
 
 | 도구 | 하는 일 |
 |---|---|
@@ -128,7 +129,7 @@ env = { LABSIDIAN_USER = "한서윤" }
 | `add_comment` `add_to_reading_list` | 내 이름으로 댓글·질문(@멘션), 읽을 목록 추가 |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 리뷰 비교, 질문 보드, 정리 노트) |
 | `add_study_question` `draft_study_notes` | 스터디 질문 올리기, 정리 노트 **초안** |
-| `admin_merge_tags` `admin_rename_tag` `admin_create_tag` `admin_set_member_quota` `admin_save_term` | 관리자 전용 — 태그 정리, 작성 의무(시작일·면제·목표), 학기 설정 |
+| `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_merge_tags` `admin_rename_tag` `admin_create_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기 설정, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
