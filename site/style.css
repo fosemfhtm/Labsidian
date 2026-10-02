@@ -117,6 +117,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .lab-bars-wrap h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-2); font-weight: 600; }
 
 .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.filters select { max-width: 100%; }   /* a long option name would otherwise set the width and push past a phone screen */
 select {
   background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 10px;
   padding: 7px 10px; font: inherit; font-size: 13px;
@@ -191,9 +192,11 @@ select {
 .mini:hover { background: var(--bg-2); }
 .mini .t { flex: 1; }
 .mini .m { color: var(--text-3); font-size: 12px; white-space: nowrap; }
-.sim-row { display: grid; grid-template-columns: 22px 70px 1fr 74px; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; padding: 3px 0; }
+.sim-row { display: grid; grid-template-columns: 22px minmax(0, 92px) 1fr auto; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; padding: 3px 0; }
 .sim-row .avatar { width: 22px; height: 22px; font-size: 10px; }
 .sim-row .m { color: var(--text-3); font-size: 12px; text-align: right; }
+.sim-row > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sim-row .m { white-space: nowrap; }
 
 @media (max-width: 760px) {
   .top { gap: 10px; padding: 0 12px; }
@@ -407,6 +410,12 @@ nav a { white-space: nowrap; }
   .tb-btn { flex: none; }
   .tb-count { display: none; }
   .g-people { width: 140px; max-height: 38%; }
+  .g-people:not(.open) { width: auto; padding: 8px 12px; }
+  .g-people:not(.open) > :not(.lg-title) { display: none; }
+  .g-people:not(.open) .lg-title { margin: 0; }
+  .g-people .lg-title { cursor: pointer; gap: 6px; }
+  .g-people .lg-title::after { content: "▾"; color: var(--text-3); font-size: 11px; }
+  .g-people:not(.open) .lg-title::after { content: "▴"; }
   .pop { width: calc(100vw - 24px); left: 12px !important; }
   #view-graph .focus-bar { max-width: calc(100% - 24px); }
   #view-graph .timeline { left: 12px; right: 56px; }

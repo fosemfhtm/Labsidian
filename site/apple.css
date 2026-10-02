@@ -84,6 +84,9 @@ main { padding-top: var(--top-h); }
 /* ---------- drawer: floating glass inspector ---------- */
 .drawer { top: var(--top-h); right: 14px; bottom: 14px; width: min(520px, calc(100vw - 28px)); border-radius: 22px; transform: translateX(calc(100% + 24px)); transition: transform var(--dur) var(--ease); }
 .drawer.open { transform: none; }
+@media (max-width: 760px) {   /* phones: full-screen sheet over the bar, opaque so the graph doesn't show through the text */
+  html[data-ui] .drawer { top: 8px; right: 8px; bottom: 8px; width: calc(100vw - 16px); background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 .drawer-close, .drawer-btn { background: var(--fill-3); border: 0; border-radius: 999px; color: var(--label-2); }
 .drawer h2 { font: 700 22px/28px var(--font); letter-spacing: -.01em; }
 .drawer h4 { font-size: 13px; color: var(--label-2); letter-spacing: 0; }

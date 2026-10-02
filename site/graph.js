@@ -495,6 +495,7 @@ function initUI() {
   // people legend = person filter
   $("#g-people").addEventListener("click", e => {
     if (e.target.closest("#people-clear")) { s.people = new Set(); changed(); return; }
+    if (e.target.closest(".lg-title") && innerWidth <= 760) { e.currentTarget.classList.toggle("open"); return; }   // phones: legend starts folded
     const row = e.target.closest(".pl[data-id]");
     if (row) { toggleSet(s.people, row.dataset.id); changed(); return; }
     const vrow = e.target.closest(".pl[data-venue]");

@@ -319,7 +319,7 @@ details.fld summary { cursor: pointer; }
 .ww { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; background: var(--bg-2); border-radius: 999px; padding: 2px 9px 2px 2px; cursor: pointer; }
 .ww .avatar { width: 20px; height: 20px; font-size: 8.5px; }
 @media (max-width: 900px) {
-  .home-grid { grid-template-columns: 1fr; }
+  .home-grid { grid-template-columns: minmax(0, 1fr); }
   .home-side { position: static; order: -1; }
   .home-side .card:not(.compose) { display: none; }
 }
@@ -476,16 +476,26 @@ details.fld summary { cursor: pointer; }
 @media (max-width: 900px) { .st-two { grid-template-columns: 1fr; } .st-hero h1 { font-size: 22px; } .st-manage .menu-pop { right: auto; left: 0; } }
 .st-todo-done { margin: 0 0 14px; font-size: 13px; color: rgb(var(--green)); }
 
-/* phones: two-row header so every control stays reachable (row 1: logo · search · term · write · bell · me; row 2: nav · KO/EN) */
+/* KO/EN lives in the header on desktop, in the user menu on phones */
+.menu .menu-lang { display: none; }
+
+/* phones: two-row header so every control stays reachable (row 1: logo · search · term · write · bell · me; row 2: nav).
+ * KO/EN moves into the user menu. --top-h must cover the whole bar: 8 inset + 6 + 34 + 6 + 38 + 6 = 98, plus 8 breathing room;
+ * :root[data-ui] so it beats tokens.css ([data-ui], loaded later). */
 @media (max-width: 760px) {
-  :root { --top-h: 96px; }
-  .top { flex-wrap: wrap; align-content: center; row-gap: 6px; column-gap: 6px; padding: 6px 12px; }
+  :root[data-ui] { --top-h: 106px; }
+  header.top { flex-wrap: wrap; align-content: center; row-gap: 6px; column-gap: 6px; padding: 6px 10px; }   /* header.: beats apple.css's .top gap */
   .top .logo { order: 0; }
-  .top #search { order: 1; flex: 1 1 60px; min-width: 60px; width: auto; margin-left: 0; padding: 6px 10px; }
+  .top .search-btn { order: 1; }
   .top .top-right { order: 2; }
-  .top #nav { order: 3; flex: 1 0 calc(100% - 96px); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top #nav { order: 3; flex: 1 0 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top #nav::-webkit-scrollbar { display: none; }
-  .top .lang { order: 4; display: flex; }
+  .top #nav a { flex: 1 0 auto; text-align: center; padding: 6px 4px; }
+  .top .lang { display: none; }
+  .feed-tabs { max-width: 100%; scrollbar-width: none; }   /* scroll sideways instead of widening the page */
+  .menu .menu-lang { display: flex; }
+  /* iOS Safari zooms the page on focus when a field's text is under 16px */
+  input:not([type=checkbox], [type=radio], [type=range]), textarea, select { font-size: 16px !important; }
   .term-btn { padding: 5px 8px; }
   .menu { top: calc(var(--top-h) - 4px); }
   .card:has(> .tbl), .tbl-wrap { overflow-x: auto; }
@@ -493,3 +503,5 @@ details.fld summary { cursor: pointer; }
 }
 
 @media (max-width: 760px) { .lang.gate-lang { display: flex; } }
+@media (max-width: 420px) { .top .logo { font-size: 0; gap: 0; } }   /* mark only: the wordmark doesn't fit beside the controls */
+@media (max-width: 360px) { .top #nav a { padding: 6px 2px; font-size: 12px; } }   /* small phones: all six tabs still fit (English is the longest) */
