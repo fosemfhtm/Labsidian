@@ -193,21 +193,15 @@ def term_for(day=None):
     return next((t for t in d["terms"] if t["start"] <= day <= t["end"]), d["terms"][-1])
 
 
-def is_off(day, offs):
-    return any(o["start"] <= day <= o["end"] for o in offs)
-
-
-def workdays(a, b, offs=None):
-    """weekdays from a to b (inclusive) that aren't one of the lab's days off — a diary is owed on each (store.js)"""
-    offs = DB.data().get("offDays") or [] if offs is None else offs
-    d, end, n = date.fromisoformat(a), date.fromisoformat(b), 0
-    while d <= end:
-        n += d.weekday() < 5 and not is_off(d.isoformat(), offs)
-        d = date.fromordinal(d.toordinal() + 1)
-    return n
-
-
 def quota(u, term):
+    """a member's diary duty in a term, as the site computes it (working days, holidays, start/end dates, fixed targets)"""
+    duty = ((DB.data().get("duties") or {}).get(term["id"]) or {}).get(u["id"])
+    if duty:
+        return {k: v for k, v in duty.items() if k in ("exempt", "notYet", "left", "start", "end", "workdays", "target", "custom")}
+    return _quota_fallback(u, term)
+
+
+def _quota_fallback(u, term):  # only for a server too old to send "duties"
     q = u.get("quota") or {}
     if q.get("exempt"):
         return {"exempt": True, "target": 0}
@@ -217,10 +211,10 @@ def quota(u, term):
     end = min(q.get("end") or term["end"], term["end"])  # graduated / left the lab
     if end < start:
         return {"exempt": True, "target": 0, "left": True}
-    mine = workdays(start, end)
-    auto = round(term["target"] * mine / (workdays(term["start"], term["end"]) or 1)) if term.get("target") else mine
+    span = lambda a, b: (date.fromisoformat(b) - date.fromisoformat(a)).days + 1
+    auto = round((term.get("target") or 0) * span(start, end) / span(term["start"], term["end"]))
     custom = (q.get("targets") or {}).get(term["id"])
-    return {"exempt": False, "start": start, "end": end, "workdays": mine, "target": int(custom) if custom not in (None, "") else auto}
+    return {"exempt": False, "start": start, "end": end, "target": int(custom) if custom not in (None, "") else auto}
 
 
 # ------------------------------------------------------------------ read tools
@@ -645,16 +639,22 @@ def admin_save_term(term_id: str, label: str, start: str, end: str, target: int 
 
 
 @mcp.tool()
-def admin_list_off_days(year: str = "") -> list:
-    """[admin] The lab's days off — weekdays nobody writes a diary (public holidays, shutdowns, conferences). Weekends never count."""
+def admin_list_off_days(year: str = "") -> dict:
+    """[admin] Days without a diary duty besides weekends: public holidays (computed automatically, substitute days
+    included) and the lab's own days off (shutdowns, conferences — kept by an admin)."""
     require_admin()
-    return [o for o in sorted(DB.data().get("offDays") or [], key=lambda o: o["start"]) if not year or o["start"][:4] == year or o["end"][:4] == year]
+    d = DB.data()
+    inyear = lambda s: not year or s[:4] == year
+    return {"publicHolidays": [h for h in d.get("holidays") or [] if inyear(h["date"])],
+            "labDaysOff": [o for o in sorted(d.get("offDays") or [], key=lambda o: o["start"]) if inyear(o["start"]) or inyear(o["end"])]}
 
 
 @mcp.tool()
 def admin_save_off_day(start: str, label: str, end: str = "", kind: str = "holiday", off_day_id: str = "") -> dict:
-    """[admin] Add (or, with off_day_id, change) a day off: start/end YYYY-MM-DD (end = start for one day), a name like
-    "추석" or "연구실 셧다운", kind holiday | shutdown | event. Diary targets shrink by the weekdays it covers."""
+    """[admin] Add (or, with off_day_id, change) one of the lab's days off: start/end YYYY-MM-DD (end = start for one
+    day), a name like "연구실 셧다운" or "교통학회", kind shutdown | event | holiday. Regular public holidays are automatic —
+    use kind holiday only for ones the rules can't know (an election, a one-off 임시공휴일). Diary targets shrink by the
+    weekdays it covers."""
     u = require_admin()
     end = end or start
     if date.fromisoformat(end) < date.fromisoformat(start):

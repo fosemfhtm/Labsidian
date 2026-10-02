@@ -467,9 +467,59 @@
   const reviewById = id => SEED.allReviews.find(r => r.id === id);
 
   // ---------------------------------------------------------------- lab calendar
-  // a diary is owed on every weekday that isn't one of the lab's days off (public holidays, shutdowns, conferences …)
+  // a diary is owed on every weekday that isn't a public holiday (computed below) or one of the lab's own days off
+  // (shutdowns, conferences … — db.offDays, kept by an admin)
   const isWeekend = d => { const w = new Date(d + "T00:00:00Z").getUTCDay(); return w === 0 || w === 6; };
-  function offDay(d) { for (const o of Object.values(db.offDays)) if (o.start <= d && d <= o.end) return o; return null; }
+
+  // Korean public holidays. Lunar ones as solar dates — 설날, 추석 (the middle day of each 3-day holiday), 부처님오신날;
+  // extend the table before 2036.
+  const LUNAR = {
+    2020: ["01-25", "10-01", "04-30"], 2021: ["02-12", "09-21", "05-19"], 2022: ["02-01", "09-10", "05-08"], 2023: ["01-22", "09-29", "05-27"],
+    2024: ["02-10", "09-17", "05-15"], 2025: ["01-29", "10-06", "05-05"], 2026: ["02-17", "09-25", "05-24"], 2027: ["02-07", "09-15", "05-13"],
+    2028: ["01-27", "10-03", "05-02"], 2029: ["02-13", "09-22", "05-20"], 2030: ["02-03", "09-12", "05-09"], 2031: ["01-23", "10-01", "05-28"],
+    2032: ["02-11", "09-19", "05-16"], 2033: ["01-31", "09-08", "05-06"], 2034: ["02-19", "09-27", "05-25"], 2035: ["02-08", "09-16", "05-15"],
+  };
+  // holidays no rule produces — elections and days the government declares (임시공휴일). Unknown future ones: an admin adds them.
+  const ONE_OFF = { "2024-04-10": "국회의원 선거", "2024-10-01": "임시공휴일", "2025-01-27": "임시공휴일", "2025-06-03": "대통령 선거",
+    "2026-06-03": "지방선거", "2028-04-12": "국회의원 선거" };
+  const holidayCache = {};
+  function holidaysOf(y) {
+    if (holidayCache[y]) return holidayCache[y];
+    const occ = [], md = s => `${y}-${s}`;  // occurrences: { dates, name, sub } — sub: what triggers a substitute day
+    [["01-01", "신정"], ["06-06", "현충일"]].forEach(([d, name]) => occ.push({ dates: [md(d)], name, sub: null }));
+    [["03-01", "삼일절"], ["05-05", "어린이날"], ["08-15", "광복절"], ["10-03", "개천절"], ["10-09", "한글날"], ["12-25", "성탄절"]]
+      .forEach(([d, name]) => occ.push({ dates: [md(d)], name, sub: "weekend" }));
+    if (y >= 2026) occ.push({ dates: [md("05-01")], name: "노동절", sub: null });
+    const L = LUNAR[y];
+    if (L) {
+      occ.push({ dates: [-1, 0, 1].map(k => addDays(md(L[0]), k)), name: "설날", sub: "sunday" });
+      occ.push({ dates: [-1, 0, 1].map(k => addDays(md(L[1]), k)), name: "추석", sub: "sunday" });
+      occ.push({ dates: [md(L[2])], name: "부처님오신날", sub: "weekend" });
+    }
+    Object.entries(ONE_OFF).forEach(([d, name]) => d.startsWith(y + "-") && occ.push({ dates: [d], name, sub: null }));
+    const h = {};
+    occ.forEach(o => o.dates.forEach(d => (h[d] = h[d] ? `${h[d]}·${o.name}` : o.name)));
+    // 대체공휴일: 설날·추석 touching a Sunday, the others on a weekend, or two holidays on one day → the next free weekday
+    const dow = d => new Date(d + "T00:00:00Z").getUTCDay(), triggers = [];
+    occ.forEach(o => { if ((o.sub === "sunday" && o.dates.some(d => dow(d) === 0)) || (o.sub === "weekend" && o.dates.some(d => dow(d) % 6 === 0))) triggers.push(o.dates.at(-1)); });
+    const per = {};
+    occ.forEach(o => o.sub && o.dates.forEach(d => (per[d] = (per[d] || 0) + 1)));
+    occ.forEach(o => !o.sub && o.dates.forEach(d => per[d] && (per[d] += 1)));
+    Object.entries(per).forEach(([d, n]) => { if (n > 1 && dow(d) % 6 !== 0) triggers.push(occ.filter(o => o.dates.includes(d)).map(o => o.dates.at(-1)).sort().pop()); });
+    triggers.sort().forEach(after => {
+      let d = addDays(after, 1);
+      while (isWeekend(d) || h[d]) d = addDays(d, 1);
+      h[d] = "대체공휴일";
+    });
+    return (holidayCache[y] = h);
+  }
+  const holiday = d => holidaysOf(+d.slice(0, 4))[d] || null;
+  function offDay(d) {
+    const name = holiday(d);
+    if (name) return { label: name, kind: "holiday", auto: true };
+    for (const o of Object.values(db.offDays)) if (o.start <= d && d <= o.end) return o;
+    return null;
+  }
   function workdays(a, b) { let n = 0; for (let d = a; d <= b; d = addDays(d, 1)) if (!isWeekend(d) && !offDay(d)) n++; return n; }
 
   // ---------------------------------------------------------------- public API
@@ -639,6 +689,7 @@
     // the lab's days off: public holidays, shutdowns, conferences … — weekends are never owed anyway
     calendar: {
       list() { return Object.values(db.offDays).sort((a, b) => a.start.localeCompare(b.start)); },
+      holidays(y) { return Object.entries(holidaysOf(+y)).sort().map(([date, label]) => ({ date, label })); },
       offDay, isWeekend, workdays,
       async save(o) {
         requireAdmin();
@@ -1044,6 +1095,9 @@
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
       clusters: SEED.clusters, terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
       reading: db.reading, notifications: db.notifications, tagOps: db.tagOps, offDays: Object.values(db.offDays),
+      // computed here so the MCP server never re-implements the duty rules (working days, holidays, start/end dates)
+      duties: Object.fromEntries((db.terms || []).map(t => [t.id, Object.fromEntries(Object.keys(db.users).map(u => [u, Store.quota(u, t)]))])),
+      holidays: [...new Set((db.terms || []).flatMap(t => [+t.start.slice(0, 4), +t.end.slice(0, 4)]))].flatMap(y => Store.calendar.holidays(y)),
       studies: Object.values(db.studies).map(st => ({ ...st, paperId: Store.studies.paperOf(st)?.id || st.paperId,
         picks: Object.fromEntries(Object.entries(st.picks || {}).map(([u, pk]) => [u, { ...pk, paperId: Store.studies.pickPaper(pk)?.id || pk.paperId }])) })),
       studyQuestions: Object.values(db.studyQs),
