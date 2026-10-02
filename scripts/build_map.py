@@ -9,9 +9,12 @@ Pipeline
      Review text made neighbours cluster by reviewer & review language (see eval_embeddings.py),
      so reviewer perspective is shown as person nodes/edges and tags instead of positions.
   2. SPECTER2 embeddings (AllenAI; trained on citation links -> "academically related")
-  3. UMAP 10-d (for clustering) and 2-d (for display), cosine, fixed seed
-  4. fine clusters (Ward, ~sqrt(n)) -> coarse clusters by merging fine centroids -> always nested
-  5. labels: c-TF-IDF keywords (English) + dominant lab tag (ko/en)
+  3. UMAP 2-d, cosine, fixed seed
+  4. fine clusters (Ward, ~sqrt(n)) -> coarse clusters by merging fine centroids -> always nested. Clustered on the
+     2-d layout itself, so each region is one patch of the map (10-d clusters interleaved on screen: two regions with
+     the same topic drawn on top of each other) — at the same semantic coherence in the embedding space.
+  5. labels: c-TF-IDF keywords (English) + dominant lab tag (ko/en); fine clusters are named against their siblings
+     and coarse clusters sharing a tag get a keyword that tells them apart ("distinct")
   6. top-k cosine neighbors per paper (for "similar papers" and local-graph edges)
 """
 import json
@@ -123,15 +126,17 @@ def main():
         keys_p.write_text(json.dumps(keys))
     emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
 
-    u10 = umap.UMAP(n_components=10, n_neighbors=15, min_dist=0.0, metric="cosine", random_state=SEED).fit_transform(emb)
-    u2 = umap.UMAP(n_components=2, n_neighbors=18, min_dist=0.12, spread=1.2, metric="cosine",
-                   random_state=SEED).fit_transform(emb)
-    u2 = (u2 - u2.mean(0)) / u2.std(0) * 100  # normalize to a ~±250 canvas
+    # more papers → look at more neighbours, so the big topic structure survives (18 up to ~900 papers)
+    u2 = umap.UMAP(n_components=2, n_neighbors=max(18, round(0.6 * np.sqrt(len(papers)))), min_dist=0.12, spread=1.2,
+                   metric="cosine", random_state=SEED).fit_transform(emb)
+    # ~±250 canvas for up to ~900 papers, then the area grows with the count: same spacing between papers, so the
+    # graph's collision force (node radii are in these units) doesn't shove a crowded map out of shape
+    u2 = (u2 - u2.mean(0)) / u2.std(0) * 100 * np.sqrt(max(1, len(papers) / 900))
 
     n_fine = max(8, int(round(np.sqrt(len(papers)) * 1.3)))
-    fine = AgglomerativeClustering(n_clusters=n_fine, linkage="ward").fit_predict(u10)
-    cent = np.stack([u10[fine == c].mean(0) for c in range(n_fine)])
-    n_coarse = max(4, int(round(n_fine / 3.2)))
+    fine = AgglomerativeClustering(n_clusters=n_fine, linkage="ward").fit_predict(u2)
+    cent = np.stack([u2[fine == c].mean(0) for c in range(n_fine)])
+    n_coarse = max(4, min(14, int(round(n_fine / 3.2))))  # more regions than ~14 stop being readable
     coarse_of_fine = AgglomerativeClustering(n_clusters=n_coarse, linkage="ward").fit_predict(cent)
     coarse = coarse_of_fine[fine]
 
@@ -161,10 +166,27 @@ def main():
                         "ko": DOMAINS[top_tag][0], "en": EN[top_tag]})
         return out
 
+    def keywords_within(assign, group_of):
+        """c-TF-IDF among the clusters of one group only → the words that tell siblings apart"""
+        out = {}
+        for g in set(group_of.values()):
+            members = [c for c in group_of if group_of[c] == g]
+            if len(members) > 1:
+                out.update(ctfidf({c: [en_text[i] for i in np.where(assign == c)[0]] for c in members}))
+        return out
+
     clusters = cluster_info(coarse, "c") + cluster_info(fine, "f")
+    tag_of = {int(cl["id"][1:]): cl["tag"] for cl in clusters if cl["level"] == "c"}
+    distinct = keywords_within(coarse, tag_of)
+    siblings = keywords_within(fine, {f: int(coarse_of_fine[f]) for f in range(n_fine)})
     for cl in clusters:
+        i = int(cl["id"][1:])
+        if cl["level"] == "c" and distinct.get(i):
+            cl["distinct"] = distinct[i][0]
         if cl["level"] == "f":
-            cl["parent"] = f"c{int(coarse_of_fine[int(cl['id'][1:])])}"
+            cl["parent"] = f"c{int(coarse_of_fine[i])}"
+            own = siblings.get(i) or []
+            cl["keywords"] = (own + [w for w in cl["keywords"] if w not in own])[:3]
 
     # neighbors
     sims = emb @ emb.T

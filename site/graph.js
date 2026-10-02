@@ -102,11 +102,14 @@ function nodeOn(n, a = graph.getNodeAttributes(n)) {
 }
 
 // ---------------- graph ----------------
+// a big lab draws its nodes a little smaller (1 up to ~900 papers, 0.8 at ~2300) so the overview doesn't turn into a carpet;
+// people shrink by the same factor — their size grows with their diary count, which grows with every term shown
+const PAPER_SCALE = Math.min(1, Math.pow(900 / Math.max(1, papers.length), 0.25));
 function buildGraph() {
   graph = new Graph();
   papers.forEach(p => graph.addNode(p.id, {
     kind: "paper", type: "border", x: p.x, y: p.y, ax: p.x, ay: p.y,
-    size: Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),
+    size: PAPER_SCALE * Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),
     label: p.title.length > 46 ? p.title.slice(0, 44) + "…" : p.title,
     borderSize: p.readers.length > 1 ? 0.28 : 0,
   }));
@@ -115,7 +118,7 @@ function buildGraph() {
     if (!mine.length) return; // new members appear once they've written something
     const x = mine.reduce((s, p) => s + p.x, 0) / (mine.length || 1), y = mine.reduce((s, p) => s + p.y, 0) / (mine.length || 1);
     graph.addNode("u:" + u.id, {
-      kind: "person", type: "border", x, y, ax: x, ay: y, size: 10 + Math.sqrt(u.count) * 0.55, label: u.name, color: u.color,
+      kind: "person", type: "border", x, y, ax: x, ay: y, size: PAPER_SCALE * (10 + Math.sqrt(u.count) * 0.55), label: u.name, color: u.color,
       borderColor: "#16161e", borderSize: 0.16, forceLabel: true,
     });
   });

@@ -227,12 +227,13 @@ def main():
         cl = dict(cl)
         cl["color"] = CLUSTER_COLORS[int(cl["id"][1:]) % len(CLUSTER_COLORS)] if cl["level"] == "c" else None
         clusters.append(cl)
-    # two coarse clusters dominated by the same tag -> disambiguate with their top keyword
+    # coarse clusters dominated by the same tag -> disambiguate with the keyword that sets them apart (build_map)
     dup = Counter(c["ko"] for c in clusters if c["level"] == "c")
     for c in clusters:
-        if c["level"] == "c" and dup[c["ko"]] > 1 and c["keywords"]:
-            c["ko"] += f" · {c['keywords'][0]}"
-            c["en"] += f" · {c['keywords'][0]}"
+        word = c.get("distinct") or (c["keywords"] or [None])[0]
+        if c["level"] == "c" and dup[c["ko"]] > 1 and word:
+            c["ko"] += f" · {word}"
+            c["en"] += f" · {word}"
     # keyword rules travel to the browser so the write form can suggest tags without a server
     taxonomy = {**{f"d:{k}": pats for k, (_, pats) in DOMAINS.items()}, **{f"m:{k}": pats for k, (_, pats) in METHODS.items()}}
     data = {"dataset": DATASET, "relativeDates": bool(DATASET), "people": people, "topics": topics, "papers": papers, "reviews": reviews, "clusters": clusters,
