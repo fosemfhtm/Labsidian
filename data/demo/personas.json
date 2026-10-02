@@ -27,7 +27,7 @@
    "interests": "transport network resilience and vulnerability, disaster evacuation, recovery after disruptions (floods, earthquakes), critical link identification",
    "lang": "ko", "style": "Korean, 'content' uses short '- ' bullet lines (배경/방법/결과). memo = 1-2 lines on scenario realism or data limitations.",
    "ratings": "mostly 3, some 4"},
-  {"id": "itk", "name": "임태경", "count": 20, "start": "2026-04-01", "domains": ["agent", "service"],
+  {"id": "itk", "name": "임태경", "count": 20, "start": "2026-04-01", "domains": ["service"],
    "interests": "LLM agents for activity and travel simulation, generative agents for urban mobility, LLM-based travel behavior modeling",
    "lang": "ko", "style": "Korean, shorter than others (new member), slightly casual ('~인 것 같음'). memo is enthusiastic or a question to follow up.",
    "ratings": "mostly 3-4"},

@@ -37,7 +37,13 @@ SEED = 42
 STOP = set("""a an the of for and or in on to with by from via using based approach approaches model models method methods
 framework study analysis new novel towards toward under its their this that is are be as at into we our learning data
 paper results result proposed propose show shows than more over can also which these those between through two one
-toward multi large real time vehicle vehicles traffic system systems problem problems network networks driving""".split())
+toward multi large real time vehicle vehicles traffic system systems problem problems network networks driving
+available code github https http www com org extensive experiment experiments experimental demonstrate demonstrates
+outperforms outperform existing however while such both across various several achieve achieves achieved significant
+significantly effective effectively efficient efficiently performance dependencies crucial often likely most role
+abstract investigated investigate responses trends key important first further well work works recent recently
+address addresses challenge challenges paper's here thus specifically respectively improve improves improved
+considered consider consists consist local learned learn solving solve have has had conditions user users operational public""".split())
 
 
 def load_papers():
@@ -146,8 +152,10 @@ def main():
     for p in papers:
         body = " ".join(r["content"] + " " + r["memo"] for r in p["reviews"])
         ds = score(dom, p["title"], body)
-        ptags.append(pick(ds, 2, 3) if ds else ["core"])
-    en_text = [p["title"] + " " + p["abstract"] for p in papers]
+        # a region's provisional name comes from its most common field; general AI papers have none → their top method
+        ms = score(met, p["title"], body) if not ds else {}
+        ptags.append(pick(ds, 2, 3) if ds else ["m:" + pick(ms, 1, 1)[0]] if ms else ["etc"])
+    en_text = [re.sub(r"https?://\S+|www\.\S+", " ", p["title"] + " " + p["abstract"]) for p in papers]  # no URLs in names
 
     def cluster_info(assign, level):
         docs = defaultdict(list)
@@ -159,11 +167,13 @@ def main():
             idx = np.where(assign == c)[0]
             tagc = Counter(t for i in idx for t in ptags[i][:1])
             top_tag, top_n = tagc.most_common(1)[0]
+            label = (METHODS[top_tag[2:]][0], EN[top_tag[2:]]) if top_tag.startswith("m:") else ("기타", "Other") if top_tag == "etc" \
+                else (DOMAINS[top_tag][0], EN[top_tag])
             xy = np.median(u2[idx], axis=0)
             out.append({"id": f"{level}{c}", "level": level, "size": int(len(idx)),
                         "x": round(float(xy[0]), 2), "y": round(float(xy[1]), 2),
                         "keywords": kw[c], "tag": top_tag, "tagShare": round(top_n / len(idx), 2),
-                        "ko": DOMAINS[top_tag][0], "en": EN[top_tag]})
+                        "ko": label[0], "en": label[1]})
         return out
 
     def keywords_within(assign, group_of):

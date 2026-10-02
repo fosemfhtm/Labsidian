@@ -152,7 +152,7 @@ def main():
     for p in papers:
         body = " ".join(rev_by_id[r]["content"] + " " + rev_by_id[r]["memo"] for r in p["reviews"])
         ds, ms = score(dom, p["title"], body), score(met, p["title"], body)
-        p["domains"] = pick(ds, 3, 3) if ds else ["core"]
+        p["domains"] = pick(ds, 3, 3) if ds else []  # a general AI paper: methods only
         p["methods"] = pick(ms, 2, 3) if ms else []
         p["readers"] = sorted({rev_by_id[r]["person"] for r in p["reviews"]})
         rs = [rev_by_id[r]["rating"] for r in p["reviews"] if rev_by_id[r]["rating"]]
