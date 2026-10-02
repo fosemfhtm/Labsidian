@@ -1,3 +1,5 @@
+<img src="site/logo.svg" width="88" height="88" alt="Labsidian 로고">
+
 # Labsidian
 
 **연구실 Paper Diary를 지식 그래프로.** (Lab + Obsidian)

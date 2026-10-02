@@ -32,11 +32,7 @@ button { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--line);
 }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; text-decoration: none; letter-spacing: -.01em; }
-.logo-mark {
-  width: 20px; height: 20px; border-radius: 8px;
-  background: conic-gradient(from 200deg, var(--accent), #82aaff, rgb(var(--mint)), #f78c6c, var(--accent));
-  box-shadow: 0 0 18px rgb(var(--accent-rgb) / .45);
-}
+.logo-mark { display: block; width: 22px; height: 22px; flex: none; }
 nav { display: flex; gap: 4px; }
 nav a {
   padding: 6px 12px; border-radius: 10px; text-decoration: none; color: var(--text-2);

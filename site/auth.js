@@ -87,7 +87,7 @@
     const g = document.createElement("div");
     g.className = "gate";
     g.innerHTML = `<form class="gate-card" id="login-form" autocomplete="on">
-      <div class="gate-logo"><span class="logo-mark"></span>Labsidian</div>
+      <div class="gate-logo"><img class="logo-mark" src="logo.svg" alt="">Labsidian</div>
       <p class="sub">${t("a.title")}</p>
       ${S.demo ? `<div class="gate-demo"><b>${t("a.demoPick")}</b><p class="hint">${t("a.demoHint")}</p>
         <div class="gate-people">${(window.LAB.people || []).map(p => `<button type="button" data-demo="${esc(p.id)}">${UI.avatar(p.id)}<span>${esc(p.name)}</span></button>`).join("")}

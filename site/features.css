@@ -55,6 +55,7 @@ body.locked main, body.locked .top nav, body.locked #search { visibility: hidden
 .gate { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: radial-gradient(ellipse at 30% 20%, #2a2140 0%, #16161e 55%); }
 .gate-card { width: min(360px, 100%); background: var(--glass-tint-strong); border: 1px solid var(--line); border-radius: 14px; padding: 28px 24px 20px; position: relative; }
 .gate-logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; }
+.gate-logo .logo-mark { width: 34px; height: 34px; }
 .gate-card .btn { margin-top: 14px; }
 .gate-lang { position: absolute; top: 14px; right: 14px; }
 .gate-card:has(.gate-demo) { width: min(480px, 100%); }
