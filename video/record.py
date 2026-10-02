@@ -63,6 +63,9 @@ def setup(browser):
     ctx = browser.new_context(viewport={"width": W, "height": H}, locale="ko-KR")
     p = ctx.new_page()
     p.goto(SITE)
+    p.wait_for_function("window.Store && window.LAB")
+    # the demo server keeps its data (data/demo/labsidian.db): wipe it so every take starts from a fresh demo lab
+    p.evaluate("async () => { await Store.auth.demoSignIn('admin'); await Store.admin.reset(); }")
     p.evaluate("() => { localStorage.clear(); localStorage.setItem('lab.theme', 'dark'); localStorage.setItem('lab.lang', 'ko'); }")
     p.reload(); p.wait_for_function("window.Store && window.LAB")
     ids = p.evaluate("""async ([asker, me]) => {
@@ -175,7 +178,7 @@ import asyncio, os, sys
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 async def main():
-    env = {**os.environ, "LABSIDIAN_USER": sys.argv[1], "LABSIDIAN_DATA": "data/demo", "LABSIDIAN_URL": "http://localhost:8766", "PYTHONIOENCODING": "utf-8"}
+    env = {**os.environ, "LABSIDIAN_USER": sys.argv[1], "LABSIDIAN_URL": "http://localhost:8766", "PYTHONIOENCODING": "utf-8"}
     async with stdio_client(StdioServerParameters(command=sys.executable, args=[sys.argv[2]], env=env)) as (r, w):
         async with ClientSession(r, w) as s:
             await s.initialize()
@@ -405,8 +408,6 @@ def main():
     RAW.mkdir(parents=True, exist_ok=True); PUB.mkdir(parents=True, exist_ok=True)
     for x in RAW.glob("*.webm"):
         x.unlink()
-    # drafts queued by a previous run's MCP scene would otherwise show up on Monday morning
-    (ROOT / "data" / "demo" / "mcp_outbox.json").write_text("[]", encoding="utf-8")
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True, args=["--use-angle=d3d11", "--ignore-gpu-blocklist", "--enable-gpu-rasterization"])
         state = setup(browser)
