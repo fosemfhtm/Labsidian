@@ -8,7 +8,7 @@
     ko: {
       "me.title": "내 페이지", "me.term": "학기", "me.progress": "이번 학기 작성률", "me.of": "목표 {target}편 중 {n}편",
       "me.pace": "오늘까지 기대치 {exp}편 — {diff}", "me.ahead": "{n}편 앞서 있어요", "me.behind": "{n}편 뒤처져 있어요", "me.onpace": "딱 맞춰 가고 있어요",
-      "me.left": "학기 종료까지 {d}일", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
+      "me.left": "학기 종료까지 작성일 {d}일", "me.legendWrote": "작성", "me.legendHoliday": "공휴일", "me.legendLab": "연구실 쉬는 날 (셧다운·학회 등)", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
       "me.calendar": "작성 캘린더", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주", "me.drift": "관심사 변화 (월별)",
       "me.reviews": "내 리뷰", "me.noReviews": "이 학기엔 아직 리뷰가 없어요", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
       "me.reading": "읽을 목록", "me.noReading": "📚 버튼으로 담은 논문이 여기 모여요", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
@@ -20,7 +20,7 @@
     en: {
       "me.title": "My page", "me.term": "Term", "me.progress": "This term's diary rate", "me.of": "{n} of {target} target",
       "me.pace": "Expected by today: {exp} — {diff}", "me.ahead": "{n} ahead", "me.behind": "{n} behind", "me.onpace": "right on pace",
-      "me.left": "{d} days left in term", "me.ended": "Term ended", "me.inc90": "90% (top incentive)", "me.inc70": "70%",
+      "me.left": "{d} writing days left in term", "me.legendWrote": "Wrote", "me.legendHoliday": "Public holiday", "me.legendLab": "Lab day off (shutdown, conference …)", "me.ended": "Term ended", "me.inc90": "90% (top incentive)", "me.inc70": "70%",
       "me.calendar": "Writing calendar", "me.streak": "{n}-week streak", "me.best": "best {n} weeks", "me.drift": "Interest drift (by month)",
       "me.reviews": "My reviews", "me.noReviews": "No reviews this term yet", "me.draft": "Saved draft", "me.continue": "Continue",
       "me.reading": "Reading list", "me.noReading": "Papers you save with 📚 show up here", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
@@ -56,7 +56,9 @@
     const today = S.today();
     // duty for this member: prorated from their start date, or exempt (postdocs …), or a fixed target set by an admin
     const q = person ? S.quota(me.id, term) : { exempt: true, target: 0, start: term.start };
-    const total = days(q.start, term.end) + 1, elapsed = Math.max(0, Math.min(total, days(q.start, today) + 1));
+    // pace counts working days only (weekdays that aren't the lab's days off)
+    const qEnd = q.end || term.end, total = Math.max(1, S.calendar.workdays(q.start, qEnd));
+    const elapsed = today < q.start ? 0 : S.calendar.workdays(q.start, today < qEnd ? today : qEnd);
     const target = Math.max(1, q.target), n = mine.length, pct = Math.min(100, n / target * 100);
     const expected = Math.round(q.target * elapsed / total), diff = n - expected;
     const draft = S.drafts.get(), mcpDrafts = S.drafts.mcp();
@@ -84,7 +86,7 @@
             <i class="mark exp" style="left:${Math.min(100, expected / target * 100)}%"></i></div>
           <div class="pbar-l"><span>0</span><span style="left:70%">70%</span><span style="left:90%">90%</span></div>
           <p class="muted">${t("me.pace", { exp: expected, diff: diff > 0 ? t("me.ahead", { n: diff }) : diff < 0 ? t("me.behind", { n: -diff }) : t("me.onpace") })}</p>
-          <p class="muted">${today > term.end ? t("me.ended") : t("me.left", { d: days(today, term.end) })}</p>
+          <p class="muted">${today > term.end ? t("me.ended") : t("me.left", { d: S.calendar.workdays(today, term.end) })}</p>
         </div>`}
         <div class="card"><h3>${t("me.calendar")} <span class="muted" id="me-streak"></span></h3><div id="me-cal" class="cal"></div></div>
       </div>
@@ -118,12 +120,15 @@
     const start = new Date(term.start), dow = (start.getDay() + 6) % 7; // Monday = 0
     const first = addDays(term.start, -dow), weeks = Math.ceil((days(first, term.end) + 1) / 7);
     const color = person?.color || "#6155f5";
+    // weekdays only (no diary is owed on weekends); the lab's days off are shaded and named in the tooltip
     let html = `<div class="cal-grid" style="grid-template-columns:repeat(${weeks},1fr)">`;
-    for (let w = 0; w < weeks; w++) for (let d = 0; d < 7; d++) {
+    for (let w = 0; w < weeks; w++) for (let d = 0; d < 5; d++) {
       const day = addDays(first, w * 7 + d), c = counts[day] || 0, out = day < term.start || day > term.end;
-      html += `<i class="${out ? "out" : ""} ${day === S.today() ? "today" : ""}" style="grid-column:${w + 1};grid-row:${d + 1};${c ? `background:${color};opacity:${Math.min(1, 0.45 + c * 0.3)}` : ""}" title="${day}${c ? " · " + c : ""}"></i>`;
+      const off = !out && S.calendar.offDay(day), cls = [out && "out", day === S.today() && "today", off && (off.kind === "holiday" ? "off-holiday" : "off-lab")];
+      html += `<i class="${cls.filter(Boolean).join(" ")}" style="grid-column:${w + 1};grid-row:${d + 1};${c ? `background:${color};opacity:${Math.min(1, 0.45 + c * 0.3)}` : ""}" title="${day}${off ? " · " + esc(off.label) : ""}${c ? " · " + c : ""}"></i>`;
     }
     html += "</div>";
+    html += `<div class="cal-legend"><span><i style="background:${color}"></i>${t("me.legendWrote")}</span><span><i class="off-holiday"></i>${t("me.legendHoliday")}</span><span><i class="off-lab"></i>${t("me.legendLab")}</span></div>`;
     // months axis
     html += `<div class="cal-months">${[...new Set(Array.from({ length: weeks }, (_, w) => addDays(first, w * 7 + 6).slice(0, 7)).filter(m => m >= term.start.slice(0, 7) && m <= term.end.slice(0, 7)))].map(m => `<span>${+m.slice(5)}${lang === "ko" ? "월" : ""}</span>`).join("")}</div>`;
     $("#me-cal", view).innerHTML = html;

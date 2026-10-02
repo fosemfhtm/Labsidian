@@ -168,11 +168,18 @@ details.fld summary { cursor: pointer; }
 .pbar-l { position: relative; height: 16px; font-size: 11px; color: var(--text-3); }
 .pbar-l span { position: absolute; transform: translateX(-50%); }
 .pbar-l span:first-child { transform: none; }
-.cal-grid { display: grid; grid-template-rows: repeat(7, 1fr); gap: 3px; }
+.cal-grid { display: grid; grid-template-rows: repeat(5, 1fr); gap: 3px; }
 .cal-grid i { aspect-ratio: 1; background: var(--bg-2); border-radius: 2px; min-width: 6px; }
 .cal-grid i.out { background: transparent; }
 .cal-grid i.today { outline: 1px solid #fff; }
 .cal-months { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+/* the lab's days off — outlined / hatched rather than filled, so they never look like a member's writing colour:
+   public holidays red ring, lab shutdowns / conferences hatched grey */
+.cal-grid i.off-holiday, .cal-legend i.off-holiday { background: rgba(255, 59, 48, 0.14); box-shadow: inset 0 0 0 1.5px rgba(255, 59, 48, 0.75); }
+.cal-grid i.off-lab, .cal-legend i.off-lab { background: repeating-linear-gradient(135deg, rgba(142, 142, 147, 0.55) 0 2px, transparent 2px 4px); }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--text-3); margin-top: 8px; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cal-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; background: var(--bg-2); }
 .drift { display: grid; gap: 5px; }
 .drift-row { display: grid; grid-template-columns: 64px 1fr 28px; gap: 8px; align-items: center; font-size: 12px; }
 .drift-bar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; gap: 1px; }

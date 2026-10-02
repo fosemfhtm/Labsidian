@@ -43,7 +43,7 @@ LEGACY = DATA / "live_snapshot.json"  # left by the old localStorage bridge → 
 MAX_BODY, MAX_FILE = 50 * 1024 * 1024, 25 * 1024 * 1024
 # must match COLLS in site/store.js: each entry of these is its own record, every other top-level key is one "_meta" record
 COLLS = ("users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
-         "paperTags", "clusterNames")
+         "paperTags", "clusterNames", "offDays")
 CONTENT = tuple(c for c in COLLS if c != "users")
 
 

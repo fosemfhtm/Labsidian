@@ -20,6 +20,8 @@
       "ad.aiCopy": "프롬프트 복사", "ad.aiPaste": "AI 답변 붙여넣기", "ad.aiPreview": "미리보기", "ad.aiApply": "선택한 병합 적용", "ad.aiBad": "JSON을 읽지 못했어요",
       "ad.ops": "태그 변경 이력", "ad.undo": "되돌리기", "ad.domain": "분야", "ad.method": "방법론", "ad.free": "키워드",
       "ad.termLabel": "이름", "ad.start": "시작", "ad.end": "끝", "ad.target": "목표 편수", "ad.addTerm": "학기 추가",
+      "ad.targetAuto": "자동 (작성일 수)", "ad.offDays": "쉬는 날 — 다이어리 안 쓰는 평일", "ad.offHint": "주말은 원래 빠져요. 공휴일·셧다운·학회처럼 다이어리를 안 쓰는 평일을 넣으면 그만큼 작성 목표가 줄어요 (학기 목표 편수를 비워 두면 '작성일 수'가 목표).",
+      "ad.kind": "종류", "ad.kind.holiday": "공휴일", "ad.kind.shutdown": "셧다운", "ad.kind.event": "학회·행사", "ad.offLabel": "이름", "ad.addOff": "쉬는 날 추가", "ad.remove": "삭제",
       "ad.export": "전체 변경 데이터 JSON 내보내기", "ad.import": "JSON 가져오기", "ad.resetAll": "이 브라우저의 데이터 초기화",
       "ad.resetConfirm": "이 브라우저에 저장된 계정·리뷰·댓글을 모두 지울까요? (가져온 다이어리 원본은 남아요)",
       "ad.dataNote": "지금은 데모 모드라 데이터가 이 브라우저에만 있어요. DB를 연결할 때 이 JSON으로 그대로 이관해요.",
@@ -42,6 +44,8 @@
       "ad.aiCopy": "Copy prompt", "ad.aiPaste": "Paste the AI answer", "ad.aiPreview": "Preview", "ad.aiApply": "Apply selected merges", "ad.aiBad": "Couldn't read that JSON",
       "ad.ops": "Tag change history", "ad.undo": "Undo", "ad.domain": "Field", "ad.method": "Method", "ad.free": "Keyword",
       "ad.termLabel": "Label", "ad.start": "Start", "ad.end": "End", "ad.target": "Target", "ad.addTerm": "Add term",
+      "ad.targetAuto": "auto (writing days)", "ad.offDays": "Days off — weekdays without a diary", "ad.offHint": "Weekends never count. Add public holidays, shutdowns, conferences — weekdays nobody writes — and targets shrink to match (leave a term's target empty to use the number of writing days).",
+      "ad.kind": "Kind", "ad.kind.holiday": "Public holiday", "ad.kind.shutdown": "Shutdown", "ad.kind.event": "Conference / event", "ad.offLabel": "Name", "ad.addOff": "Add day off", "ad.remove": "Remove",
       "ad.export": "Export all changes as JSON", "ad.import": "Import JSON", "ad.resetAll": "Reset this browser's data",
       "ad.resetConfirm": "Delete all accounts, reviews and comments stored in this browser? (The imported diary stays)",
       "ad.dataNote": "Demo mode keeps data in this browser only. When the DB is connected, this JSON is migrated as-is.",
@@ -200,19 +204,32 @@
     const list = S.terms.list();
     el.innerHTML = `<div class="card"><table class="tbl"><thead><tr><th>ID</th><th>${t("ad.termLabel")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th></th></tr></thead><tbody>
       ${list.map(x => `<tr data-id="${esc(x.id)}"><td>${esc(x.id)}</td><td><input data-f="label" value="${esc(x.label)}"></td><td><input type="date" data-f="start" value="${x.start}"></td>
-        <td><input type="date" data-f="end" value="${x.end}"></td><td><input type="number" min="1" data-f="target" value="${x.target}" style="width:80px"></td>
+        <td><input type="date" data-f="end" value="${x.end}"></td><td><input type="number" min="1" data-f="target" value="${x.target ?? ""}" placeholder="${t("ad.targetAuto")}" style="width:120px"></td>
         <td><button class="btn small" data-act="save">${t("ad.save")}</button></td></tr>`).join("")}</tbody></table>
       <form class="inline-form" id="ad-term"><b>${t("ad.addTerm")}</b><input name="id" placeholder="2027H1" required><input name="label" placeholder="2027 상반기" required>
-        <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" value="110" style="width:80px">
-        <button class="btn primary small">${t("ad.addTerm")}</button></form></div>`;
-    el.querySelectorAll("tbody tr").forEach(tr => tr.querySelector("[data-act]").onclick = async () => {
+        <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" placeholder="${t("ad.targetAuto")}" style="width:120px">
+        <button class="btn primary small">${t("ad.addTerm")}</button></form></div>
+      <div class="card" style="margin-top:14px"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
+        <table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
+        ${S.calendar.list().map(o => `<tr data-off="${esc(o.id)}"><td>${o.start}</td><td>${o.end}</td><td>${esc(o.label)}</td><td>${t("ad.kind." + o.kind)}</td>
+          <td><button class="btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>
+        <form class="inline-form" id="ad-off"><b>${t("ad.addOff")}</b><input type="date" name="start" required><input type="date" name="end">
+          <input name="label" placeholder="${t("ad.offLabel")}" required><select name="kind">${["holiday", "shutdown", "event"].map(k => `<option value="${k}">${t("ad.kind." + k)}</option>`).join("")}</select>
+          <button class="btn primary small">${t("ad.addOff")}</button></form></div>`;
+    el.querySelectorAll('[data-act="off-del"]').forEach(b => b.onclick = async () => { await S.calendar.remove(b.closest("tr").dataset.off); terms(el); });
+    $("#ad-off", el).onsubmit = async e => {
+      e.preventDefault(); const f = e.target;
+      try { await S.calendar.save({ start: f.start.value, end: f.end.value || f.start.value, label: f.label.value, kind: f.kind.value }); terms(el); }
+      catch (x) { LabToast("⚠️ " + x.message); }
+    };
+    el.querySelectorAll("tbody tr[data-id]").forEach(tr => tr.querySelector("[data-act]").onclick = async () => {
       const f = k => tr.querySelector(`[data-f="${k}"]`).value;
-      await S.terms.save({ id: tr.dataset.id, label: f("label"), start: f("start"), end: f("end"), target: +f("target") });
+      await S.terms.save({ id: tr.dataset.id, label: f("label"), start: f("start"), end: f("end"), target: f("target") === "" ? null : +f("target") });
       LabToast(t("ad.done"));
     });
     $("#ad-term", el).onsubmit = async e => {
       e.preventDefault(); const f = e.target;
-      await S.terms.save({ id: f.id.value, label: f.label.value, start: f.start.value, end: f.end.value, target: +f.target.value });
+      await S.terms.save({ id: f.id.value, label: f.label.value, start: f.start.value, end: f.end.value, target: f.target.value === "" ? null : +f.target.value });
       terms(el);
     };
   }

@@ -31,13 +31,14 @@
     version: 1, users: {}, reviews: {}, reviewEdits: {}, comments: {}, reactions: {}, reading: {},
     notifications: {}, drafts: {}, tagOps: [], terms: null, log: [], seq: 1, studies: {}, studyQs: {},
     paperTags: {}, clusterNames: {},  // admin corrections: a paper's domain/method tags · a map region's name
+    offDays: {},  // the lab's weekdays off (public holidays, shutdowns, conferences): no diary owed
   });
   // Local server (scripts/serve.py): the source of truth is its SQLite file. The page loads it once, sends only the
   // records it changed, and picks up changes made elsewhere (MCP ops, other tabs). Static host (GitHub Pages) or the
   // headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
   const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
-    "paperTags", "clusterNames"];
+    "paperTags", "clusterNames", "offDays"];
   const recordsOf = d => {
     const m = new Map();
     Object.entries(d).forEach(([k, v]) => {
@@ -465,6 +466,12 @@
   }
   const reviewById = id => SEED.allReviews.find(r => r.id === id);
 
+  // ---------------------------------------------------------------- lab calendar
+  // a diary is owed on every weekday that isn't one of the lab's days off (public holidays, shutdowns, conferences …)
+  const isWeekend = d => { const w = new Date(d + "T00:00:00Z").getUTCDay(); return w === 0 || w === 6; };
+  function offDay(d) { for (const o of Object.values(db.offDays)) if (o.start <= d && d <= o.end) return o; return null; }
+  function workdays(a, b) { let n = 0; for (let d = a; d <= b; d = addDays(d, 1)) if (!isWeekend(d) && !offDay(d)) n++; return n; }
+
   // ---------------------------------------------------------------- public API
   const Store = {
     mock: true,
@@ -614,7 +621,8 @@
       setTerms(list) { try { localStorage.setItem(VIEW_KEY, JSON.stringify(list || [])); } catch (e) {} },
     },
 
-    // how many diaries a member owes in a term (prorated from their start/end dates; exempt = none)
+    // how many diaries a member owes in a term: one per working day between their start and end (exempt = none).
+    // A term with a fixed target (set by an admin) is prorated by working days instead.
     quota(uid, term) {
       const q = db.users[uid]?.quota || {};
       if (q.exempt) return { exempt: true, target: 0, start: term.start };
@@ -622,9 +630,31 @@
       if (start > term.end) return { exempt: true, target: 0, start, notYet: true };
       const end = q.end && q.end < term.end ? q.end : term.end;  // graduated / left the lab
       if (end < start) return { exempt: true, target: 0, start, left: true };
-      const auto = Math.round((term.target || 0) * (dayDiff(start, end) + 1) / (dayDiff(term.start, term.end) + 1));
+      const mine = workdays(start, end);
+      const auto = term.target ? Math.round(term.target * mine / (workdays(term.start, term.end) || 1)) : mine;
       const custom = q.targets?.[term.id];
-      return { exempt: false, start, end, target: custom != null ? +custom : auto, auto, custom: custom != null };
+      return { exempt: false, start, end, workdays: mine, target: custom != null ? +custom : auto, auto, custom: custom != null };
+    },
+
+    // the lab's days off: public holidays, shutdowns, conferences … — weekends are never owed anyway
+    calendar: {
+      list() { return Object.values(db.offDays).sort((a, b) => a.start.localeCompare(b.start)); },
+      offDay, isWeekend, workdays,
+      async save(o) {
+        requireAdmin();
+        const end = o.end || o.start;
+        if (!isDate(o.start) || !isDate(end) || end < o.start) throw new Error("date");
+        const id = o.id && db.offDays[o.id] ? o.id : uid("off_");
+        db.offDays[id] = { id, start: o.start, end, label: String(o.label || "").trim().slice(0, 60),
+          kind: ["holiday", "shutdown", "event"].includes(o.kind) ? o.kind : "holiday" };
+        log("offday.save", `${o.start}~${end} ${o.label || ""}`); save();
+        return id;
+      },
+      async remove(id) {
+        requireAdmin();
+        const o = db.offDays[id]; if (!o) throw new Error("offday.missing");
+        delete db.offDays[id]; log("offday.remove", `${o.start} ${o.label}`); save();
+      },
     },
 
     comments: {
@@ -1013,7 +1043,7 @@
     return {
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
       clusters: SEED.clusters, terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
-      reading: db.reading, notifications: db.notifications, tagOps: db.tagOps,
+      reading: db.reading, notifications: db.notifications, tagOps: db.tagOps, offDays: Object.values(db.offDays),
       studies: Object.values(db.studies).map(st => ({ ...st, paperId: Store.studies.paperOf(st)?.id || st.paperId,
         picks: Object.fromEntries(Object.entries(st.picks || {}).map(([u, pk]) => [u, { ...pk, paperId: Store.studies.pickPaper(pk)?.id || pk.paperId }])) })),
       studyQuestions: Object.values(db.studyQs),
@@ -1022,12 +1052,14 @@
   // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
   // and stores the result; a hosted DB would do the same in an RPC / edge function.
   const OPS = new Set(["draft", "comment", "reading.add", "study.question", "study.notesDraft",
-    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags"]);
+    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
+    "offday.save", "offday.remove"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
-    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags"];
+    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
+      "offday.save", "offday.remove"];
     if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
     try {
@@ -1050,6 +1082,8 @@
       if (op.op === "tag.create") await Store.tags.create({ axis: op.axis, label: op.label, labelEn: op.labelEn, color: op.color });
       if (op.op === "quota.set") await Store.users.setQuota(op.member, op.quota);
       if (op.op === "term.save") await Store.terms.save(op.term);
+      if (op.op === "offday.save") await Store.calendar.save(op.offDay);
+      if (op.op === "offday.remove") await Store.calendar.remove(op.offDayId);
       if (op.op === "user.role" || op.op === "user.disable") {
         if (!db.users[op.member] || op.member === op.actor) throw new Error("forbidden");  // nobody locks themselves out
         if (op.op === "user.role") await Store.users.setRole(op.member, op.role === "admin" ? "admin" : "member");
@@ -1080,7 +1114,8 @@
       log("mcp." + op.op, `${actor.name}: ${op.summary || ""}`);
     } finally { actingAs = null; }
   }
-  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags"]);
+  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
+    "offday.save", "offday.remove"]);
   if (HEADLESS) { window.__LABSIDIAN_HEADLESS__({ applyOp, snapshot, db: () => db }); return; }
 
   // ---------------------------------------------------------------- server sync: changes made elsewhere (MCP, other tabs)

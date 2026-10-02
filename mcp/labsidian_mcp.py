@@ -193,6 +193,20 @@ def term_for(day=None):
     return next((t for t in d["terms"] if t["start"] <= day <= t["end"]), d["terms"][-1])
 
 
+def is_off(day, offs):
+    return any(o["start"] <= day <= o["end"] for o in offs)
+
+
+def workdays(a, b, offs=None):
+    """weekdays from a to b (inclusive) that aren't one of the lab's days off — a diary is owed on each (store.js)"""
+    offs = DB.data().get("offDays") or [] if offs is None else offs
+    d, end, n = date.fromisoformat(a), date.fromisoformat(b), 0
+    while d <= end:
+        n += d.weekday() < 5 and not is_off(d.isoformat(), offs)
+        d = date.fromordinal(d.toordinal() + 1)
+    return n
+
+
 def quota(u, term):
     q = u.get("quota") or {}
     if q.get("exempt"):
@@ -203,10 +217,10 @@ def quota(u, term):
     end = min(q.get("end") or term["end"], term["end"])  # graduated / left the lab
     if end < start:
         return {"exempt": True, "target": 0, "left": True}
-    span = lambda a, b: (date.fromisoformat(b) - date.fromisoformat(a)).days + 1
-    auto = round(term.get("target", 0) * span(start, end) / span(term["start"], term["end"]))
+    mine = workdays(start, end)
+    auto = round(term["target"] * mine / (workdays(term["start"], term["end"]) or 1)) if term.get("target") else mine
     custom = (q.get("targets") or {}).get(term["id"])
-    return {"exempt": False, "start": start, "end": end, "target": int(custom) if custom not in (None, "") else auto}
+    return {"exempt": False, "start": start, "end": end, "workdays": mine, "target": int(custom) if custom not in (None, "") else auto}
 
 
 # ------------------------------------------------------------------ read tools
@@ -621,11 +635,43 @@ def admin_update_member(name: str, role: str = "", disabled: bool | None = None)
 
 
 @mcp.tool()
-def admin_save_term(term_id: str, label: str, start: str, end: str, target: int) -> dict:
-    """[admin] Create or update a term (e.g. 2027H1, "2027 상반기", 2027-01-01, 2027-06-30, 110 diaries)."""
+def admin_save_term(term_id: str, label: str, start: str, end: str, target: int | None = None) -> dict:
+    """[admin] Create or update a term (e.g. 2027H1, "2027 상반기", 2027-01-01, 2027-06-30). Leave target out (null)
+    for the usual rule — one diary per working day (weekdays minus the lab's days off); a number fixes the target."""
     u = require_admin()
     date.fromisoformat(start), date.fromisoformat(end)
-    return _done(DB.apply({"op": "term.save", "actor": u["id"], "term": {"id": term_id, "label": label, "start": start, "end": end, "target": int(target)}, "summary": term_id}))
+    return _done(DB.apply({"op": "term.save", "actor": u["id"], "term": {"id": term_id, "label": label, "start": start, "end": end,
+                                                                         "target": None if target is None else int(target)}, "summary": term_id}))
+
+
+@mcp.tool()
+def admin_list_off_days(year: str = "") -> list:
+    """[admin] The lab's days off — weekdays nobody writes a diary (public holidays, shutdowns, conferences). Weekends never count."""
+    require_admin()
+    return [o for o in sorted(DB.data().get("offDays") or [], key=lambda o: o["start"]) if not year or o["start"][:4] == year or o["end"][:4] == year]
+
+
+@mcp.tool()
+def admin_save_off_day(start: str, label: str, end: str = "", kind: str = "holiday", off_day_id: str = "") -> dict:
+    """[admin] Add (or, with off_day_id, change) a day off: start/end YYYY-MM-DD (end = start for one day), a name like
+    "추석" or "연구실 셧다운", kind holiday | shutdown | event. Diary targets shrink by the weekdays it covers."""
+    u = require_admin()
+    end = end or start
+    if date.fromisoformat(end) < date.fromisoformat(start):
+        raise ToolError("end is before start")
+    if kind not in ("holiday", "shutdown", "event"):
+        raise ToolError("kind must be holiday, shutdown or event")
+    return _done(DB.apply({"op": "offday.save", "actor": u["id"], "offDay": {"id": off_day_id or None, "start": start, "end": end, "label": label, "kind": kind},
+                           "summary": f"{start}~{end} {label}"}))
+
+
+@mcp.tool()
+def admin_remove_off_day(off_day_id: str) -> dict:
+    """[admin] Remove a day off (id from admin_list_off_days) — its weekdays count as writing days again."""
+    u = require_admin()
+    if not any(o["id"] == off_day_id for o in DB.data().get("offDays") or []):
+        raise ToolError(f"no day off {off_day_id!r} — use admin_list_off_days")
+    return _done(DB.apply({"op": "offday.remove", "actor": u["id"], "offDayId": off_day_id, "summary": off_day_id}))
 
 
 # ------------------------------------------------------------------ curation (an admin's AI tidies what rules can't)
