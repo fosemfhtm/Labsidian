@@ -260,6 +260,16 @@
 [data-ui] .ui-seg.small > * { border-radius: var(--r-xs); }
 
 /* ---------- fields ---------- */
+/* every native text field / textarea / select looks like .ui-field — zero specificity, so a context only sets width / spacing */
+:where([data-ui]) :where(input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file], [type=hidden]), textarea, select) {
+  box-sizing: border-box; min-height: max(var(--hit), 28px); padding: 4px 10px; border: 0; border-radius: var(--r-control);
+  background-color: var(--fill-4); color: var(--label); font: var(--t-body); letter-spacing: var(--tr-body); }
+:where([data-ui]) :where(textarea) { padding: 6px 10px; line-height: 1.5; resize: vertical; }
+:where([data-ui]) :where(input, textarea, select):focus { outline: none; box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .45); }
+:where([data-ui]) :where(input, textarea)::placeholder { color: var(--label-3); }
+/* a select's option list ignores the translucent fill (Windows Chrome painted white on light grey) → elevated surface */
+:where([data-ui]) :where(select option, select optgroup) { background-color: var(--sys-bg-3); color: var(--label); }
+:where([data-ui]) :where(input[type=checkbox], input[type=radio], input[type=range]) { accent-color: var(--accent); }
 [data-ui] .ui-label { display: block; font: var(--t-callout); color: var(--label-2); margin: 0 0 6px 4px; }
 [data-ui] .ui-field { width: 100%; min-height: max(var(--hit), 36px); padding: 8px 12px; border: 0; border-radius: var(--r-control); background: var(--fill-4);
   color: var(--label); font: var(--t-body); letter-spacing: var(--tr-body); outline: none; transition: box-shadow var(--dur-fast) var(--ease); }
@@ -330,12 +340,22 @@
 [data-ui] .ui-toolbar .zone { display: flex; align-items: center; gap: 4px; }
 [data-ui] .ui-toolbar .zone.mid { flex: 1; justify-content: center; }
 [data-ui] .ui-toolbar .title { font: var(--t-headline); letter-spacing: var(--tr-headline); padding: 0 6px; }
-[data-ui] .ui-menu { min-width: 220px; padding: 6px; border-radius: var(--r-sheet); }
-[data-ui] .ui-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 0 10px; border: 0; border-radius: var(--r-control-sm); background: none; color: var(--label); font: var(--t-body); cursor: pointer; text-align: left; }
-[data-ui] .ui-menu button:hover { background: rgb(var(--accent-rgb)); color: var(--on-accent); }
-[data-ui] .ui-menu button.destructive { color: var(--danger); }
-[data-ui] .ui-menu button.destructive:hover { background: var(--danger); color: var(--on-color); }
+[data-ui] .ui-menu { min-width: 220px; padding: 6px; border-radius: var(--r-card); color: var(--label); }
+[data-ui] .ui-menu > a, [data-ui] .ui-menu > button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: max(var(--hit), 26px); padding: 0 10px; border: 0; border-radius: var(--r-control-sm);
+  background: none; color: var(--label); font: var(--t-body); text-align: left; text-decoration: none; cursor: pointer; }
+[data-ui] .ui-menu > a:hover, [data-ui] .ui-menu > button:hover { background: rgb(var(--accent-rgb)); color: var(--on-accent); }
+[data-ui] .ui-menu > .destructive { color: var(--danger); }
+[data-ui] .ui-menu > .destructive:hover { background: var(--danger); color: var(--on-color); }
 [data-ui] .ui-menu hr { border: 0; height: .5px; background: var(--separator); margin: 5px 8px; }
+/* popover: anchored to a control, one at a time (filters, pickers, autocomplete — .list for a plain list of rows) */
+[data-ui] .ui-popover { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-card); padding: var(--s-3); color: var(--label); }
+[data-ui] .ui-popover.list { padding: 6px; }
+[data-ui] .ui-popover.list > div { border-radius: var(--r-control-sm); }
+[data-ui] .ui-popover.list > div:hover { background: var(--fill-3); }
+/* tooltip: values on charts (icon buttons use the title attribute) */
+[data-ui] .ui-tooltip { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-control-sm); padding: 8px 10px; font: var(--t-callout); color: var(--label); }
 [data-ui] .ui-scroll-edge { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
 
 /* ---------- alert (≤3 buttons; Cancel leading, action trailing) & sheet ---------- */
@@ -359,7 +379,7 @@
 [data-ui] .ui-progress { height: 4px; border-radius: var(--r-xs); background: var(--fill-3); overflow: hidden; }
 [data-ui] .ui-progress > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
 [data-ui] .ui-spinner { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--fill); border-top-color: var(--label-2); animation: ui-spin .8s linear infinite; }
-[data-ui] .ui-empty { display: grid; justify-items: center; gap: 6px; padding: var(--s-8) var(--s-4); text-align: center; }
+[data-ui] .ui-empty { display: grid; justify-items: center; gap: 6px; padding: var(--s-8) var(--s-4); text-align: center; color: var(--label-meta); font: var(--t-body); }
 [data-ui] .ui-empty > .ic { width: 40px; height: 40px; color: var(--label-3); stroke-width: 1.5; margin-bottom: 6px; }
 [data-ui] .ui-empty h4 { margin: 0; font: var(--t-title3); letter-spacing: var(--tr-title3); }
 [data-ui] .ui-empty p { margin: 0 0 10px; font: var(--t-body); color: var(--label-2); max-width: 34ch; }

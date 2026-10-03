@@ -14,8 +14,7 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .page-head h1 { font: var(--t-large-title); letter-spacing: .01em; }
 .dp-head h1 { font: var(--t-title1); letter-spacing: .01em; }
 .sub { color: var(--label-2); font-size: var(--fs-body); }
-.muted, .hint, .empty { color: var(--label-meta); }
-.empty { font-size: var(--fs-body); }
+.muted, .hint { color: var(--label-meta); }
 a { color: inherit; }
 .kv a, .rv-body a, a.link { color: var(--link-text); }
 
@@ -25,7 +24,7 @@ a { color: inherit; }
   -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
   box-shadow: var(--glass-rim), var(--glass-shadow); border: 0;
 }
-.menu, .pop, .tag-pop, .mention-pop, .tb-search .find-results, .st-manage .menu-pop, .tooltip, .modal, .gate-card, .toast, .mcp-banner, .drawer {
+.tb-search .find-results, .gate-card, .mcp-banner, .drawer {
   background: var(--glass-sheen), var(--glass-tint-strong);
   -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
   box-shadow: var(--glass-rim), var(--shadow-2); border: 0;
@@ -63,7 +62,6 @@ main { padding-top: var(--top-h); }
 .g-filter .n { background: var(--on-color); color: var(--accent); }
 .tb-search input { padding: 8px 14px; min-height: 34px; }
 .tb-count { border-radius: var(--r-full); padding: 6px 12px; font-size: var(--fs-callout); color: var(--label-2); }
-.pop { border-radius: var(--r-sheet); }
 .g-people, .legend, .graph-ctl, .timeline { border-radius: var(--r-sheet); }
 .focus-bar { border-radius: var(--r-full); }
 .pl:hover, .fr:hover { background: var(--fill-3); }
@@ -81,12 +79,12 @@ main { padding-top: var(--top-h); }
 body:has(#drawer.open) .legend { right: 548px; }
 
 /* ---------- content layer: cards, rows, reviews ---------- */
-.card, .paper-row, .person-card, .feed-item.act, .stat { border: 0; border-radius: var(--r-card); }
-.card, .paper-row, .person-card, .feed-item.act { background: var(--panel); box-shadow: var(--shadow-1); }
+.paper-row, .person-card, .feed-item.act, .stat { border: 0; border-radius: var(--r-card); }
+.paper-row, .person-card, .feed-item.act { background: var(--panel); box-shadow: var(--shadow-1); }
 .paper-row:hover, .person-card:hover, .feed-item.act:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); border: 0; transform: none; }
-.drawer .card, .modal .card { background: var(--fill-4); box-shadow: none; }
+.drawer .ui-card, .modal .ui-card { background: var(--fill-4); box-shadow: none; }
 .review { border-left: 0; background: var(--panel); border-radius: var(--r-card); padding: 14px 16px; box-shadow: var(--shadow-1); }
-.card .review, .drawer .review, .shared-item .review, .pk-diary .review, .modal .review { background: var(--fill-4); box-shadow: none; }
+.ui-card .review, .drawer .review, .shared-item .review, .pk-diary .review, .modal .review { background: var(--fill-4); box-shadow: none; }
 .review.st-missing { border: 1.5px dashed var(--separator); background: none; box-shadow: none; }
 .rv-head { font-size: var(--fs-body); }
 .rv-head b { font-size: var(--fs-body); }
@@ -117,32 +115,18 @@ body:has(#drawer.open) .legend { right: 548px; }
 /* ---------- segmented controls (in-page tabs, graph settings) ---------- */
 
 /* ---------- fields ---------- */
-:where(input[type=text], input:not([type]), input[type=search]:not(#search), input[type=password], input[type=date], input[type=time], input[type=url], input[type=email], input[type=number], textarea, select) {
-  background-color: var(--fill-4); border-color: transparent; border-radius: var(--r-control); color: var(--label); }
-input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .4); }
 .tag-input { background: var(--fill-4); border: 0; border-radius: var(--r-control); }
 .drop { border: 1.5px dashed var(--separator); border-radius: var(--r-card); }
-input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(--accent); }
-/* a native select's option list ignores the translucent field fill (Windows Chrome painted white text on light grey):
-   give it the elevated surface + label colour so it reads in both themes */
-select option, select optgroup { background-color: var(--sys-bg-3); color: var(--label); }
 .fld > span, .fld > label, label.fld > span { color: var(--label-2); }
 
 /* ---------- menus, popovers, notifications ---------- */
-.menu { border-radius: var(--r-card); padding: 6px; }
-.menu a, .menu > button { border-radius: var(--r-control-sm); }
-.menu a:hover, .menu > button:hover { background: var(--accent); color: var(--on-accent); }
-.menu hr { border-top-color: var(--separator); }
 .notif.unread { background: rgb(var(--accent-rgb) / .1); }
-.tag-pop, .mention-pop, .tb-search .find-results { border-radius: var(--r-card); }
-.tag-pop > div:hover, .mention-pop > div:hover { background: var(--fill-3); }
+.tb-search .find-results { border-radius: var(--r-card); }
+.tb-search .find-results > div:hover { background: var(--fill-3); }
 
 /* ---------- modal (alert / sheet), login, toast ---------- */
-.modal-back { background: var(--scrim); -webkit-backdrop-filter: none; backdrop-filter: none; }
-.modal { border-radius: var(--r-sheet); }
 .gate { background: radial-gradient(70% 60% at 25% 15%, rgb(var(--indigo) / .22), transparent 70%), radial-gradient(60% 60% at 85% 85%, rgb(var(--mint) / .16), transparent 70%), var(--bg); }
 .gate-card { border-radius: var(--r-sheet); }
-.toast { color: var(--label); border-radius: var(--r-full); font-weight: 500; }
 .mcp-banner { border-radius: var(--r-full); }
 .lightbox { background: var(--scrim-strong); }
 
@@ -201,9 +185,9 @@ body:has(#drawer.open) #view-graph .focus-bar { left: calc((100% - 548px) / 2); 
 #view-graph .focus-bar b { min-width: 0; flex: 1 1 auto; }
 #view-graph .focus-bar > :not(b) { flex: none; }
 /* person page: the side card is a grid — headings get the same rhythm as the drawer */
-.dp-side.card { display: block; }
-.dp-side.card h4 { margin: 22px 0 8px; font-size: var(--fs-body); color: var(--label-2); font-weight: 600; letter-spacing: 0; }
-.dp-side.card h4:first-child { margin-top: 0; }
+.dp-side.ui-card { display: block; }
+.dp-side.ui-card h4 { margin: 22px 0 8px; font-size: var(--fs-body); color: var(--label-2); font-weight: 600; letter-spacing: 0; }
+.dp-side.ui-card h4:first-child { margin-top: 0; }
 
 /* ---------- global search (Spotlight-style) ---------- */
 .search-btn { margin-left: auto; width: 34px; height: 34px; border-radius: var(--r-full); background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--label); }
@@ -238,7 +222,7 @@ body:has(#drawer.open) #view-graph .focus-bar { left: calc((100% - 548px) / 2); 
 /* papers page: its own list filter */
 .p-search { position: relative; flex: 1 1 280px; min-width: 220px; }
 .p-search .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; margin: 0; color: var(--label-meta); pointer-events: none; }
-.p-search input { width: 100%; padding: 8px 12px 8px 33px; font-size: var(--fs-body); }
+.p-search input { width: 100%; padding-left: 33px; }
 
 /* ---------- home tabs: pinned under the top bar with a scroll-edge effect (no glass over text) ---------- */
 .feed-tabs-row { position: sticky; top: var(--top-h); z-index: 6; margin: -12px 0 10px; padding: 12px 0 8px; background: var(--bg); }

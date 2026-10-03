@@ -62,7 +62,7 @@
 
   function card(g) {
     const me = S.auth.current(), pr = me ? S.guides.progress(g, me.id) : { done: 0, total: g.items.length };
-    return `<a class="card gd-card" href="#/guide/${g.id}">
+    return `<a class="ui-card gd-card" href="#/guide/${g.id}">
       <div class="gd-card-t">${esc(g.title)}</div>
       ${S.guides.isGroup(g) ? `<div class="gd-card-g"><span class="ui-pill accent">${t("gd.group")}</span>${[rhythm(g), t("gd.rounds", { n: S.guides.sessions(g).length })].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
       ${g.desc ? `<div class="gd-card-d">${esc(g.desc.slice(0, 120))}</div>` : ""}
@@ -83,7 +83,7 @@
     $("#gd-tags", root).onclick = e => { const c = e.target.closest("[data-id]"); if (c) { tags.splice(tags.indexOf(c.dataset.id), 1); paint(); } };
   }
   function form(g, preTag) {
-    return `<form class="card write-form gd-form" id="gd-form">
+    return `<form class="ui-card write-form gd-form" id="gd-form">
       <label class="fld"><span>${t("gd.name")}</span><input name="title" required maxlength="120" placeholder="${t("gd.name.ph")}" value="${esc(g?.title || "")}"></label>
       <label class="fld"><span>${t("gd.desc")}</span><textarea name="desc" rows="2" placeholder="${t("gd.desc.ph")}">${esc(g?.desc || "")}</textarea></label>
       <div class="fld"><span>${t("gd.tags")}</span>${tagPicker(g?.tags || (preTag ? [preTag] : []))}</div>
@@ -111,7 +111,7 @@
       <div class="page-head row-head"><div><h1>${t("gd.title")}</h1><p class="sub">${t("gd.sub")}</p></div>
         ${me && !creating ? `<a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a>` : ""}</div>
       ${creating ? form(null, params.get("tag")) : ""}
-      ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="empty">${t("gd.empty")}${me ? `<p><a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
+      ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="ui-empty">${t("gd.empty")}${me ? `<p><a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
     if (creating) {
       const f = $("#gd-form", listView), tags = params.get("tag") ? [params.get("tag")] : [];
       wireTagPicker(f, tags); wireGroupFields(f);
@@ -167,7 +167,7 @@
     const info = [rhythm(g), gr.place, t("gd.members", { n: gr.members.length })].filter(Boolean).map(esc).join(" · ");
     const acts = (me && me.id !== g.owner ? `<button class="ui-btn small" id="gd-join" data-on="${member ? "0" : "1"}">${member ? t("gd.leave") : t("gd.join")}</button>` : "")
       + (!next && canRun ? `<a class="ui-btn small prominent" href="#/study/new?guide=${g.id}">👥 ${t("gd.newSession")}</a>` : "");
-    return `<div class="card gd-group">
+    return `<div class="ui-card gd-group">
       <div class="row-between"><div><h3>${t("gd.group")}</h3><p class="gd-ginfo">${info} ${UI.avStack(gr.members, 6)}</p></div>
         ${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
       ${sts.length ? `<ol class="gd-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">
@@ -178,25 +178,25 @@
 
   function renderPage(params, id) {
     const g = S.guides.get(id), me = S.auth.current();
-    if (!g) { pageView.innerHTML = `${UI.papersTabs("guides")}<div class="empty">404</div>`; return; }
+    if (!g) { pageView.innerHTML = `${UI.papersTabs("guides")}<div class="ui-empty">404</div>`; return; }
     const canManage = S.guides.canManage(g), editing = params.get("edit") === "1" && canManage;
     const pr = me ? S.guides.progress(g, me.id) : { done: 0, total: g.items.length };
     pageView.innerHTML = `${UI.papersTabs("guides")}
       ${editing ? form(g) : `<div class="page-head row-head"><div><h1>${esc(g.title)}</h1>
           <p class="sub gd-by">${UI.avatar(g.owner)} ${t("gd.by", { name: esc(name(g.owner)) })} · ${t("gd.papers", { n: g.items.length })}</p></div>
-          ${canManage ? `<details class="st-manage gd-manage"><summary>⋯ ${t("gd.manage")}</summary><div class="menu-pop">
+          ${canManage ? `<details class="st-manage gd-manage"><summary>⋯ ${t("gd.manage")}</summary><div class="menu-pop ui-popover">
             <a class="ui-btn text" href="#/guide/${g.id}?edit=1">${t("gd.editGroup")}</a><hr><button class="ui-btn text destructive" id="gd-del">${t("gd.delete")}</button></div></details>` : ""}</div>
         ${g.desc ? `<p class="gd-desc">${esc(g.desc)}</p>` : ""}<div class="tags-row">${tagChips(g.tags)}</div>
         ${S.guides.isGroup(g) ? groupCard(g, me) : ""}`}
-      ${me ? `<div class="card gd-me"><div class="row-between"><b>${t("gd.mine", { d: pr.done, n: pr.total })}</b>
+      ${me ? `<div class="ui-card gd-me"><div class="row-between"><b>${t("gd.mine", { d: pr.done, n: pr.total })}</b>
           <div class="btn-row"><button class="ui-btn small" id="gd-all-read">📚 ${t("gd.allToReading")}</button>${S.guides.isGroup(g) ? "" : `<button class="ui-btn small prominent" id="gd-next">👥 ${t("gd.nextStudy")}</button>`}</div></div>
         ${progressBar(pr.done, pr.total)}</div>` : ""}
       ${g.sections.map(sec => {
         const items = g.items.filter(it => it.section === sec.id);
-        return `<div class="card gd-sec"><h3>${esc(sec.title)} <span class="muted">${items.length}</span></h3>
+        return `<div class="ui-card gd-sec"><h3>${esc(sec.title)} <span class="muted">${items.length}</span></h3>
           ${items.map(it => itemRow(g, it, canManage, me)).join("") || `<p class="muted">${t("gd.noItems")}</p>`}</div>`;
       }).join("")}
-      ${me ? `<form class="card write-form gd-add" id="gd-add" autocomplete="off"><h3>${t("gd.add")}</h3>
+      ${me ? `<form class="ui-card write-form gd-add" id="gd-add" autocomplete="off"><h3>${t("gd.add")}</h3>
         <div class="gd-add-row"><input name="q" placeholder="${t("gd.add.ph")}" required>
           <select name="section">${g.sections.map(x => `<option value="${x.id}">${esc(x.title)}</option>`).join("")}</select></div>
         <div class="gd-add-row"><input name="note" placeholder="${t("gd.note.ph")}" maxlength="300"><button class="ui-btn prominent">${t("gd.addBtn")}</button></div>

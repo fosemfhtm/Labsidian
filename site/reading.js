@@ -52,16 +52,16 @@
     const stale = g.todo.filter(x => ago(x.addedAt) >= 14).length;
     view.innerHTML = `
       <div class="page-head"><h1>${t("rl.title")}</h1><p class="sub">${t("rl.sub")}</p></div>
-      <div class="card rl-add">
+      <div class="ui-card rl-add">
         <form id="rl-form" class="rl-add-row" autocomplete="off"><input id="rl-input" placeholder="${t("rl.ph")}">
           <button class="ui-btn prominent">${t("rl.add")}</button>
           <label class="ui-btn">📄 ${t("rl.pdf")}<input type="file" id="rl-file" accept="application/pdf" multiple hidden></label></form>
         <div class="muted" id="rl-status"></div><p class="hint">${t("rl.dropHint")}</p>
       </div>
       ${g.read.length || stale ? `<div class="rl-nudge">⏰ ${[g.read.length && t("rl.nudgeRead", { n: g.read.length }), stale && t("rl.nudgeStale", { n: stale })].filter(Boolean).join(" · ")}</div>` : ""}
-      ${["reading", "todo", "read"].map(s => `<div class="card rl-sec"><h3>${t("rl.s." + s)} <span class="muted">${g[s].length}</span></h3>
-        ${g[s].length ? `<div class="rl-list">${g[s].map(item).join("")}</div>` : `<div class="empty">${t("rl.empty." + s)}</div>`}</div>`).join("")}
-      ${g.written.length ? `<details class="card rl-sec"><summary><h3>${t("rl.s.written")} <span class="muted">${g.written.length}</span></h3></summary>
+      ${["reading", "todo", "read"].map(s => `<div class="ui-card rl-sec"><h3>${t("rl.s." + s)} <span class="muted">${g[s].length}</span></h3>
+        ${g[s].length ? `<div class="rl-list">${g[s].map(item).join("")}</div>` : `<div class="ui-empty">${t("rl.empty." + s)}</div>`}</div>`).join("")}
+      ${g.written.length ? `<details class="ui-card rl-sec"><summary><h3>${t("rl.s.written")} <span class="muted">${g.written.length}</span></h3></summary>
         <div class="rl-list">${g.written.map(item).join("")}</div></details>` : ""}`;
     wire();
   }

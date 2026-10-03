@@ -58,9 +58,9 @@
 
   function render(params) {
     const me = S.auth.current();
-    if (!me) { view.innerHTML = `<div class="empty">${t("w.signin")}</div>`; return; }
+    if (!me) { view.innerHTML = `<div class="ui-empty">${t("w.signin")}</div>`; return; }
     editing = params.get("review") ? UI.R[params.get("review")] : null;
-    if (editing && editing.person !== me.id && me.role !== "admin") { view.innerHTML = `<div class="empty">${t("w.forbidden")}</div>`; return; }
+    if (editing && editing.person !== me.id && me.role !== "admin") { view.innerHTML = `<div class="ui-empty">${t("w.forbidden")}</div>`; return; }
     study = !editing && params.get("study") ? S.studies.get(params.get("study")) : null;
     pick = study && params.get("pick") ? study.picks?.[me.id] || null : null;   // the related paper I bring
     const studyPaper = pick ? S.studies.pickPaper(pick) : study ? S.studies.paperOf(study) : null;
@@ -76,7 +76,7 @@
       <div class="page-head"><h1>${editing ? t("w.edit") : t("w.new")}</h1>
         <p class="sub">${editing ? esc(prePaper?.title || "") : t("w.sub", { term: esc(term.label), n: mineInTerm + 1 })}</p></div>
       <div class="write-grid">
-        <form class="card write-form" id="w-form" autocomplete="off">
+        <form class="ui-card write-form" id="w-form" autocomplete="off">
           ${editing ? "" : `<div class="lookup"><input id="w-lookup" placeholder="${t("w.lookup.ph")}"><button type="button" class="ui-btn" id="w-fetch">${t("w.fetch")}</button></div>
           <div class="muted" id="w-fetch-status"></div>`}
           <p class="restored" id="w-restored" hidden>${t("w.restored")} <button type="button" class="ui-btn text" id="w-discard">${t("w.discard")}</button></p>
@@ -110,15 +110,15 @@
               <div class="att-list" id="w-files"></div><em class="hint">${t("w.fileLocal")}</em></div>
             <input type="file" id="w-file" hidden multiple></div>
           <div class="fld"><span>${t("w.tags")}</span>
-            <div class="tag-input"><div class="chips" id="w-tags"></div><input id="w-tag-q" placeholder="${t("w.tags.ph")}"><div class="tag-pop" id="w-tag-pop" hidden></div></div></div>
+            <div class="tag-input"><div class="chips" id="w-tags"></div><input id="w-tag-q" placeholder="${t("w.tags.ph")}"><div class="tag-pop ui-popover list" id="w-tag-pop" hidden></div></div></div>
           <p class="err" id="w-err"></p>
           <div class="form-foot"><span class="muted" id="w-saved"></span>
             ${editing ? `<button type="button" class="ui-btn destructive" id="w-del">${t("w.delete")}</button>` : ""}
             <button class="ui-btn prominent">${editing ? t("w.saveEdit") : t("w.publish")}</button></div>
         </form>
         <aside class="write-side">
-          <div class="card dup" id="w-dup" hidden></div>
-          <div class="card"><h4>${t("w.suggest")}</h4><p class="hint">${t("w.suggestHint")}</p><div class="chips" id="w-suggest"></div>
+          <div class="ui-card dup" id="w-dup" hidden></div>
+          <div class="ui-card"><h4>${t("w.suggest")}</h4><p class="hint">${t("w.suggestHint")}</p><div class="chips" id="w-suggest"></div>
             <h4>${t("w.similar")}</h4><div class="mini-list" id="w-similar"></div></div>
 </aside>
       </div>`;

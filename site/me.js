@@ -86,9 +86,9 @@
           ${person ? `<label class="ui-btn color-pick" title="${t("me.color")}"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}<input type="color" id="me-color" value="${person.color}"></label>` : ""}
         </div>
       </div>
-      ${!person ? `<div class="card">${t("me.adminNote")}</div>` : ""}
+      ${!person ? `<div class="ui-card">${t("me.adminNote")}</div>` : ""}
       <div class="me-grid">
-        <div class="card progress-card">
+        <div class="ui-card progress-card">
           <h3>${t("me.progress")}</h3>
           ${q.exempt ? `<div class="big-num"><b>${n}</b><span>${q.notYet ? t("me.notYet", { d: S.users.get(me.id)?.quota?.start || "" }) : t("me.exempt")}</span></div></div>` : `
           <div class="big-num"><b>${Math.round(pct)}%</b><span>${t("me.of", { n, target: q.target })}</span></div>
@@ -100,17 +100,17 @@
           <p class="muted">${t("me.pace", { exp: expected, diff: diff > 0 ? t("me.ahead", { n: diff }) : diff < 0 ? t("me.behind", { n: -diff }) : t("me.onpace") })}</p>
           <p class="muted">${today > term.end ? t("me.ended") : t("me.left", { d: S.calendar.workdays(today, term.end) })}</p>
         </div>`}
-        <div class="card"><h3>${t("me.calendar")} <span class="muted" id="me-streak"></span></h3><div id="me-cal" class="cal"></div></div>
+        <div class="ui-card"><h3>${t("me.calendar")} <span class="muted" id="me-streak"></span></h3><div id="me-cal" class="cal"></div></div>
       </div>
       <div class="me-grid me-pair">
-        <div class="card"><h3>${t("me.reading")}</h3><div class="mini-list" id="me-reading"></div></div>
-        <div class="card"><h3>${t("me.inbox")}</h3><div id="me-inbox"></div></div>
+        <div class="ui-card"><h3>${t("me.reading")}</h3><div class="mini-list" id="me-reading"></div></div>
+        <div class="ui-card"><h3>${t("me.inbox")}</h3><div id="me-inbox"></div></div>
       </div>
-      <div class="card"><div class="row-between drift-head"><h3>${t("me.drift").replace(/ \(.*\)$/, "")}</h3>
+      <div class="ui-card"><div class="row-between drift-head"><h3>${t("me.drift").replace(/ \(.*\)$/, "")}</h3>
         <div class="drift-ctl"><div class="ui-seg small" id="me-span">${["term", "all"].map(a => `<button data-v="${a}" aria-pressed="${span === a}">${t("me.span." + a)}</button>`).join("")}</div>
         <div class="ui-seg small" id="me-axis">${["domain", "method"].map(a => `<button data-v="${a}" aria-pressed="${axis === a}">${t("me.axis." + a)}</button>`).join("")}</div></div></div>
         <p class="hint" id="me-drift-hint"></p><div id="me-drift"></div></div>
-      <div class="card me-reviews" id="me-reviews"><h3>${t("me.reviews")} · <span id="me-rv-count">${n}</span></h3>
+      <div class="ui-card me-reviews" id="me-reviews"><h3>${t("me.reviews")} · <span id="me-rv-count">${n}</span></h3>
         ${draft ? `<div class="draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
         ${mcpDrafts.map(d => `<div class="draft-row mcp">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
         <div class="rv-filters">
@@ -187,7 +187,7 @@
       if (k === "all") { $("#rf-q", view).value = ""; $("#rf-com", view).setAttribute("aria-pressed", "false"); }
       reviewFilters(); drift();
     });
-    if (!list.length) { $("#me-rv-list", view).innerHTML = `<div class="empty">${t(ctx.mine.length ? "me.noMatch" : "me.noReviews")}</div>`; return; }
+    if (!list.length) { $("#me-rv-list", view).innerHTML = `<div class="ui-empty">${t(ctx.mine.length ? "me.noMatch" : "me.noReviews")}</div>`; return; }
     // newest month open; everything open while filtering or when there are few
     const groups = [];
     list.forEach(r => { const m = rf.sort === "rating" ? "" : r.date.slice(0, 7); const g = groups.at(-1); g && g.m === m ? g.rs.push(r) : groups.push({ m, rs: [r] }); });
@@ -257,7 +257,7 @@
     html += `<div class="cal-legend"><span><i style="background:${color}"></i>${t("me.legendWrote")}</span><span><i class="off-holiday"></i>${t("me.legendHoliday")}</span><span><i class="off-lab"></i>${t("me.legendLab")}</span></div>`;
     // months axis
     html += `<div class="cal-months">${[...new Set(Array.from({ length: weeks }, (_, w) => addDays(first, w * 7 + 6).slice(0, 7)).filter(m => m >= term.start.slice(0, 7) && m <= term.end.slice(0, 7)))].map(m => `<span>${+m.slice(5)}${lang === "ko" ? "월" : ""}</span>`).join("")}</div>`;
-    $("#me-cal", view).innerHTML = html + `<div class="cal-tip" hidden></div>`;
+    $("#me-cal", view).innerHTML = html + `<div class="cal-tip ui-tooltip" hidden></div>`;
     calendarTips(mine, person);
     // streaks in weeks (any review that week)
     const wk = d => Math.floor(days("2020-01-06", d) / 7);
@@ -310,7 +310,7 @@
         <span class="muted">${sum}</span></div>`;
     }).join("")}</div>
     <div class="chips drift-legend">${top.map(k => `<button type="button" class="ui-tag" aria-pressed="${sel === k}" data-k="${esc(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(tagName(axis, k))}</button>`).join("")}</div>
-    <div class="drift-tip" hidden></div>`;
+    <div class="drift-tip ui-tooltip" hidden></div>`;
     const tip = $(".drift-tip", box);
     box.querySelectorAll(".drift-bar i").forEach(el => {
       el.onmouseenter = () => {

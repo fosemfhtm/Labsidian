@@ -65,7 +65,7 @@
 
   function render(params) {
     const me = S.auth.current();
-    if (!me || me.role !== "admin") { view.innerHTML = `<div class="empty">${t("ad.only")}</div>`; return; }
+    if (!me || me.role !== "admin") { view.innerHTML = `<div class="ui-empty">${t("ad.only")}</div>`; return; }
     tab = params.get("tab") || tab;
     const tabs = ["members", "tags", "terms", "data", "log"];
     view.innerHTML = `<div class="page-head"><h1>${t("ad.title")}</h1></div>
@@ -80,7 +80,7 @@
     const terms = S.terms.list();
     const term = terms.find(x => x.id === memberTerm) || S.terms.current();
     const written = id => Object.values(UI.R).filter(r => r.person === id && r.date >= term.start && r.date <= term.end).length;
-    el.innerHTML = `<div class="card">
+    el.innerHTML = `<div class="ui-card">
       <div class="row-between"><p class="hint">${t("ad.dutyHint")}</p>
         <label class="muted">${t("ad.term")} <select id="ad-mterm">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${t("ad.name")}</th><th>${t("ad.role")}</th><th>${t("ad.duty")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th>${t("ad.rate")}</th><th>${t("ad.status")}</th><th></th></tr></thead><tbody>
@@ -161,7 +161,7 @@
     const list = Object.values(UI.T).sort((a, b) => a.axis.localeCompare(b.axis) || (usage[b.id] || 0) - (usage[a.id] || 0));
     const opts = (x) => list.filter(y => y.axis === x.axis && y.id !== x.id).map(y => `<option value="${esc(y.id)}">${esc(UI.tl(y))}</option>`).join("");
     const pairs = similarPairs(list);
-    el.innerHTML = `<div class="card"><table class="tbl tags-tbl"><thead><tr><th>${t("ad.axis")}</th><th></th><th>${t("ad.ko")}</th><th>${t("ad.en")}</th><th>${t("ad.uses")}</th><th>${t("ad.mergeInto")}</th></tr></thead><tbody>
+    el.innerHTML = `<div class="ui-card"><table class="tbl tags-tbl"><thead><tr><th>${t("ad.axis")}</th><th></th><th>${t("ad.ko")}</th><th>${t("ad.en")}</th><th>${t("ad.uses")}</th><th>${t("ad.mergeInto")}</th></tr></thead><tbody>
       ${list.map(x => `<tr data-id="${esc(x.id)}"><td class="muted">${axisName(x.axis)}</td>
         <td>${colorSelect(x.color, 'data-f="color"')}</td>
         <td><input data-f="label" value="${esc(x.label)}"></td><td><input data-f="labelEn" value="${esc(x.labelEn || "")}"></td>
@@ -175,12 +175,12 @@
         <button class="ui-btn prominent small">${t("ad.newTag")}</button></form></div>
       <p class="hint">🤖 ${t("ad.mcpTip")}</p>
       <div class="me-grid">
-        <div class="card"><h3>${t("ad.similar")}</h3>${pairs.map(([a, b]) => `<div class="pair">
+        <div class="ui-card"><h3>${t("ad.similar")}</h3>${pairs.map(([a, b]) => `<div class="pair">
           <span class="ui-tag"><span class="dot" style="background:${a.color}"></span>${esc(UI.tl(a))} · ${usage[a.id] || 0}</span> ↔
           <span class="ui-tag"><span class="dot" style="background:${b.color}"></span>${esc(UI.tl(b))} · ${usage[b.id] || 0}</span>
           <button class="ui-btn text" data-pmerge="${esc(a.id)}|${esc(b.id)}">${(usage[a.id] || 0) < (usage[b.id] || 0) ? "→" : "←"} ${t("ad.merge")}</button></div>`).join("") || `<p class="muted">${t("ad.noSimilar")}</p>`}</div>
       </div>
-      <div class="card"><h3>${t("ad.ops")}</h3>${S.tags.ops().map((op, i) => `<div class="op"><code>${esc(op.op)}</code> ${esc(op.from || op.id)} ${op.into ? "→ " + esc(op.into) : op.label ? "“" + esc(op.label) + "”" : ""}
+      <div class="ui-card"><h3>${t("ad.ops")}</h3>${S.tags.ops().map((op, i) => `<div class="op"><code>${esc(op.op)}</code> ${esc(op.from || op.id)} ${op.into ? "→ " + esc(op.into) : op.label ? "“" + esc(op.label) + "”" : ""}
         <span class="muted">${op.at ? LabAgo(op.at) : ""}</span><button class="ui-btn text" data-undo="${i}">${t("ad.undo")}</button></div>`).reverse().join("") || `<p class="muted">—</p>`}</div>`;
 
     el.querySelectorAll("tbody tr").forEach(tr => {
@@ -210,14 +210,14 @@
   // ---------------- terms ----------------
   function terms(el) {
     const list = S.terms.list();
-    el.innerHTML = `<div class="card"><table class="tbl"><thead><tr><th>ID</th><th>${t("ad.termLabel")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th></th></tr></thead><tbody>
+    el.innerHTML = `<div class="ui-card"><table class="tbl"><thead><tr><th>ID</th><th>${t("ad.termLabel")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th></th></tr></thead><tbody>
       ${list.map(x => `<tr data-id="${esc(x.id)}"><td>${esc(x.id)}</td><td><input data-f="label" value="${esc(x.label)}"></td><td><input type="date" data-f="start" value="${x.start}"></td>
         <td><input type="date" data-f="end" value="${x.end}"></td><td><input type="number" min="1" data-f="target" value="${x.target ?? ""}" placeholder="${t("ad.targetAuto")}" style="width:120px"></td>
         <td><button class="ui-btn small" data-act="save">${t("ad.save")}</button></td></tr>`).join("")}</tbody></table>
       <form class="inline-form" id="ad-term"><b>${t("ad.addTerm")}</b><input name="id" placeholder="2027H1" required><input name="label" placeholder="2027 상반기" required>
         <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" placeholder="${t("ad.targetAuto")}" style="width:120px">
         <button class="ui-btn prominent small">${t("ad.addTerm")}</button></form></div>
-      <div class="card ad-sec"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
+      <div class="ui-card ad-sec"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
         ${S.calendar.list().length ? `<table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
         ${S.calendar.list().map(o => `<tr data-off="${esc(o.id)}"><td>${o.start}</td><td>${o.end}</td><td>${esc(o.label)}</td><td>${t("ad.kind." + o.kind)}</td>
           <td><button class="ui-btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">${t("ad.noOff")}</p>`}
@@ -246,7 +246,7 @@
 
   // ---------------- data ----------------
   function data(el) {
-    el.innerHTML = `<div class="card"><p>${t("ad.dataNote")}</p><div class="btn-row">
+    el.innerHTML = `<div class="ui-card"><p>${t("ad.dataNote")}</p><div class="btn-row">
       <button class="ui-btn" id="ad-exp">⬇ ${t("ad.export")}</button>
       <label class="ui-btn">⬆ ${t("ad.import")}<input type="file" accept=".json" id="ad-imp" hidden></label>
       <button class="ui-btn destructive" id="ad-reset">${t("ad.resetAll")}</button></div></div>`;
@@ -260,7 +260,7 @@
 
   // ---------------- log ----------------
   function log(el) {
-    el.innerHTML = `<div class="card"><table class="tbl"><thead><tr><th>${t("ad.when")}</th><th>${t("ad.who")}</th><th>${t("ad.what")}</th><th></th></tr></thead><tbody>
+    el.innerHTML = `<div class="ui-card"><table class="tbl"><thead><tr><th>${t("ad.when")}</th><th>${t("ad.who")}</th><th>${t("ad.what")}</th><th></th></tr></thead><tbody>
       ${S.admin.log().map(l => `<tr><td class="muted nowrap">${new Date(l.at).toLocaleString(lang === "ko" ? "ko-KR" : "en-US")}</td><td>${esc(UI.P[l.actor]?.name || l.actor || "")}</td>
         <td><code>${esc(l.action)}</code></td><td>${esc(l.detail || "")}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">—</td></tr>`}</tbody></table></div>`;
   }

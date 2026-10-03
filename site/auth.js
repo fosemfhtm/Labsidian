@@ -50,7 +50,7 @@
 
   // ---------- toast ----------
   const toastEl = document.createElement("div");
-  toastEl.className = "toast"; document.body.appendChild(toastEl);
+  toastEl.className = "toast ui-toast ui-glass strong"; document.body.appendChild(toastEl);
   let toastTimer;
   window.LabToast = (msg, ms = 2600) => {
     toastEl.textContent = msg; toastEl.classList.add("show");
@@ -64,8 +64,8 @@
   // ---------- modal ----------
   window.LabModal = (html, opts = {}) => {
     const m = document.createElement("div");
-    m.className = "modal-back" + (opts.forced ? " forced" : "");
-    m.innerHTML = `<div class="modal ${opts.wide ? "wide" : ""}">${html}</div>`;
+    m.className = "ui-scrim sheet modal-back" + (opts.forced ? " forced" : "");
+    m.innerHTML = `<div class="modal ui-sheet ${opts.wide ? "wide" : ""}" role="dialog" aria-modal="true">${html}</div>`;
     document.body.appendChild(m);
     m.addEventListener("click", e => { if ((!opts.forced && e.target === m) || e.target.closest("[data-close]")) m.remove(); });
     return m;
@@ -159,7 +159,7 @@
     if (was === name) return;
     openMenu = name;
     const m = document.createElement("div");
-    m.className = "menu menu-" + name;
+    m.className = "menu ui-menu ui-glass strong menu-" + name;
     m.innerHTML = build();
     document.body.appendChild(m);
     const sidebar = document.documentElement.dataset.layout === "sidebar" && innerWidth > 760;
@@ -224,7 +224,7 @@
       (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
         ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
-        ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="empty">${t("n.empty")}</div>`);
+        ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="ui-empty">${t("n.empty")}</div>`);
   }
   function wireNotif(m) {
     m.querySelector('[data-act="all"]')?.addEventListener("click", async () => { await S.notifications.markAllRead(); closeMenus(); updateBell(); });

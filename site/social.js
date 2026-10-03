@@ -76,7 +76,7 @@
   function composer(parent) {
     return `<form class="cm-form" ${parent ? `data-parent="${parent}"` : ""}>
       ${parent ? "" : `<div class="ui-seg small cm-kind">${["comment", "question", "idea"].map((k, i) => `<button type="button" data-k="${k}" aria-pressed="${!i}">${KIND_ICON[k]} ${t("s.kind." + k)}</button>`).join("")}</div>`}
-      <div class="cm-input"><textarea rows="2" placeholder="${t("s.ph")}"></textarea><div class="mention-pop" hidden></div></div>
+      <div class="cm-input"><textarea rows="2" placeholder="${t("s.ph")}"></textarea><div class="mention-pop ui-popover list" hidden></div></div>
       <button class="ui-btn prominent small">${t("s.post")}</button></form>`;
   }
   function wireComposer(scope, rid) {

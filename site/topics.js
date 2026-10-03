@@ -30,17 +30,17 @@
   function renderList() {
     listView.innerHTML = `${UI.papersTabs("topics")}
       <div class="page-head"><h1>${t("tp.title")}</h1><p class="sub">${t("tp.sub")}</p></div>
-      <div class="tp-grid"><div class="card"><h3>${t("tp.fields")}</h3>${rows("domain")}</div><div class="card"><h3>${t("tp.methods")}</h3>${rows("method")}</div></div>`;
+      <div class="tp-grid"><div class="ui-card"><h3>${t("tp.fields")}</h3>${rows("domain")}</div><div class="ui-card"><h3>${t("tp.methods")}</h3>${rows("method")}</div></div>`;
   }
 
   function renderPage(_, tid) {
     tid = decodeURIComponent(tid || "");
     const x = UI.T[tid];
-    if (!x) { pageView.innerHTML = `${UI.papersTabs("topics")}<div class="empty">404</div>`; return; }
+    if (!x) { pageView.innerHTML = `${UI.papersTabs("topics")}<div class="ui-empty">404</div>`; return; }
     const guides = window.Store ? Store.guides.forTag(tid) : [];
     pageView.innerHTML = `${UI.papersTabs("topics")}
-      <div class="tp-page"><div class="card">${UI.topicDetail(tid)}</div>
-      <div class="card"><div class="row-between"><h3>${t("tp.guides")}</h3>
+      <div class="tp-page"><div class="ui-card">${UI.topicDetail(tid)}</div>
+      <div class="ui-card"><div class="row-between"><h3>${t("tp.guides")}</h3>
         <a class="ui-btn small prominent" href="#/guides?new=1&tag=${encodeURIComponent(tid)}">＋ ${t("tp.newGuide")}</a></div>
         ${guides.length ? `<div class="gd-cards">${guides.map(g => window.LabGuides.card(g)).join("")}</div>` : `<p class="muted">${t("tp.noGuide")}</p>`}</div></div>`;
     // the drawer's own "topic page" link points here — drop it on the page itself

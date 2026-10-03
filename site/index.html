@@ -62,22 +62,22 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
       <span class="tb-count muted" id="g-count"></span>
     </div>
 
-    <div class="pop" id="pop-field" hidden>
+    <div class="pop ui-popover" id="pop-field" hidden>
       <div class="pop-h" data-i18n="g.tags"></div><div class="chips dom"></div>
       <div class="pop-h" data-i18n="g.methods"></div><div class="chips met"></div>
     </div>
-    <div class="pop" id="pop-venue" hidden>
+    <div class="pop ui-popover" id="pop-venue" hidden>
       <div class="pop-h" data-i18n="g.venueType"></div><div class="chips"></div>
       <div class="pop-h" data-i18n="g.venues"></div>
       <input id="venue-q" type="search" data-i18n-ph="g.venueSearch" autocomplete="off">
       <div class="checklist"></div>
     </div>
-    <div class="pop" id="pop-year" hidden>
+    <div class="pop ui-popover" id="pop-year" hidden>
       <div class="pop-h"><span data-i18n="g.year"></span> <b id="f-year-v"></b></div>
       <div class="dual"><input type="range" id="f-year-min"><input type="range" id="f-year-max"></div>
       <label class="check"><input type="checkbox" id="f-year-unknown" checked> <span data-i18n="g.yearUnknown"></span></label>
     </div>
-    <div class="pop" id="pop-more" hidden>
+    <div class="pop ui-popover" id="pop-more" hidden>
       <div class="pop-row"><span data-i18n="g.rating"></span>
         <div class="ui-seg small" id="f-rating"><button data-v="0" aria-pressed="true">-</button><button data-v="3">★3</button><button data-v="4">★4</button></div></div>
       <label class="check"><input type="checkbox" id="f-shared"> <span data-i18n="g.sharedOnly"></span></label>
@@ -95,7 +95,7 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
       <button class="ui-btn glass icon" id="z-fit" data-i18n-title="g.fit">⤢</button>
       <button class="ui-btn glass icon" id="tb-settings" data-pop="pop-settings" data-i18n-title="g.settings">⚙</button>
     </div>
-    <div class="pop pop-settings" id="pop-settings" hidden>
+    <div class="pop ui-popover pop-settings" id="pop-settings" hidden>
       <div class="pop-h" data-i18n="g.colorBy"></div>
       <div class="ui-seg small" id="g-colorby"><button data-v="person" aria-pressed="true" data-i18n="g.color.first"></button><button data-v="year" data-i18n="g.color.year"></button><button data-v="venue" data-i18n="g.color.venue"></button></div>
       <div class="pop-h" data-i18n="g.layers"></div>
@@ -156,7 +156,7 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
   <div class="drawer-tools"><a class="ui-btn icon plain" id="drawer-expand" hidden data-i18n-title="d.fullPage">⤢</a><button class="ui-btn icon plain" id="drawer-close" data-i18n-title="close">✕</button></div>
   <div id="drawer-body"></div>
 </aside>
-<div id="tooltip" class="tooltip"></div>
+<div id="tooltip" class="tooltip ui-tooltip"></div>
 
 <script src="i18n.js?v=70"></script>
 <script src="data.js?v=71"></script>

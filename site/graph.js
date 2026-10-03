@@ -626,7 +626,7 @@ function start() {
   if (started) return;
   started = true;
   if (!papers.length) { // e.g. a term with no reviews yet
-    $("#graph").innerHTML = `<div class="empty graph-empty">${t("g.emptyTerm")}</div>`;
+    $("#graph").innerHTML = `<div class="ui-empty graph-empty">${t("g.emptyTerm")}</div>`;
     window.LabGraph._r = null;
     return;
   }

@@ -374,7 +374,7 @@
         <div class="pr-title">${esc(p.title)}</div>
         <div class="pr-right"><div class="readers">${p.readers.map(id => avatar(id)).join("")}</div>${stars(p.rating)}</div>
         <div class="pr-meta"><span>${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</span><span>${esc(p._last)}</span>${topicIds(p).map(tag).join("")}</div>
-      </div>`).join("") || `<div class="empty">${t("papers.empty")}</div>`;
+      </div>`).join("") || `<div class="ui-empty">${t("papers.empty")}</div>`;
     if (list.length > paperLimit) {
       $("#paper-list").insertAdjacentHTML("beforeend", `<button class="ui-btn plain load-more" id="more">${t("papers.more", { n: list.length - paperLimit })}</button>`);
       $("#more").onclick = e => { e.stopPropagation(); paperLimit += 60; renderPapers(); };
@@ -385,7 +385,7 @@
     const list = D.papers.filter(p => p.readers.length > 1)
       .sort((a, b) => b.readers.length - a.readers.length || b._last.localeCompare(a._last));
     $("#shared-list").innerHTML = list.map(p => `
-      <div class="card shared-item">
+      <div class="ui-card shared-item">
         <h3 data-open="paper:${p.id}">${esc(p.title)}</h3>
         <div class="pr-meta"><span>${esc(p.venueNorm || p.venue)}</span>${stars(p.rating)}${topicIds(p).map(tag).join("")}</div>
         <div class="rev-cols">${p.reviews.map(r => reviewHtml(R[r])).join("")}</div>
@@ -406,7 +406,7 @@
     const L = window.Store?.studies.forPaper(pid) || [];
     if (!L.length) return "";
     const pickLink = pk => { const pp = Store.studies.pickPaper(pk); return `<div class="st-with">${avatar(pk.uid)}${pp ? `<a href="#/paper/${pp.id}">${esc(pk.title)}</a>` : esc(pk.title)}</div>`; };
-    return `<div class="card"><h3>${t("d.studies")}</h3>${L.map(({ st, common, picks }) => {
+    return `<div class="ui-card"><h3>${t("d.studies")}</h3>${L.map(({ st, common, picks }) => {
       const others = common ? Store.studies.picks(st) : [];
       return `<a class="side-st" href="#/study/${st.id}"><b>📚 ${esc(st.title)}</b>
         <span class="m">${common ? t("d.studyCommon") : t("d.studyPicked", { names: picks.map(pk => esc(P[pk.uid]?.name || pk.uid)).join(", ") })}${st.date ? " · " + esc(st.date) : ""}</span></a>
@@ -415,7 +415,7 @@
   }
   function paperPage(id) {
     const v = pageView("paper"), p = PA[id];
-    if (!p) { v.innerHTML = `<div class="empty">404</div>`; return; }
+    if (!p) { v.innerHTML = `<div class="ui-empty">404</div>`; return; }
     const related = (p.nb || []).map(([pid, s]) => [PA[pid], s]).filter(([x]) => x);
     const refs = (p.refs || []).map(r => PA[r]).filter(Boolean);
     const cc = CL[p.c], c = CL[p.f];
@@ -437,15 +437,15 @@
       </div>
       <div class="dp-grid">
         <div class="dp-main">
-          ${p.abstract ? `<div class="card"><h3>${t("d.abstract")}</h3><p class="abstract-full">${esc(p.abstract)}</p></div>` : ""}
+          ${p.abstract ? `<div class="ui-card"><h3>${t("d.abstract")}</h3><p class="abstract-full">${esc(p.abstract)}</p></div>` : ""}
           <h3 class="dp-sec">${t("d.reviews", { n: p.reviews.length })} · ${stars(p.rating)} ${p.rating ? p.rating.toFixed(1) : ""}</h3>
           <div class="dp-reviews">${p.reviews.map(r => reviewHtml(R[r], { full: true })).join("")}</div>
         </div>
         <aside class="dp-side">
           ${studiesCard(p.id)}
-          <div class="card"><h3>${t("d.readers")}</h3>${p.readers.map(r => `<div class="sim-row" data-open="person:${r}">${avatar(r)}<span>${esc(P[r]?.name || r)}</span><span></span><span class="m">${R[p.reviews.find(x => R[x].person === r)]?.date || ""}</span></div>`).join("")}</div>
-          ${related.length ? `<div class="card"><h3>${t("d.related")}</h3><div class="mini-list">${related.map(([x, s]) => miniPaper(x, Math.round(s * 100) + "%")).join("")}</div></div>` : ""}
-          ${refs.length ? `<div class="card"><h3>${t("d.citesIn")}</h3><div class="mini-list">${refs.map(x => miniPaper(x)).join("")}</div></div>` : ""}
+          <div class="ui-card"><h3>${t("d.readers")}</h3>${p.readers.map(r => `<div class="sim-row" data-open="person:${r}">${avatar(r)}<span>${esc(P[r]?.name || r)}</span><span></span><span class="m">${R[p.reviews.find(x => R[x].person === r)]?.date || ""}</span></div>`).join("")}</div>
+          ${related.length ? `<div class="ui-card"><h3>${t("d.related")}</h3><div class="mini-list">${related.map(([x, s]) => miniPaper(x, Math.round(s * 100) + "%")).join("")}</div></div>` : ""}
+          ${refs.length ? `<div class="ui-card"><h3>${t("d.citesIn")}</h3><div class="mini-list">${refs.map(x => miniPaper(x)).join("")}</div></div>` : ""}
         </aside>
       </div>`;
     // open every comment thread on the full page
@@ -453,7 +453,7 @@
   }
   function personPage(id) {
     const v = pageView("person"), p = P[id];
-    if (!p) { v.innerHTML = `<div class="empty">404</div>`; return; }
+    if (!p) { v.innerHTML = `<div class="ui-empty">404</div>`; return; }
     const mine = Object.values(R).filter(r => r.person === id).sort((a, b) => b.date.localeCompare(a.date));
     const terms = [...new Set(mine.map(r => r.term))].sort().reverse();
     let shown = 20, termSel = "";
@@ -466,7 +466,7 @@
         <div class="dp-reviews" id="pp-list"></div>
         <button class="ui-btn plain load-more" id="pp-more" hidden></button>
       </div>
-      <aside class="dp-side card">${personDetail(id)}</aside>
+      <aside class="dp-side ui-card">${personDetail(id)}</aside>
     </div>`;
     const paint = () => {
       const list = mine.filter(r => !termSel || r.term === termSel);

@@ -169,12 +169,12 @@
       <ul class="pp-axes">${xs.map(a => `<li><button type="button" data-pick-axis="${k}|${a.id}" data-ax="${a.id}" aria-pressed="false" title="${esc(a.full || a.name)}">
         <i style="background:${a.color}"></i><span class="nm">${esc(a.name)}</span><b>${Math.round(a.share * 100)}%</b><span class="n">${t("pp.papersN", { n: axisCount(k, a, D().papers) })}</span></button></li>`).join("")}</ul></div></div>`;
   };
-  const labCard = () => `<div class="card pp-lab">
+  const labCard = () => `<div class="ui-card pp-lab">
       <div><h3>${t("pp.lab")}</h3><p class="hint">${t("pp.labSub", { p: D().papers.length, n: D().people.filter(x => x.count).length })}</p></div>
       <div class="pp-lab-sides">${labSide("area")}${labSide("method")}</div>
       <p class="hint pp-hint">${t("pp.hint")}</p></div>`;
   const peopleCards = people => people.map((p, i) => { const pr = profile(p.id);
-    return `<div class="card person-card" data-open="person:${p.id}" data-person="${p.id}" data-order="${i}">
+    return `<div class="ui-card person-card" data-open="person:${p.id}" data-person="${p.id}" data-order="${i}">
       <div class="pc-head">${UI.avatar(p.id)}<span class="pc-name">${esc(p.name)}</span></div>
       <div class="pc-roses">${["area", "method"].map(k => `<div class="pc-rose" data-k="${k}" title="${t("pf.axis." + k)}">${rose(pr.by[k], { size: 104 })}</div>`).join("")}</div>
       <div class="pc-pick"></div></div>`; }).join("");

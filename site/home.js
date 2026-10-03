@@ -119,7 +119,7 @@
     const openQ = recent.filter(c => c.kind === "question" && !c.parent && !c.resolved && UI.R[c.reviewId] && !answered.has(c.id)).slice(0, 5);
     const together = Object.values(UI.PA).filter(p => p.readers.length > 1).sort((a, b) => (b._last || "").localeCompare(a._last || "")).slice(0, 5);
     return `
-      <div class="card compose">
+      <div class="ui-card compose">
         <div class="compose-row">${UI.avatar(me.id, true)}<div><b>${t("h.compose")}</b>
           <div class="muted">${q.exempt ? t("h.progressExempt", { term: esc(term.label), n: inTerm }) : t("h.progress", { term: esc(term.label), n: inTerm, target: q.target })}
             · <span class="${weekDone ? "wk-ok" : "wk-todo"}">${t(weekDone ? "h.weekDone" : "h.weekTodo")}</span></div>
@@ -127,17 +127,17 @@
             return a || b ? `<a class="rl-home" href="#/reading">📚 ${t("h.reading", { a, b })}</a>` : ""; })()}</div></div>
         <a class="ui-btn prominent large" href="#/write">${t("h.composeBtn")}</a>
       </div>
-      <div class="card"><h4>${t("h.studies")}</h4>
+      <div class="ui-card"><h4>${t("h.studies")}</h4>
         ${S.studies.list().filter(st => !st.closed).sort((a, b) => ((a.date && a.date >= S.today()) ? 0 : 1) - ((b.date && b.date >= S.today()) ? 0 : 1) || (a.date || "9").localeCompare(b.date || "9")).slice(0, 4).map(st => `<a class="side-st" href="#/study/${st.id}"><b>${esc(st.title.slice(0, 60))}</b>
           <span class="m">${[st.date, st.time].filter(Boolean).join(" ") || "—"} · ${st.members.length}${lang === "ko" ? "명" : ""}${st.members.includes(me.id) ? " ✓" : ""}</span></a>`).join("")
           || `<p class="muted">${t("h.noStudies")}</p>`}
         <a class="ui-btn text" href="#/study/new">＋ ${t("h.openStudy")}</a></div>
-      <div class="card"><h4>${t("h.openQ")}</h4>
+      <div class="ui-card"><h4>${t("h.openQ")}</h4>
         ${openQ.map(c => { const r = UI.R[c.reviewId]; return `<div class="side-q" data-review="${r.id}" data-paper="${r.paper}" data-comment="${c.id}">
           ${UI.avatar(c.author)}<div><div class="q">${esc(c.body.slice(0, 90))}</div><div class="m">→ ${name(r.person)} · ${esc(UI.PA[r.paper].title.slice(0, 50))}</div></div></div>`; }).join("")
           || `<p class="muted">${t("h.noOpenQ")}</p>`}</div>
-      <div class="card"><h4>${t("h.together")}</h4><div class="mini-list">${together.map(p => UI.miniPaper(p)).join("")}</div></div>
-      <div class="card week"><h4>${t("h.thisWeek")}</h4>
+      <div class="ui-card"><h4>${t("h.together")}</h4><div class="mini-list">${together.map(p => UI.miniPaper(p)).join("")}</div></div>
+      <div class="ui-card week"><h4>${t("h.thisWeek")}</h4>
         <div class="week-writers">${Object.entries(writers).map(([id, n]) => `<span class="ww" data-open="person:${id}">${UI.avatar(id)}${name(id)}${n > 1 ? ` <span class="m">×${n}</span>` : ""}</span>`).join("")
           || `<p class="muted">${t("h.nobodyYet")}</p>`}</div></div>`;
   }
@@ -151,7 +151,7 @@
         <div class="feed-col">
           <div class="feed-tabs-row"><div class="ui-seg feed-tabs">${["all", "mine", "q", "shared"].map(k => `<a href="javascript:void 0" data-tab="${k}" aria-current="${tab === k ? "page" : "false"}">${t("h.tab." + k)}</a>`).join("")}</div></div>
           <div class="feed" id="h-feed">${list.slice(0, shown).map(x => (x.kind === "review" ? reviewItem(x.r, me) : x.kind === "study" ? studyItem(x.st, me) : commentItem(x.c))).join("")
-            || `<div class="empty">${t(tab === "mine" ? "h.mineEmpty" : "h.empty")}</div>`}</div>
+            || `<div class="ui-empty">${t(tab === "mine" ? "h.mineEmpty" : "h.empty")}</div>`}</div>
           ${list.length > shown ? `<button class="ui-btn plain load-more" id="h-more">${t("h.more")} (${list.length - shown})</button>` : ""}
         </div>
         <aside class="home-side">${side(me)}</aside>
