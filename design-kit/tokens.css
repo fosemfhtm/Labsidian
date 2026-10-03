@@ -1,0 +1,192 @@
+/* design-kit · tokens — Apple-HIG-based design tokens for the web (rules: docs/foundations.md)
+ *
+ * Use:   <html lang="ko" data-ui data-theme="auto">   + tokens.css, then components.css, then your page CSS.
+ * Theme: data-theme="auto" (follows the OS) | "light" | "dark" — AppUI.setTheme() in components.js switches it.
+ * Contrast: prefers-contrast or data-contrast="more".  Less transparency: prefers-reduced-transparency or data-transparency="reduce".
+ * Type:  desktop = macOS text styles (body 13); phones ≤ 760px = iOS "Small" Dynamic Type (body 15).
+ * Colour: Apple system colours (HIG, 2025 values); surfaces = the iPhone Settings app (light #f2f2f7/#fff, dark #000/#1c1c1e).
+ * Change the accent in one place: --accent-rgb.
+ */
+
+[data-ui] {
+  /* ---------- type: macOS text styles on desktop, iOS (Large) on phones — see the ≤760px block below ----------
+     --fs-* size · --lh-* leading · --tr-* tracking · --t-* the whole font (weight size/leading family).
+     Use --t-* (or .t-* classes); --fs-* only where a rule changes the size alone. */
+  --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+  --fs-large-title: 1.625rem; --lh-large-title: 2rem;      --tr-large-title: .008em;    /* 26/32 */
+  --fs-title1: 1.375rem;      --lh-title1: 1.625rem;       --tr-title1: -.012em;        /* 22/26 */
+  --fs-title2: 1.0625rem;     --lh-title2: 1.375rem;       --tr-title2: -.025em;        /* 17/22 */
+  --fs-title3: .9375rem;      --lh-title3: 1.25rem;        --tr-title3: -.015em;        /* 15/20 */
+  --fs-headline: .8125rem;    --lh-headline: 1rem;         --tr-headline: -.006em;      /* 13/16 bold */
+  --fs-body: .8125rem;        --lh-body: 1rem;             --tr-body: -.006em;          /* 13/16 */
+  --fs-callout: .75rem;       --lh-callout: .9375rem;      --tr-callout: 0em;           /* 12/15 */
+  --fs-subhead: .6875rem;     --lh-subhead: .875rem;       --tr-subhead: .0055em;       /* 11/14 */
+  --fs-footnote: .625rem;     --lh-footnote: .8125rem;     --tr-footnote: .012em;       /* 10/13 */
+  --fs-caption1: .625rem;     --lh-caption1: .8125rem;     --tr-caption1: .012em;       /* 10/13 */
+  --fs-caption2: .625rem;     --lh-caption2: .8125rem;     --tr-caption2: .012em;       /* 10/13 medium */
+  --t-large-title: 700 var(--fs-large-title)/var(--lh-large-title) var(--font);
+  --t-title1: 700 var(--fs-title1)/var(--lh-title1) var(--font);
+  --t-title2: 700 var(--fs-title2)/var(--lh-title2) var(--font);
+  --t-title3: 600 var(--fs-title3)/var(--lh-title3) var(--font);
+  --t-headline: 700 var(--fs-headline)/var(--lh-headline) var(--font);
+  --t-body: 400 var(--fs-body)/var(--lh-body) var(--font);
+  --t-callout: 400 var(--fs-callout)/var(--lh-callout) var(--font);
+  --t-subhead: 400 var(--fs-subhead)/var(--lh-subhead) var(--font);
+  --t-footnote: 400 var(--fs-footnote)/var(--lh-footnote) var(--font);
+  --t-caption1: 400 var(--fs-caption1)/var(--lh-caption1) var(--font);
+  --t-caption2: 500 var(--fs-caption2)/var(--lh-caption2) var(--font);
+
+  /* ---------- system colours (rgb triplets so alpha can be applied) — dark values by default ---------- */
+  --red: 255 66 69; --orange: 255 146 48; --yellow: 255 214 0; --green: 48 209 88; --mint: 0 218 195; --teal: 0 210 224;
+  --cyan: 60 211 254; --blue: 0 145 255; --indigo: 109 124 255; --purple: 219 52 242; --pink: 255 55 95; --brown: 183 138 102;
+  --gray: 142 142 147; --gray2: 99 99 102; --gray3: 72 72 74; --gray4: 58 58 60; --gray5: 44 44 46; --gray6: 28 28 30;
+  --accent-rgb: var(--indigo);
+  --accent: rgb(var(--accent-rgb));
+  --on-accent: #fff;
+
+  /* ---------- semantic colours (dark) ---------- */
+  --label: #fff;
+  --label-2: rgb(235 235 245 / .64);
+  --label-3: rgb(235 235 245 / .3);
+  --label-4: rgb(235 235 245 / .18);
+  --label-meta: rgb(235 235 245 / .56);   /* app text that must stay ≥ 4.5:1 (dates, counts, hints) */
+  --link-text: var(--accent);
+  --sys-bg: #000;                 /* base — black, as in the Settings app */
+  --sys-bg-2: #1c1c1e;            /* cards on base (gray6) */
+  --sys-bg-3: #2c2c2e;            /* elevated: popovers, sheets, menus (gray5) */
+  --bg-grouped: #000;
+  --bg-grouped-2: #1c1c1e;
+  --bg-grouped-3: #2c2c2e;
+  --separator: rgb(84 84 88 / .6);
+  --separator-opaque: #38383a;
+  --fill: rgb(120 120 128 / .36);
+  --fill-2: rgb(120 120 128 / .32);
+  --fill-3: rgb(118 118 128 / .24);
+  --fill-4: rgb(118 118 128 / .18);
+  --link: rgb(var(--blue));
+  --star: rgb(var(--yellow));
+  --danger: rgb(var(--red));
+  --success: rgb(var(--green));
+  --warn: rgb(var(--orange));
+  /* avatars: four sizes; initials stay this size on phones too (the circle doesn't grow) — components §7 */
+  --av-xs: 20px; --av-s: 28px; --av-m: 36px; --av-l: 56px;
+  --fs-av-xs: .625rem; --fs-av-s: .6875rem; --fs-av-m: .8125rem; --fs-av-l: 1.25rem;
+  --ink-on-light: #1c1c1e;               /* text on a light data colour (yellow, mint avatars) */
+  --on-color: #fff;                      /* text/icons on a coloured fill (badge, tile, avatar) — accent fills use --on-accent */
+  --on-color-2: var(--on-color-2);   /* secondary text on a coloured fill */
+  --on-color-fill: var(--on-color-fill);
+  --text-shadow-on-color: 0 1px 1px rgb(0 0 0 / .2);
+  --scrim: rgb(0 0 0 / .32); --scrim-light: rgb(0 0 0 / .22); --scrim-strong: rgb(0 0 0 / .78);   /* behind alerts · spotlight · lightbox */
+  --shadow-seg: var(--shadow-seg);   /* selected segment */
+  --knob: #fff; --shadow-knob: 0 3px 8px rgb(0 0 0 / .15), 0 1px 1px rgb(0 0 0 / .16);   /* switch thumb */
+
+  /* ---------- materials: Liquid Glass (controls & navigation layer only) ----------
+     tint = see-through base, sheen = soft top light, rim = specular edge highlight */
+  --glass-tint: rgb(50 50 54 / .26);
+  --glass-tint-strong: rgb(40 40 44 / .56);      /* text-heavy glass: menus, alerts, sheets */
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .10), rgb(255 255 255 / .02) 45%, rgb(255 255 255 / 0));
+  --glass-rim: inset 0 1px 0 rgb(255 255 255 / .22), inset 0 0 0 .5px rgb(255 255 255 / .14), inset 0 -1px 0 rgb(0 0 0 / .18);
+  --glass-filter: blur(14px) saturate(190%) brightness(1.04);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / .35), 0 1px 3px rgb(0 0 0 / .25);
+  --glass-accent: linear-gradient(180deg, rgb(255 255 255 / .28), rgb(255 255 255 / 0) 55%), rgb(var(--accent-rgb) / .86);
+  --dim: rgb(0 0 0 / .35);    /* "clear" glass over bright content */
+
+  /* ---------- space (8pt grid), radii (concentric), elevation, motion ---------- */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-11: 44px;
+  --margin: 20px;              /* screen margin: 16 compact / 20 regular [외부] */
+  --readable: 672px;           /* readable content width [외부] */
+  --r-sheet: 20px; --r-card: 20px; --r-popover: 14px; --r-control: 10px; --r-control-sm: 8px; --r-xs: 4px; --r-full: 999px;
+  --shadow-1: none;            /* dark: separate layers by colour, not shadow */
+  --shadow-2: 0 18px 50px rgb(0 0 0 / .45);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --dur-fast: 150ms; --dur: 300ms;
+  --seg-on: #636366;  /* selected segment (dark) */
+  --hit: 28px;                 /* min control size: 28 desktop (macOS) / 44 touch (iOS) */
+
+  color-scheme: dark;
+  font: var(--t-body); letter-spacing: var(--tr-body);
+  color: var(--label);
+  background: var(--sys-bg);
+  -webkit-font-smoothing: antialiased;
+  font-synthesis-weight: none;
+}
+
+/* ---------- light ---------- */
+[data-ui][data-theme="light"] {
+  --red: 255 56 60; --orange: 255 141 40; --yellow: 255 204 0; --green: 52 199 89; --mint: 0 200 179; --teal: 0 195 208;
+  --cyan: 0 192 232; --blue: 0 136 255; --indigo: 97 85 245; --purple: 203 48 224; --pink: 255 45 85; --brown: 172 127 94;
+  --gray: 142 142 147; --gray2: 174 174 178; --gray3: 199 199 204; --gray4: 209 209 214; --gray5: 229 229 234; --gray6: 242 242 247;
+  --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: var(--accent);
+  --sys-bg: #fff; --sys-bg-2: #f2f2f7; --sys-bg-3: #fff;
+  --bg-grouped: #f2f2f7; --bg-grouped-2: #fff; --bg-grouped-3: #f2f2f7;
+  --separator: rgb(60 60 67 / .29); --separator-opaque: #c6c6c8;
+  --fill: rgb(120 120 128 / .2); --fill-2: rgb(120 120 128 / .16); --fill-3: rgb(118 118 128 / .12); --fill-4: rgb(116 116 128 / .08);
+  --glass-tint: rgb(255 255 255 / .38); --glass-tint-strong: rgb(250 250 252 / .74);
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .55), rgb(255 255 255 / .12) 45%, rgb(255 255 255 / .05));
+  --glass-rim: inset 0 1px 0 rgb(255 255 255 / .9), inset 0 0 0 .5px rgb(255 255 255 / .55), inset 0 -1px 0 rgb(0 0 0 / .05);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / .12), 0 1px 3px rgb(0 0 0 / .08);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .05), 0 1px 3px rgb(0 0 0 / .04);
+  --shadow-2: 0 10px 40px rgb(0 0 0 / .14);
+  --seg-on: #fff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  [data-ui][data-theme="auto"] {
+    --red: 255 56 60; --orange: 255 141 40; --yellow: 255 204 0; --green: 52 199 89; --mint: 0 200 179; --teal: 0 195 208;
+    --cyan: 0 192 232; --blue: 0 136 255; --indigo: 97 85 245; --purple: 203 48 224; --pink: 255 45 85; --brown: 172 127 94;
+    --gray: 142 142 147; --gray2: 174 174 178; --gray3: 199 199 204; --gray4: 209 209 214; --gray5: 229 229 234; --gray6: 242 242 247;
+    --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: var(--accent);
+    --sys-bg: #fff; --sys-bg-2: #f2f2f7; --sys-bg-3: #fff;
+    --bg-grouped: #f2f2f7; --bg-grouped-2: #fff; --bg-grouped-3: #f2f2f7;
+    --separator: rgb(60 60 67 / .29); --separator-opaque: #c6c6c8;
+    --fill: rgb(120 120 128 / .2); --fill-2: rgb(120 120 128 / .16); --fill-3: rgb(118 118 128 / .12); --fill-4: rgb(116 116 128 / .08);
+    --glass-tint: rgb(255 255 255 / .38); --glass-tint-strong: rgb(250 250 252 / .74);
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .55), rgb(255 255 255 / .12) 45%, rgb(255 255 255 / .05));
+  --glass-rim: inset 0 1px 0 rgb(255 255 255 / .9), inset 0 0 0 .5px rgb(255 255 255 / .55), inset 0 -1px 0 rgb(0 0 0 / .05);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / .12), 0 1px 3px rgb(0 0 0 / .08);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .05), 0 1px 3px rgb(0 0 0 / .04);
+    --shadow-2: 0 10px 40px rgb(0 0 0 / .14);
+    --seg-on: #fff;
+    color-scheme: light;
+  }
+}
+
+/* ---------- increased contrast (HIG "Increase Contrast" values) ---------- */
+[data-ui][data-contrast="more"] {
+  --red: 255 97 101; --orange: 255 160 86; --yellow: 254 223 67; --green: 74 217 104; --mint: 84 223 203; --teal: 59 221 236;
+  --cyan: 109 217 255; --blue: 92 184 255; --indigo: 167 170 255; --purple: 234 141 255; --pink: 255 138 196; --brown: 219 166 121;
+  --label-2: rgb(235 235 245 / .82); --label-3: rgb(235 235 245 / .6); --separator: rgb(140 140 146 / .9); --on-accent: #000;
+}
+[data-ui][data-theme="light"][data-contrast="more"] {
+  --red: 233 21 45; --orange: 197 83 0; --yellow: 161 106 0; --green: 0 137 50; --mint: 0 133 117; --teal: 0 129 152;
+  --cyan: 0 126 174; --blue: 30 110 244; --indigo: 86 74 222; --purple: 176 47 194; --pink: 231 18 77; --brown: 149 109 81;
+  --label-2: rgb(60 60 67 / .85); --label-3: rgb(60 60 67 / .62); --separator: rgb(60 60 67 / .55); --on-accent: #fff;
+}
+
+/* ---------- phones: iOS text styles at the "Small" Dynamic Type size [HIG] — Large (17 body) was too big for
+   these information-dense pages; glass is switched off (opaque bars, no backdrop blur) for speed ---------- */
+@media (max-width: 760px) {
+  [data-ui] {
+    --fs-large-title: 2rem;     --lh-large-title: 2.4375rem; --tr-large-title: .011em;    /* 32/39 */
+    --fs-title1: 1.625rem;      --lh-title1: 2rem;           --tr-title1: .008em;         /* 26/32 */
+    --fs-title2: 1.25rem;       --lh-title2: 1.5625rem;      --tr-title2: -.022em;        /* 20/25 */
+    --fs-title3: 1.125rem;      --lh-title3: 1.4375rem;      --tr-title3: -.024em;        /* 18/23 */
+    --fs-headline: .9375rem;    --lh-headline: 1.25rem;      --tr-headline: -.015em;      /* 15/20 */
+    --fs-body: .9375rem;        --lh-body: 1.25rem;          --tr-body: -.015em;          /* 15/20 */
+    --fs-callout: .875rem;      --lh-callout: 1.1875rem;     --tr-callout: -.011em;       /* 14/19 */
+    --fs-subhead: .8125rem;     --lh-subhead: 1.125rem;      --tr-subhead: -.006em;       /* 13/18 */
+    --fs-footnote: .75rem;      --lh-footnote: 1rem;         --tr-footnote: 0em;          /* 12/16 */
+    --fs-caption1: .6875rem;    --lh-caption1: .8125rem;     --tr-caption1: .006em;       /* 11/13 */
+    --fs-caption2: .6875rem;    --lh-caption2: .8125rem;     --tr-caption2: .006em;       /* 11/13 */
+    --t-headline: 600 var(--fs-headline)/var(--lh-headline) var(--font);
+    --t-caption2: 400 var(--fs-caption2)/var(--lh-caption2) var(--font);
+    --glass-tint: var(--sys-bg-2); --glass-tint-strong: var(--sys-bg-3); --glass-filter: none;
+    --glass-sheen: linear-gradient(transparent, transparent); --glass-accent: var(--accent);
+    --tab-h: 50px;
+  }
+}
+@media (pointer: coarse) { [data-ui] { --hit: 44px; --margin: 16px; } }
+@media (prefers-reduced-transparency: reduce) { [data-ui], [data-ui][data-theme] { --glass-tint: var(--sys-bg-3); --glass-tint-strong: var(--sys-bg-3); --glass-sheen: linear-gradient(transparent, transparent); --glass-filter: none; } }
+[data-ui][data-transparency="reduce"], [data-ui][data-theme][data-transparency="reduce"] { --glass-tint: var(--sys-bg-3); --glass-tint-strong: var(--sys-bg-3); --glass-sheen: linear-gradient(transparent, transparent); --glass-filter: none; }
+@media (prefers-reduced-motion: reduce) { [data-ui] { --dur: 1ms; --dur-fast: 1ms; } }

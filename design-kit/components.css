@@ -1,0 +1,278 @@
+/* design-kit · components — ui-* classes (rules: docs/components.md, docs/patterns.md)
+ * Every selector is :where([data-ui]) .ui-x, so its specificity equals one class and a page rule loaded after this file
+ * can arrange a component (grid, width, spacing) with one class — no !important, no long selectors.
+ * Needs tokens.css first. Icons: Lucide (<i data-lucide="name" class="ic"></i>, then lucide.createIcons()).
+ */
+
+/* ---------- base ---------- */
+:where([data-ui]) body { margin: 0; background: var(--bg-grouped); color: var(--label); font: var(--t-body); letter-spacing: var(--tr-body); }
+:where([data-ui]) :focus-visible { outline: 3px solid rgb(var(--accent-rgb) / .5); outline-offset: 2px; }
+:where([data-ui]) ::selection { background: rgb(var(--accent-rgb) / .28); }
+:where([data-ui]) a { color: var(--link-text); }
+[hidden] { display: none !important; }   /* the one !important: browsers' [hidden] loses to any display rule otherwise */
+
+/* ---------- type classes ---------- */
+:where([data-ui]) .t-large-title { font: var(--t-large-title); letter-spacing: var(--tr-large-title); }
+:where([data-ui]) .t-title1 { font: var(--t-title1); letter-spacing: var(--tr-title1); }
+:where([data-ui]) .t-title2 { font: var(--t-title2); letter-spacing: var(--tr-title2); }
+:where([data-ui]) .t-title3 { font: var(--t-title3); letter-spacing: var(--tr-title3); }
+:where([data-ui]) .t-headline { font: var(--t-headline); letter-spacing: var(--tr-headline); }
+:where([data-ui]) .t-body { font: var(--t-body); letter-spacing: var(--tr-body); }
+:where([data-ui]) .t-callout { font: var(--t-callout); letter-spacing: var(--tr-callout); }
+:where([data-ui]) .t-subhead { font: var(--t-subhead); letter-spacing: var(--tr-subhead); }
+:where([data-ui]) .t-footnote { font: var(--t-footnote); letter-spacing: var(--tr-footnote); }
+:where([data-ui]) .t-caption1 { font: var(--t-caption1); letter-spacing: var(--tr-caption1); }
+:where([data-ui]) .t-caption2 { font: var(--t-caption2); letter-spacing: var(--tr-caption2); }
+:where([data-ui]) .c-2 { color: var(--label-2); } :where([data-ui]) .c-3 { color: var(--label-3); }
+:where([data-ui]) .num { font-variant-numeric: tabular-nums; }
+
+/* ---------- icons (Lucide, ISC) ---------- */
+:where([data-ui]) .ic { width: 1.15em; height: 1.15em; stroke-width: 2; flex: none; vertical-align: -.2em; }
+
+/* ---------- buttons (macOS push buttons): gray fill + label text by default; roles prominent / destructive;
+   styles plain (no fill) / text (an inline link-like button) / glass (bars only); sizes small 22 · regular 28 · large 34 (44+ on touch) ---------- */
+:where([data-ui]) .ui-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: max(var(--hit), 28px); padding: 0 12px;
+  border: 0; border-radius: var(--r-control); background: var(--fill-3); color: var(--label);
+  font: var(--t-body); font-weight: 500; line-height: 1; letter-spacing: var(--tr-body); cursor: pointer; text-decoration: none; white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+:where([data-ui]) .ui-btn:hover { background: var(--fill-2); }
+:where([data-ui]) .ui-btn:active { transform: scale(.97); opacity: .8; }
+:where([data-ui]) .ui-btn:focus-visible { outline: 3px solid rgb(var(--accent-rgb) / .5); outline-offset: 2px; }
+:where([data-ui]) .ui-btn.prominent { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+:where([data-ui]) .ui-btn.prominent:hover { background: rgb(var(--accent-rgb) / .88); }
+:where([data-ui]) .ui-btn.destructive { color: var(--danger); }
+:where([data-ui]) .ui-btn.plain { background: none; padding: 0 8px; }
+:where([data-ui]) .ui-btn.plain:hover { background: var(--fill-4); }
+:where([data-ui]) .ui-btn[aria-pressed="true"] { color: var(--accent); background: rgb(var(--accent-rgb) / .12); }
+:where([data-ui]) .ui-btn.text { display: inline; min-height: 0; padding: 0; background: none; color: var(--link-text); font: inherit; font-weight: inherit; letter-spacing: inherit; line-height: inherit; white-space: normal; text-align: inherit; }
+:where([data-ui]) .ui-btn.text:hover { background: none; text-decoration: underline; text-underline-offset: 2px; }
+:where([data-ui]) .ui-btn.text:active { transform: none; }
+:where([data-ui]) .ui-btn.text.destructive { color: var(--danger); }
+:where([data-ui]) .ui-btn.text .ic { margin-right: .25em; }
+:where([data-ui]) .ui-btn.large { min-height: max(var(--hit), 34px); padding: 0 18px; font-weight: 600; }   /* bigger target, same text size (iOS large buttons keep body text) */
+:where([data-ui]) .ui-btn.small { min-height: max(var(--hit), 22px); padding: 0 8px; border-radius: var(--r-control-sm); }
+:where([data-ui]) .ui-btn.icon { width: max(var(--hit), 28px); padding: 0; }
+:where([data-ui]) .ui-btn.small.icon { width: max(var(--hit), 22px); }
+@media (max-width: 760px) { :where([data-ui]) .ui-btn.large { min-height: 50px; } }
+:where([data-ui]) .ui-btn:disabled, :where([data-ui]) .ui-btn[aria-disabled="true"] { opacity: .35; cursor: default; transform: none; }
+:where([data-ui]) .ui-btn.is-loading { pointer-events: none; }
+:where([data-ui]) .ui-btn.is-loading::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: ui-spin .8s linear infinite; }
+
+/* ---------- segmented control ---------- */
+:where([data-ui]) .ui-seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 2px; border-radius: var(--r-control); background: var(--fill-3); }
+:where([data-ui]) .ui-seg > button, :where([data-ui]) .ui-seg > a { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: max(calc(var(--hit) - 4px), 24px); padding: 0 12px;
+  border: 0; border-radius: var(--r-control-sm); background: none; color: var(--label); font: var(--t-body); font-weight: 500; letter-spacing: var(--tr-body); text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease); }
+:where([data-ui]) .ui-seg > :hover { background: var(--fill-4); }
+:where([data-ui]) .ui-seg > [aria-pressed="true"], :where([data-ui]) .ui-seg > [aria-current="page"] { background: var(--seg-on); box-shadow: var(--shadow-seg); font-weight: 600; }
+:where([data-ui]) .ui-seg.small > button, :where([data-ui]) .ui-seg.small > a { min-height: max(calc(var(--hit) - 4px), 20px); padding: 0 8px; font-size: var(--fs-callout); }
+:where([data-ui]) .ui-seg.small { border-radius: var(--r-control-sm); }
+:where([data-ui]) .ui-seg.small > * { border-radius: var(--r-xs); }
+
+/* ---------- fields ---------- */
+/* every native text field / textarea / select looks like .ui-field — zero specificity, so a context only sets width / spacing */
+:where([data-ui]) :where(input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file], [type=hidden]), textarea, select) {
+  box-sizing: border-box; min-height: max(var(--hit), 28px); padding: 4px 10px; border: 0; border-radius: var(--r-control);
+  background-color: var(--fill-4); color: var(--label); font: var(--t-body); letter-spacing: var(--tr-body); }
+:where([data-ui]) :where(textarea) { padding: 6px 10px; line-height: 1.5; resize: vertical; }
+:where([data-ui]) :where(input, textarea, select):focus { outline: none; box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .45); }
+:where([data-ui]) :where(input, textarea)::placeholder { color: var(--label-3); }
+/* a select's option list ignores the translucent fill (Windows Chrome painted white on light grey) → elevated surface */
+:where([data-ui]) :where(select option, select optgroup) { background-color: var(--sys-bg-3); color: var(--label); }
+:where([data-ui]) :where(input[type=checkbox], input[type=radio], input[type=range]) { accent-color: var(--accent); }
+:where([data-ui]) .ui-label { display: block; font: var(--t-callout); color: var(--label-2); margin: 0 0 6px 4px; }
+:where([data-ui]) .ui-field { width: 100%; min-height: max(var(--hit), 36px); padding: 8px 12px; border: 0; border-radius: var(--r-control); background: var(--fill-4);
+  color: var(--label); font: var(--t-body); letter-spacing: var(--tr-body); outline: none; transition: box-shadow var(--dur-fast) var(--ease); }
+:where([data-ui]) textarea.ui-field { resize: vertical; line-height: 1.45; }
+:where([data-ui]) .ui-field::placeholder { color: var(--label-3); }
+:where([data-ui]) .ui-field:focus { box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .45); }
+:where([data-ui]) .ui-search { position: relative; display: flex; align-items: center; }
+:where([data-ui]) .ui-search .ic { position: absolute; left: 10px; color: var(--label-2); pointer-events: none; }
+:where([data-ui]) .ui-search .ui-field { padding-left: 34px; border-radius: var(--r-control); background: var(--fill-3); }
+
+/* ---------- checkbox & switch ---------- */
+:where([data-ui]) .ui-check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font: var(--t-body); }
+:where([data-ui]) .ui-check input { appearance: none; flex: none; width: 18px; height: 18px; margin: -1px 0 0; border-radius: var(--r-xs); background: var(--fill-3); box-shadow: inset 0 0 0 1px var(--separator); display: grid; place-items: center; cursor: pointer; }
+:where([data-ui]) .ui-check input:checked { background: var(--accent); box-shadow: none; }
+:where([data-ui]) .ui-check input:checked::after { content: ""; width: 5px; height: 9px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+:where([data-ui]) .ui-switch { appearance: none; width: 51px; height: 31px; margin: 0; border-radius: var(--r-full); background: var(--fill); position: relative; cursor: pointer; transition: background var(--dur) var(--ease); flex: none; }
+:where([data-ui]) .ui-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: var(--knob); box-shadow: var(--shadow-knob); transition: transform var(--dur) var(--ease); }
+:where([data-ui]) .ui-switch:checked { background: rgb(var(--green)); }
+:where([data-ui]) .ui-switch:checked::after { transform: translateX(20px); }
+
+/* ---------- badge, chip ---------- */
+:where([data-ui]) .ui-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full); background: rgb(var(--red)); color: var(--on-color); font: var(--t-subhead); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+:where([data-ui]) .ui-chip { display: inline-flex; align-items: center; gap: 5px; min-height: max(calc(var(--hit) - 6px), 22px); padding: 0 10px; border-radius: var(--r-full); background: var(--fill-3); color: var(--label); font: var(--t-subhead); border: 0; cursor: pointer; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+:where([data-ui]) .ui-chip .dot, :where([data-ui]) .ui-tag .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+:where([data-ui]) a.ui-chip { text-decoration: none; }
+:where([data-ui]) .ui-chip:hover { background: var(--fill-2); }
+:where([data-ui]) .ui-chip > :is(.avatar, .sp-av):first-child { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); margin-left: -8px; }   /* person chip */
+:where([data-ui]) .ui-chip .m { color: var(--label-meta); font-variant-numeric: tabular-nums; }
+:where([data-ui]) .ui-chip[aria-pressed="true"] { background: rgb(var(--accent-rgb) / .18); color: var(--accent); }
+/* tag: a paper's field / method (dot + name; methods outlined) — links to the topic */
+:where([data-ui]) .ui-tag { border: 0; display: inline-flex; align-items: center; gap: 5px; min-height: 20px; padding: 0 8px; border-radius: var(--r-full); background: var(--fill-3); color: var(--label); font: var(--t-subhead); text-decoration: none; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+:where([data-ui]) .ui-tag.method { background: none; box-shadow: inset 0 0 0 1px var(--separator); }
+:where([data-ui]) .ui-tag:hover { background: var(--fill-2); }
+:where([data-ui]) .ui-tag[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--accent); }
+/* pill: one short status — tones warn / ok / info / accent / outline */
+:where([data-ui]) .ui-pill { display: inline-flex; align-items: center; gap: 4px; min-height: 18px; padding: 0 7px; border-radius: var(--r-full); background: var(--fill-3); color: var(--label-meta); font: var(--t-subhead); white-space: nowrap; text-decoration: none; vertical-align: middle; }
+:where([data-ui]) .ui-pill.warn { background: rgb(var(--orange) / .16); color: var(--warn); }
+:where([data-ui]) .ui-pill.ok { background: rgb(var(--green) / .16); color: var(--success); }
+:where([data-ui]) .ui-pill.info { background: rgb(var(--blue) / .14); color: var(--link-text); }
+:where([data-ui]) .ui-pill.accent { background: rgb(var(--accent-rgb) / .16); color: var(--accent); }
+:where([data-ui]) .ui-pill.outline { background: none; box-shadow: inset 0 0 0 1px var(--separator); }
+:where([data-ui]) a.ui-pill:hover { filter: brightness(.96); }
+
+/* ---------- cards & inset-grouped lists (content layer: no glass, no border) ---------- */
+:where([data-ui]) .ui-card { background: var(--bg-grouped-2); border-radius: var(--r-card); padding: var(--s-4); box-shadow: var(--shadow-1); }
+:where([data-ui]) .ui-list { background: var(--bg-grouped-2); border-radius: var(--r-card); overflow: hidden; box-shadow: var(--shadow-1); }
+:where([data-ui]) .ui-list-h { font: var(--t-subhead); color: var(--label-2); text-transform: none; margin: 0 0 6px 16px; }
+:where([data-ui]) .ui-list-f { font: var(--t-callout); color: var(--label-2); margin: 6px 16px 0; }
+:where([data-ui]) .ui-row { display: flex; align-items: center; gap: var(--s-2); min-height: max(var(--hit), 28px); padding: var(--s-1) var(--s-2); position: relative;
+  border-radius: var(--r-control-sm); color: var(--label); font: var(--t-body); letter-spacing: var(--tr-body); text-decoration: none; }
+:where([data-ui]) :is(a, button, [data-open], [data-id], [role="button"]).ui-row { cursor: pointer; }
+:where([data-ui]) :is(a, button, [data-open], [data-id], [role="button"]).ui-row:hover { background: var(--fill-4); }
+:where([data-ui]) button.ui-row { width: 100%; border: 0; background: none; text-align: left; }
+:where([data-ui]) .ui-row.two { align-items: flex-start; padding-block: 6px; }       /* title + a meta line */
+:where([data-ui]) .ui-row.rich { align-items: flex-start; padding-block: var(--s-3); }   /* title + meta + tags / people */
+:where([data-ui]) .ui-row.ruled { border-radius: 0; border-top: .5px solid var(--separator); padding-inline: 0; }
+:where([data-ui]) .ui-row.ruled:first-child { border-top: 0; }
+:where([data-ui]) .ui-row :is(.m, .meta, .sub) { font: var(--t-callout); color: var(--label-meta); }
+:where([data-ui]) .ui-row .grow { flex: 1; min-width: 0; }
+:where([data-ui]) .ui-row .chev { color: var(--label-3); }
+:where([data-ui]) .ui-row .tile { width: 28px; height: 28px; border-radius: var(--r-control-sm); display: grid; place-items: center; color: var(--on-color); flex: none; }
+/* inset grouped list: rows edge to edge with inset separators */
+:where([data-ui]) .ui-list > .ui-row { border-radius: 0; padding-inline: var(--s-4); }
+:where([data-ui]) .ui-list > .ui-row + .ui-row::before { content: ""; position: absolute; top: 0; right: 0; left: var(--s-4); height: .5px; background: var(--separator); }
+:where([data-ui]) .ui-list > .ui-row.has-icon + .ui-row::before { left: 52px; }
+
+/* ---------- glass: toolbar, menu, popover (navigation / control layer) ---------- */
+:where([data-ui]) .ui-glass { background: var(--glass-sheen), var(--glass-tint); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); box-shadow: var(--glass-rim), var(--glass-shadow); }
+:where([data-ui]) .ui-glass.strong { background: var(--glass-sheen), var(--glass-tint-strong); }
+/* glass buttons (toolbar items float as capsules; only the primary action is tinted) */
+:where([data-ui]) .ui-btn.glass { background: var(--glass-sheen), var(--glass-tint); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); box-shadow: var(--glass-rim), var(--glass-shadow); color: var(--label); border-radius: var(--r-full); }
+:where([data-ui]) .ui-btn.glass.prominent { background: var(--glass-accent); color: var(--on-accent); }
+:where([data-ui]) .ui-btn.glass:hover { filter: brightness(1.06); }
+:where([data-ui]) .ui-btn.glass[aria-pressed="true"] { background: var(--glass-accent); color: var(--on-accent); }
+:where([data-ui]) .ui-glass-group { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: var(--r-full); }
+:where([data-ui]) .ui-glass-group .ui-btn { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--label); border-radius: var(--r-full); }
+:where([data-ui]) .ui-glass-group .ui-btn:hover { background: var(--fill-3); }
+:where([data-ui]) .ui-toolbar { display: flex; align-items: center; gap: var(--s-2); min-height: 52px; }
+:where([data-ui]) .ui-toolbar .ui-glass-group, :where([data-ui]) .ui-toolbar > .zone > .ui-btn { min-height: 44px; }
+:where([data-ui]) .ui-toolbar .zone { display: flex; align-items: center; gap: 4px; }
+:where([data-ui]) .ui-toolbar .zone.mid { flex: 1; justify-content: center; }
+:where([data-ui]) .ui-toolbar .title { font: var(--t-headline); letter-spacing: var(--tr-headline); padding: 0 6px; }
+:where([data-ui]) .ui-menu { min-width: 220px; padding: 6px; border-radius: var(--r-popover); color: var(--label); }
+:where([data-ui]) .ui-menu > a, :where([data-ui]) .ui-menu > button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: max(var(--hit), 26px); padding: 0 10px; border: 0; border-radius: var(--r-control-sm);
+  background: none; color: var(--label); font: var(--t-body); text-align: left; text-decoration: none; cursor: pointer; }
+:where([data-ui]) .ui-menu > a:hover, :where([data-ui]) .ui-menu > button:hover { background: rgb(var(--accent-rgb)); color: var(--on-accent); }
+:where([data-ui]) .ui-menu > .destructive { color: var(--danger); }
+:where([data-ui]) .ui-menu > .destructive:hover { background: var(--danger); color: var(--on-color); }
+:where([data-ui]) .ui-menu hr { border: 0; height: .5px; background: var(--separator); margin: 5px 8px; }
+/* popover: anchored to a control, one at a time (filters, pickers, autocomplete — .list for a plain list of rows) */
+:where([data-ui]) .ui-popover { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-popover); padding: var(--s-3); color: var(--label); }
+:where([data-ui]) .ui-popover.list { padding: 6px; }
+:where([data-ui]) .ui-popover.list > div { border-radius: var(--r-control-sm); }
+:where([data-ui]) .ui-popover.list > div:hover { background: var(--fill-3); }
+/* tooltip: values on charts (icon buttons use the title attribute) */
+:where([data-ui]) .ui-tooltip { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-control-sm); padding: 8px 10px; font: var(--t-callout); color: var(--label); }
+:where([data-ui]) .ui-scroll-edge { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
+
+/* ---------- alert (≤3 buttons; Cancel leading, action trailing) & sheet ---------- */
+:where([data-ui]).ui-scrim, :where([data-ui]) .ui-scrim { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: var(--scrim); animation: ui-fade var(--dur) var(--ease); }
+:where([data-ui]) .ui-alert { width: min(300px, calc(100vw - 48px)); border-radius: var(--r-sheet); padding: 20px 16px 16px; text-align: center; animation: ui-pop var(--dur) var(--ease); }
+:where([data-ui]) .ui-alert h3 { margin: 0 0 6px; font: var(--t-headline); letter-spacing: var(--tr-headline); }
+:where([data-ui]) .ui-alert p { margin: 0 0 16px; font: var(--t-callout); color: var(--label-2); }
+:where([data-ui]) .ui-alert .acts { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+:where([data-ui]) .ui-sheet { width: min(560px, calc(100vw - 16px)); max-height: 90vh; overflow: auto; border-radius: var(--r-sheet); background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); box-shadow: var(--glass-rim), var(--shadow-2); animation: ui-pop var(--dur) var(--ease); }
+:where([data-ui]) .ui-sheet header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 12px 12px 4px; }
+:where([data-ui]) .ui-sheet header .t { font: var(--t-headline); letter-spacing: var(--tr-headline); text-align: center; }
+:where([data-ui]) .ui-sheet header .r { justify-self: end; }
+:where([data-ui]) .ui-sheet .body { padding: 8px 20px 24px; display: grid; gap: 14px; }
+:where([data-ui]) .ui-sheet:not(.wide) { width: min(420px, calc(100vw - 16px)); }
+:where([data-ui]) .ui-sheet.wide { width: min(640px, calc(100vw - 16px)); }
+:where([data-ui]) .ui-sheet .acts { display: flex; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-2); }   /* macOS: buttons bottom-right, Cancel first */
+@media (max-width: 760px) {
+  :where([data-ui]).ui-scrim.sheet, :where([data-ui]) .ui-scrim.sheet { place-items: end center; }
+  :where([data-ui]) .ui-sheet { margin-bottom: 8px; border-radius: var(--r-sheet); animation: ui-up var(--dur) var(--ease); }
+  :where([data-ui]) .ui-sheet::before { content: ""; display: block; width: 36px; height: 5px; border-radius: var(--r-xs); background: var(--label-3); margin: 6px auto 0; }
+}
+
+/* ---------- table (admin): 28px rows, subhead column heads; .num right-aligned tabular ---------- */
+:where([data-ui]) .ui-table { width: 100%; border-collapse: collapse; font: var(--t-body); }
+:where([data-ui]) .ui-table th { text-align: left; font: var(--t-subhead); font-weight: 600; color: var(--label-2); padding: 4px 8px; border-bottom: .5px solid var(--separator); }
+:where([data-ui]) .ui-table td { height: 28px; padding: 3px 8px; border-bottom: .5px solid var(--separator); vertical-align: middle; }
+:where([data-ui]) .ui-table :is(th, td).num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- done check (Reminders-style circle; .checked = done) ---------- */
+:where([data-ui]) .ui-done { width: 20px; height: 20px; flex: none; display: inline-grid; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--label-3); color: transparent; font: var(--t-caption2); font-weight: 700; line-height: 1; }
+:where([data-ui]) .ui-done.checked { background: var(--accent); box-shadow: none; color: var(--on-accent); }
+
+/* ---------- notice: a line that stays on the page (restored draft, AI requests, a nudge) — tones info / ok / warn ---------- */
+:where([data-ui]) .ui-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--s-2); margin: 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-control); background: var(--fill-4); color: var(--label); font: var(--t-body); }
+:where([data-ui]) .ui-notice.info { background: rgb(var(--blue) / .1); }
+:where([data-ui]) .ui-notice.ok { background: rgb(var(--green) / .12); }
+:where([data-ui]) .ui-notice.warn { background: rgb(var(--orange) / .14); }
+:where([data-ui]) .ui-notice > .ic:first-child { color: var(--label-2); }
+
+/* ---------- progress, empty state, toast ---------- */
+:where([data-ui]) .ui-progress { height: 4px; border-radius: var(--r-xs); background: var(--fill-3); overflow: hidden; }
+:where([data-ui]) .ui-progress > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
+:where([data-ui]) .ui-spinner { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--fill); border-top-color: var(--label-2); animation: ui-spin .8s linear infinite; }
+:where([data-ui]) .ui-empty { display: grid; justify-items: center; gap: 6px; padding: var(--s-8) var(--s-4); text-align: center; color: var(--label-meta); font: var(--t-body); }
+:where([data-ui]) .ui-empty > .ic { width: 40px; height: 40px; color: var(--label-3); stroke-width: 1.5; margin-bottom: 6px; }
+:where([data-ui]) .ui-empty h4 { margin: 0; font: var(--t-title3); letter-spacing: var(--tr-title3); }
+:where([data-ui]) .ui-empty p { margin: 0 0 10px; font: var(--t-body); color: var(--label-2); max-width: 34ch; }
+:where([data-ui]) .ui-empty.compact { display: block; padding: var(--s-2) 0; text-align: left; font: var(--t-callout); color: var(--label-meta); }
+:where([data-ui]) .ui-toast { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px 10px 16px; border-radius: var(--r-full); font: var(--t-body); }
+
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+@keyframes ui-fade { from { opacity: 0; } }
+@keyframes ui-pop { from { opacity: 0; transform: scale(1.06); } }
+@keyframes ui-up { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { :where([data-ui]) .ui-alert, :where([data-ui]) .ui-sheet { animation: ui-fade var(--dur-fast) linear; } }
+
+/* ---------- avatar: four sizes; initials don't grow on phones (the circle doesn't) ---------- */
+:where([data-ui]) .ui-avatar { width: var(--av-m); height: var(--av-m); flex: none; display: inline-grid; place-items: center; overflow: hidden; border-radius: 50%;
+  background: rgb(var(--gray)); color: var(--on-color); font: 700 var(--fs-av-m)/1 var(--font); letter-spacing: -.04em; white-space: nowrap; }
+:where([data-ui]) .ui-avatar.xs { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); }
+:where([data-ui]) .ui-avatar.s { width: var(--av-s); height: var(--av-s); font-size: var(--fs-av-s); }
+:where([data-ui]) .ui-avatar.l { width: var(--av-l); height: var(--av-l); font-size: var(--fs-av-l); }
+:where([data-ui]) .ui-avatar.system { background: var(--accent); }
+:where([data-ui]) .ui-avatar img { width: 100%; height: 100%; object-fit: cover; }
+:where([data-ui]) .ui-avatar-stack { display: inline-flex; align-items: center; }
+:where([data-ui]) .ui-avatar-stack > .ui-avatar { margin-right: -4px; box-shadow: 0 0 0 2px var(--bg-grouped-2); }
+:where([data-ui]) .ui-avatar-more { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; margin-left: 8px; border-radius: var(--r-full);
+  background: var(--fill-3); color: var(--label-2); font: var(--t-subhead); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- app shell: a thin bar on top (desktop: translucent; phones: opaque) + a bottom tab bar on phones (docs/patterns.md §1) ---------- */
+:where([data-ui]) .ui-topbar { position: fixed; inset: 0 0 auto 0; z-index: 50; display: flex; align-items: center; gap: var(--s-4); height: 52px; padding: 0 var(--s-5);
+  background: color-mix(in srgb, var(--bg-grouped) 78%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 .5px 0 var(--separator); }
+:where([data-ui]) .ui-topbar .brand { font: var(--t-headline); letter-spacing: var(--tr-headline); color: var(--label); text-decoration: none; display: inline-flex; align-items: center; gap: var(--s-2); }
+:where([data-ui]) .ui-topbar .spacer { flex: 1; }
+:where([data-ui]) .ui-nav { display: flex; gap: 2px; }
+:where([data-ui]) .ui-nav a { padding: 6px 10px; border-radius: var(--r-control-sm); color: var(--label-2); font: var(--t-body); text-decoration: none; }
+:where([data-ui]) .ui-nav a:hover { background: var(--fill-4); color: var(--label); }
+:where([data-ui]) .ui-nav a[aria-current="page"] { color: var(--label); font-weight: 600; }
+:where([data-ui]) .ui-nav a .ic { display: none; }
+:where([data-ui]) .ui-main { padding: calc(52px + var(--s-6)) var(--margin) var(--s-8); max-width: 1180px; margin: 0 auto; box-sizing: border-box; }
+@media (max-width: 760px) {
+  :where([data-ui]) .ui-topbar { height: calc(52px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 12px 0; gap: 4px; background: var(--bg-grouped); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :where([data-ui]) .ui-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0;
+    height: calc(var(--tab-h) + env(safe-area-inset-bottom)); padding: 0 0 env(safe-area-inset-bottom); background: var(--bg-grouped); box-shadow: 0 -.5px 0 var(--separator); }
+  :where([data-ui]) .ui-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border-radius: 0; font: var(--t-caption2); font-weight: 500; }
+  :where([data-ui]) .ui-nav a:hover { background: none; }
+  :where([data-ui]) .ui-nav a .ic { display: block; width: 24px; height: 24px; margin: 0; }
+  :where([data-ui]) .ui-nav a[aria-current="page"] { color: var(--accent); }
+  :where([data-ui]) .ui-main { padding: calc(52px + env(safe-area-inset-top) + var(--s-4)) var(--margin) calc(var(--tab-h) + env(safe-area-inset-bottom) + var(--s-6)); }
+}
+
+/* ---------- toast host (AppUI.toast) ---------- */
+:where([data-ui]) .ui-toast-host { position: fixed; left: 50%; bottom: 28px; z-index: 400; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease); }
+:where([data-ui]) .ui-toast-host.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+@media (max-width: 760px) { :where([data-ui]) .ui-toast-host { bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 12px); } }

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ko" data-ui data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design kit specimen</title>
+<script>try { const t = localStorage.getItem("ui.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* specimen page only */
+.sp-head { margin-bottom: var(--s-4); }
+.sp-head h1, .sp-head p { margin: 0 0 var(--s-1); }
+.sp-demo { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; margin: 0 0 var(--s-4); }
+.sp-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; background: none; }
+.sp-panels { display: grid; gap: 16px; }
+.sp-panels.two { grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); }
+.sp-panel { border-radius: var(--r-sheet); padding: 20px var(--margin) 32px; display: grid; gap: 28px; min-width: 0; background: var(--bg-grouped); }
+.sp-panel section { display: grid; gap: 10px; min-width: 0; }
+.sp-panel h2 { margin: 0; }
+.sp-panel p { margin: 0; }
+.sp-panel-h { position: sticky; top: calc(var(--top-h, 56px) + 6px); z-index: 2; justify-self: start; padding: 4px 10px; border-radius: var(--r-full); background: var(--fill-3); }
+.sp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sp-row.tight { gap: 6px; }
+.sp-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sp-grid2 .span2 { grid-column: 1 / -1; }
+@media (max-width: 760px) { .sp-grid2 { grid-template-columns: 1fr; } }
+.sp-type { align-items: baseline; }
+.sp-type .sp-k { width: 92px; flex: none; line-height: 1.3; }
+.sp-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 10px; }
+.sp-swatches div { display: grid; gap: 4px; justify-items: start; }
+.sp-swatches span { width: 100%; height: 40px; border-radius: var(--r-control); box-shadow: inset 0 0 0 .5px var(--separator); }
+.sp-swatches.sem i { font-style: normal; }
+.sp-av { display: inline-grid; place-items: center; border-radius: 50%; color: var(--on-color); font: var(--t-subhead); font-weight: 600; line-height: 1; flex: none; }
+.sp-badge-demo { position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; color: var(--label); }
+.sp-badge-demo .ui-badge { position: absolute; top: 0; right: -2px; }
+.sp-todo { width: 100%; border: 0; background: none; text-align: left; cursor: pointer; }
+.sp-todo.done .grow { color: var(--label-3); }
+.sp-review { display: grid; gap: 10px; max-width: var(--readable); }
+.sp-rv-head { display: flex; align-items: center; gap: 10px; }
+.sp-rv-head .grow { flex: 1; min-width: 0; }
+.sp-stars { color: var(--star); letter-spacing: .05em; } .sp-stars span { color: var(--label-4); }
+.sp-paper { color: var(--label); text-decoration: none; }
+.sp-paper:hover { color: var(--accent); }
+.sp-memo { background: var(--fill-4); border-radius: var(--r-control); padding: 10px 12px; }
+.sp-memo .t-caption1 { color: var(--accent); font-weight: 600; letter-spacing: .04em; }
+.sp-panel .sp-memo p { margin-top: 2px; }
+.sp-actions { display: flex; flex-wrap: wrap; gap: 2px; margin: 2px -8px -6px; }
+.sp-glass-stage { position: relative; border-radius: var(--r-card); overflow: hidden; padding: 12px; min-height: 330px; display: grid; gap: 14px; align-content: start; }
+.sp-glass-bg { position: absolute; inset: 0; background: radial-gradient(60% 55% at 15% 20%, rgb(var(--orange)) 0, transparent 70%), radial-gradient(55% 60% at 85% 15%, rgb(var(--pink)) 0, transparent 70%), radial-gradient(60% 60% at 70% 85%, rgb(var(--indigo)) 0, transparent 70%), radial-gradient(55% 55% at 20% 85%, rgb(var(--teal)) 0, transparent 70%), rgb(var(--yellow)); }
+.sp-glass-bg span { display: none; }
+.sp-glass-stage > :not(.sp-glass-bg) { position: relative; }
+.sp-logo { width: 20px; height: 20px; border-radius: var(--r-control-sm); background: conic-gradient(from 200deg, rgb(var(--indigo)), rgb(var(--blue)), rgb(var(--mint)), rgb(var(--orange)), rgb(var(--indigo))); }
+.sp-menu-demo { justify-self: end; width: 240px; }
+.sp-space { display: grid; justify-items: center; gap: 4px; }
+.sp-space i { display: block; background: rgb(var(--accent-rgb) / .6); border-radius: var(--r-xs); }
+.sp-radius { width: 92px; height: 56px; display: grid; place-items: center; background: var(--fill-3); }
+@media (max-width: 760px) { .ui-toolbar .zone.mid { display: none; } }
+:where([data-ui]) .ui-glass-group.sp-brand { padding: 0 14px 0 10px; gap: 8px; }
+:where([data-ui]) .ui-glass-group .ui-btn.sp-on { background: var(--fill-2); font-weight: 600; }
+.sp-under { position: relative; color: var(--on-color); text-shadow: var(--text-shadow-on-color); padding: 0 6px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="ui-topbar">
+  <a class="brand" href="#"><span class="sp-logo"></span>My App</a>
+  <nav class="ui-nav">
+    <a href="#" aria-current="page"><i data-lucide="house" class="ic"></i><span>홈</span></a>
+    <a href="#"><i data-lucide="compass" class="ic"></i><span>탐색</span></a>
+    <a href="#"><i data-lucide="file-text" class="ic"></i><span>문서</span></a>
+    <a href="#"><i data-lucide="users" class="ic"></i><span>사람</span></a>
+    <a href="#"><i data-lucide="settings" class="ic"></i><span>설정</span></a>
+  </nav>
+  <span class="spacer"></span>
+  <button class="ui-btn plain icon" aria-label="검색" title="검색"><i data-lucide="search" class="ic"></i></button>
+  <button class="ui-btn prominent small"><i data-lucide="plus" class="ic"></i>새로 만들기</button>
+</header>
+<main class="ui-main" style="max-width: 1280px">
+  <div class="sp-demo">
+    <div class="ui-seg small" id="theme"></div>
+    <button class="ui-btn small" data-demo-js="confirm">AppUI.confirm</button>
+    <button class="ui-btn small" data-demo-js="sheet">AppUI.sheet</button>
+    <button class="ui-btn small" data-demo-js="toast">AppUI.toast</button>
+  </div>
+  <section id="specimen"></section>
+</main>
+<script defer src="https://cdn.jsdelivr.net/npm/lucide@1.49.0/dist/umd/lucide.min.js"></script>
+<script src="components.js"></script>
+<script>
+(() => {
+  const view = document.querySelector("#specimen");
+  const I = (name, cls = "") => `<i data-lucide="${name}" class="ic ${cls}"></i>`;
+  const SYS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown"];
+  const GRAYS = ["gray", "gray2", "gray3", "gray4", "gray5", "gray6"];
+  const SEM = [["label", "글자"], ["label-2", "보조 글자"], ["label-3", "3차 글자"], ["label-4", "비활성"], ["sys-bg", "바탕"], ["sys-bg-2", "카드"], ["sys-bg-3", "떠 있는 면"],
+    ["separator", "구분선"], ["fill", "채우기 1"], ["fill-2", "채우기 2"], ["fill-3", "채우기 3"], ["fill-4", "채우기 4"], ["accent", "강조색"], ["link", "링크"]];
+  const TYPE = [["large-title", "Large Title", "26/32 Bold", "프로젝트"], ["title1", "Title 1", "22/26 Bold", "2분기 보고서"], ["title2", "Title 2", "17/22 Bold", "섹션 제목"],
+    ["title3", "Title 3", "15/20 Semibold", "카드 제목"], ["headline", "Headline", "13/16 Bold", "목록 항목 제목 · 작성자"], ["body", "Body", "13/16", "본문은 이 크기로 읽는다. 데스크톱 13, 폰 15."],
+    ["callout", "Callout", "12/15", "메타 · 날짜 · 도움말"], ["subhead", "Subheadline", "11/14", "태그 · 필 · 표 머리"], ["footnote", "Footnote", "10/13", "차트 라벨 · 축 눈금"],
+    ["caption1", "Caption 1", "10/13", "아바타 이니셜"], ["caption2", "Caption 2", "10/13 Medium", "MEMO (최소 크기)"]];
+  const av = (n, c, size = 28) => `<span class="sp-av" style="width:${size}px;height:${size}px;background:rgb(var(--${c}))">${n.slice(-2)}</span>`;
+
+  function gallery() {
+    return `
+    <section><h2 class="t-title2">글자 · Typography</h2>
+      <p class="t-callout c-2">데스크톱은 macOS 텍스트 스타일, 폰(760px 이하)은 같은 이름이 iOS 크기로 바뀌어요. 글꼴: Apple 기기는 SF + Apple SD Gothic Neo, 그 외 Pretendard.</p>
+      <div class="ui-list">${TYPE.map(([k, n, spec, ex]) => `<div class="ui-row sp-type"><span class="sp-k t-caption1 c-2">${n}<br>${spec}</span><span class="t-${k} grow">${ex}</span></div>`).join("")}</div>
+    </section>
+
+    <section><h2 class="t-title2">색 · Color</h2>
+      <p class="ui-list-h">시스템 색</p>
+      <div class="sp-swatches">${SYS.map(c => `<div><span style="background:rgb(var(--${c}))"></span><b class="t-caption1">${c}</b></div>`).join("")}</div>
+      <p class="ui-list-h">회색</p>
+      <div class="sp-swatches">${GRAYS.map(c => `<div><span style="background:rgb(var(--${c}))"></span><b class="t-caption1">${c}</b></div>`).join("")}</div>
+      <p class="ui-list-h">의미 색</p>
+      <div class="sp-swatches sem">${SEM.map(([k, n]) => `<div><span style="background:var(--${k})"></span><b class="t-caption1">${n}</b><i class="t-caption2 c-3">--${k}</i></div>`).join("")}</div>
+    </section>
+
+    <section><h2 class="t-title2">버튼 · Buttons</h2>
+      <p class="t-footnote c-2">한 화면에 눈에 띄는 버튼은 1–2개. 우선순위는 크기가 아니라 스타일로. 위험한 동작은 주요 버튼으로 두지 않는다.</p>
+      <div class="sp-row">
+        <button class="ui-btn prominent">${I("plus")}새로 만들기</button>
+        <button class="ui-btn">${I("users")}참가</button>
+        <button class="ui-btn plain">더 보기</button>
+        <button class="ui-btn destructive">${I("trash-2")}삭제</button>
+        <button class="ui-btn" disabled>비활성</button>
+      </div>
+      <div class="sp-row">
+        <button class="ui-btn prominent large">프로젝트 열기</button>
+        <button class="ui-btn small">${I("plus")}댓글</button>
+        <button class="ui-btn icon" aria-label="알림">${I("bell")}</button>
+        <button class="ui-btn prominent is-loading" data-demo="loading">게시하는 중…</button>
+      </div>
+    </section>
+
+    <section><h2 class="t-title2">세그먼트 · 칩 · 배지</h2>
+      <div class="sp-row"><div class="ui-seg" data-demo="seg"><button aria-pressed="true">개요</button><button>활동</button><button>파일</button><button>설정</button></div></div>
+      <div class="sp-row">${["디자인", "개발", "기획", "마케팅"].map((x, i) => `<button class="ui-chip" aria-pressed="${i === 1}" data-demo="chip"><span class="dot" style="background:rgb(var(--${SYS[i * 3]}))"></span>${x}</button>`).join("")}
+        <a class="ui-chip" href="javascript:void 0">${av("도윤", "cyan", 20)}도윤<span class="m">62%</span></a>
+        <span class="sp-badge-demo">${I("bell")}<span class="ui-badge">3</span></span><span class="ui-badge">12</span></div>
+    </section>
+
+    <section><h2 class="t-title2">태그 · 필 · 글자 버튼</h2>
+      <div class="sp-row">${["디자인", "개발"].map((x, i) => `<span class="ui-tag"><span class="dot" style="background:rgb(var(--${["orange", "cyan"][i]}))"></span>${x}</span>`).join("")}<span class="ui-tag method"><span class="dot" style="background:rgb(var(--purple))"></span>기획</span></div>
+      <div class="sp-row"><span class="ui-pill">기본</span><span class="ui-pill warn">3일 지남</span><span class="ui-pill ok">완료</span><span class="ui-pill info">새 기능</span><span class="ui-pill accent">내 항목</span><span class="ui-pill outline">초안</span></div>
+      <p class="t-body">문장 안의 동작은 글자 버튼으로 — 이전에 쓰던 글을 불러왔어요. <button class="ui-btn text">버리기</button></p>
+      <div class="sp-row"><button class="ui-btn small" aria-pressed="true">${I("thumbs-up")}3</button><button class="ui-btn small" aria-pressed="false">${I("thumbs-up")}</button></div>
+    </section>
+
+    <section><h2 class="t-title2">입력 · Fields</h2>
+      <div class="sp-grid2">
+        <div><label class="ui-label">제목</label><input class="ui-field" placeholder="예: 2분기 보고서"></div>
+        <div><label class="ui-label">검색</label><div class="ui-search">${I("search")}<input class="ui-field" placeholder="문서·사람·태그 검색"></div></div>
+        <div class="span2"><label class="ui-label">메모</label><textarea class="ui-field" rows="3" placeholder="남길 말…"></textarea></div>
+      </div>
+      <div class="sp-row"><label class="ui-check"><input type="checkbox" checked>알림 받기</label><label class="ui-check"><input type="checkbox">나만 보기</label></div>
+    </section>
+
+    <section><h2 class="t-title2">목록 · Inset grouped list</h2>
+      <p class="ui-list-h">다가오는 일정</p>
+      <div class="ui-list">
+        <a class="ui-row has-icon" href="javascript:void 0"><span class="tile" style="background:rgb(var(--indigo))">${I("book-open")}</span><span class="grow">디자인 리뷰<div class="sub">10월 3일 (토) 14:00 · 회의실</div></span><span class="t-footnote c-2">D-1</span>${I("chevron-right", "chev")}</a>
+        <a class="ui-row has-icon" href="javascript:void 0"><span class="tile" style="background:rgb(var(--orange))">${I("users")}</span><span class="grow">주간 회의<div class="sub">날짜 미정 · 3명</div></span>${I("chevron-right", "chev")}</a>
+        <div class="ui-row has-icon"><span class="tile" style="background:rgb(var(--green))">${I("bell-ring")}</span><span class="grow">하루 전 알림</span><input type="checkbox" class="ui-switch" checked></div>
+      </div>
+      <p class="ui-list-f">스위치는 목록 행 안에서만 (HIG).</p>
+    </section>
+
+    <section><h2 class="t-title2">행 · 표</h2>
+      <div class="ui-card">
+        <a class="ui-row" href="javascript:void 0">${av("서연", "cyan", 20)}<span class="grow">한 줄 행 — 28px</span><span class="m">12개</span></a>
+        <a class="ui-row two" href="javascript:void 0">${av("지우", "yellow", 28)}<span class="grow">두 줄 행 — 제목<div class="m">메타 · 4일 전</div></span></a>
+        <div class="ui-row ruled"><span class="grow">구분선 행 (좌우 여백 0)</span><span class="m">대기</span></div>
+        <div class="ui-row ruled"><span class="grow">구분선 행</span><span class="m">진행 중</span></div>
+      </div>
+      <table class="ui-table"><thead><tr><th>이름</th><th>역할</th><th class="num">진행률</th></tr></thead>
+        <tbody><tr><td>김민준</td><td>편집자</td><td class="num">13%</td></tr><tr><td>이서연</td><td>관리자</td><td class="num">—</td></tr></tbody></table>
+    </section>
+
+    <section><h2 class="t-title2">할 일 (체크리스트)</h2>
+      <div class="ui-list">${[["자료 모으기", 1], ["초안 쓰기", 1], ["검토 받기", 0], ["발표 준비 (선택)", 0]].map(([x, d]) =>
+        `<button class="ui-row sp-todo ${d ? "done" : ""}" data-demo="todo"><span class="ui-done ${d ? "checked" : ""}">${d ? "✓" : ""}</span><span class="grow">${x}</span>${d ? "" : I("chevron-right", "chev")}</button>`).join("")}</div>
+    </section>
+
+    <section><h2 class="t-title2">콘텐츠 카드 (콘텐츠 층 — 유리 없음)</h2>
+      <article class="ui-card sp-review">
+        <div class="sp-rv-head">${av("민준", "orange", 36)}<div class="grow"><div class="t-headline">김민준</div><div class="t-footnote c-2"><span class="sp-stars">★★★★<span>★</span></span> · 10월 2일 · <span class="ui-pill warn">3일 지남 등록</span></div></div>
+          <button class="ui-btn plain icon" aria-label="더 보기">${I("ellipsis")}</button></div>
+        <a class="t-headline sp-paper" href="javascript:void 0">2분기 사용자 인터뷰 정리</a>
+        <p class="t-body">인터뷰 12건에서 반복해서 나온 요청을 세 가지로 묶었다. 검색, 알림, 공유 순으로 많았다.</p>
+        <div class="sp-memo"><span class="t-caption1">MEMO</span><p class="t-subhead">알림 요청은 대부분 마감 하루 전 알림이었다.</p></div>
+        <div class="sp-row tight">${["리서치", "UX"].map((x, i) => `<span class="ui-tag${i ? " method" : ""}"><span class="dot" style="background:rgb(var(--${["teal", "purple"][i]}))"></span>${x}</span>`).join("")}</div>
+        <div class="sp-actions"><button class="ui-btn plain small">${I("thumbs-up")}3</button><button class="ui-btn plain small">${I("bookmark-plus")}저장</button>
+          <button class="ui-btn plain small">${I("message-circle")}2</button><button class="ui-btn plain small">${I("share")}공유</button></div>
+      </article>
+    </section>
+
+    <section><h2 class="t-title2">머티리얼 · 툴바 · 메뉴 (내비게이션 층 — Liquid Glass)</h2>
+      <p class="t-footnote c-2">유리는 컨트롤·내비게이션에만, 화면 가장자리에서 떨어져 떠 있는 캡슐로. 색은 주요 동작 하나(쓰기)에만.</p>
+      <div class="sp-glass-stage">
+        <div class="sp-glass-bg">${Array.from({ length: 18 }, (_, i) => `<span style="background:rgb(var(--${SYS[i % 12]}))"></span>`).join("")}</div>
+        <div class="ui-toolbar">
+          <div class="zone"><span class="ui-glass-group ui-glass sp-brand"><span class="sp-logo"></span><span class="title">My App</span></span></div>
+          <div class="zone mid"><span class="ui-glass-group ui-glass">${["홈", "탐색", "문서", "설정"].map((x, i) => `<button class="ui-btn small ${i ? "" : "sp-on"}">${x}</button>`).join("")}</span></div>
+          <div class="zone"><span class="ui-glass-group ui-glass"><button class="ui-btn icon" aria-label="검색">${I("search")}</button><span class="sp-badge-demo">${I("bell")}<span class="ui-badge">2</span></span></span>
+            <button class="ui-btn glass prominent">${I("pen-line")}쓰기</button></div>
+        </div>
+        <div class="sp-under t-body">${"스크롤되는 콘텐츠가 유리 아래로 비쳐 보여요. ".repeat(6)}</div>
+        <div class="ui-menu ui-glass strong sp-menu-demo">
+          <button>${I("pencil")}편집…</button><button>${I("share")}공유…</button><hr>
+          <button>${I("archive")}보관</button><hr><button class="destructive">${I("trash-2")}삭제</button>
+        </div>
+      </div>
+    </section>
+
+    <section><h2 class="t-title2">알림 · 시트</h2>
+      <p class="t-footnote c-2">확인창은 버튼 최대 3개, "취소"는 왼쪽·실행은 오른쪽. 폰에서 시트는 아래에서 올라옴.</p>
+      <div class="sp-row"><button class="ui-btn" data-demo="alert">${I("triangle-alert")}알림 열기</button><button class="ui-btn" data-demo="sheet">${I("panel-bottom-open")}시트 열기</button></div>
+    </section>
+
+    <section><h2 class="t-title2">안내줄 · 팝오버 · 툴팁</h2>
+      <p class="ui-notice info">${I("info")}변경 사항 2건이 반영됐어요. <button class="ui-btn text">보기</button></p>
+      <p class="ui-notice warn">${I("alarm-clock")}마감이 내일인 할 일이 1개 있어요.</p>
+      <div class="sp-row" style="align-items:flex-start">
+        <div class="ui-popover list" style="width:220px"><div>${I("hash")}디자인</div><div>${I("hash")}디자인 시스템</div><div>${I("hash")}디자인 리뷰</div></div>
+        <div class="ui-tooltip"><b>10월 2일 (목)</b><br>활동 2건</div>
+      </div>
+    </section>
+
+    <section><h2 class="t-title2">진행 · 빈 상태 · 토스트</h2>
+      <div class="sp-row"><div class="ui-progress" style="width:220px"><i style="width:62%"></i></div><span class="t-footnote c-2 num">파일 올리는 중 · 62%</span><div class="ui-spinner"></div></div>
+      <div class="ui-card ui-empty">${I("notebook-pen")}<h4>아직 문서가 없어요</h4><p>첫 문서를 만들어 보세요. 다른 사람이 만든 문서도 여기에 모여요.</p><button class="ui-btn prominent">${I("plus")}새 문서</button></div>
+      <div class="sp-row"><span class="ui-toast ui-glass">${I("circle-check")}게시했어요 <button class="ui-btn plain small">실행 취소</button></span></div>
+    </section>
+
+    <section><h2 class="t-title2">간격 · 모서리</h2>
+      <div class="sp-row">${[4, 8, 12, 16, 20, 24, 32, 44].map(n => `<span class="sp-space"><i style="width:${n}px;height:${n}px"></i><b class="t-caption2 c-2">${n}</b></span>`).join("")}</div>
+      <div class="sp-row">${[["시트", 20], ["카드", 14], ["컨트롤", 10], ["칩", 999]].map(([n, r]) => `<span class="sp-radius" style="border-radius:${Math.min(r, 28)}px"><b class="t-caption1">${n} ${r === 999 ? "완전" : r}</b></span>`).join("")}</div>
+      <p class="t-footnote c-2">동심원 규칙: 안쪽 반지름 = 바깥 반지름 − 여백 (예: 카드 14 · 여백 4 → 안쪽 10).</p>
+    </section>`;
+  }
+
+  const mode = { view: "side", contrast: "normal", transparency: "normal" };
+  function panel(theme) {
+    return `<div class="sp-panel" data-ui data-theme="${theme}" data-contrast="${mode.contrast === "more" ? "more" : ""}" data-transparency="${mode.transparency === "reduce" ? "reduce" : ""}">
+      <div class="sp-panel-h t-footnote c-2">${{ light: "라이트", dark: "다크", auto: "자동 (기기 설정)" }[theme]}${mode.contrast === "more" ? " · 고대비" : ""}</div>${gallery()}</div>`;
+  }
+  function render() {
+    const themes = mode.view === "side" ? ["light", "dark"] : [mode.view];
+    view.innerHTML = `
+      <div class="sp-head"><h1 class="t-large-title">디자인 키트 견본</h1><p class="t-body c-2">모든 토큰과 ui-* 컴포넌트를 라이트·다크로 나란히 보여줘요. 규칙은 docs/에 있어요.</p></div>
+      <div class="sp-controls" data-ui data-theme="dark">
+        <div class="ui-seg" data-k="view">${[["side", "나란히"], ["light", "라이트"], ["dark", "다크"], ["auto", "자동"]].map(([v, n]) => `<button data-v="${v}" aria-pressed="${mode.view === v}">${n}</button>`).join("")}</div>
+        <div class="ui-seg" data-k="contrast">${[["normal", "표준 대비"], ["more", "고대비"]].map(([v, n]) => `<button data-v="${v}" aria-pressed="${mode.contrast === v}">${n}</button>`).join("")}</div>
+        <div class="ui-seg" data-k="transparency">${[["normal", "투명 효과"], ["reduce", "투명도 줄이기"]].map(([v, n]) => `<button data-v="${v}" aria-pressed="${mode.transparency === v}">${n}</button>`).join("")}</div>
+      </div>
+      <div class="sp-panels ${themes.length > 1 ? "two" : ""}">${themes.map(panel).join("")}</div>`;
+    view.querySelectorAll(".sp-controls .ui-seg button").forEach(b => (b.onclick = () => { mode[b.closest(".ui-seg").dataset.k] = b.dataset.v; render(); }));
+    view.querySelectorAll('[data-demo="seg"] button').forEach(b => (b.onclick = () => b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b))));
+    view.querySelectorAll('[data-demo="chip"]').forEach(b => (b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true")));
+    view.querySelectorAll('[data-demo="todo"]').forEach(b => (b.onclick = () => { b.classList.toggle("done"); const c = b.querySelector(".ui-done"); c.classList.toggle("checked", b.classList.contains("done")); c.textContent = b.classList.contains("done") ? "✓" : ""; }));
+    view.querySelectorAll('[data-demo="alert"]').forEach(b => (b.onclick = () => overlay(b, `<div class="ui-alert ui-glass strong"><h3>이 프로젝트를 삭제할까요?</h3><p>안의 파일도 함께 지워지고 되돌릴 수 없어요.</p>
+      <div class="acts"><button class="ui-btn" data-close>취소</button><button class="ui-btn destructive" data-close>삭제</button></div></div>`)));
+    view.querySelectorAll('[data-demo="sheet"]').forEach(b => (b.onclick = () => overlay(b, `<div class="ui-sheet"><header><button class="ui-btn plain" data-close>취소</button><span class="t">일정 편집</span><span class="r"><button class="ui-btn plain" data-close><b>완료</b></button></span></header>
+      <div class="body"><div><label class="ui-label">날짜</label><input class="ui-field" type="date" value="2026-10-03"></div><div><label class="ui-label">장소</label><input class="ui-field" value="회의실"></div>
+      <div><label class="ui-label">메모</label><textarea class="ui-field" rows="3">발표 자료 미리 공유</textarea></div></div></div>`, "sheet")));
+    window.lucide?.createIcons();
+  }
+  function overlay(btn, html, kind = "") {
+    const host = btn.closest("[data-ui]");
+    const s = document.createElement("div");
+    s.className = "ui-scrim " + kind; s.setAttribute("data-ui", ""); s.dataset.theme = host.dataset.theme; s.dataset.contrast = host.dataset.contrast; s.dataset.transparency = host.dataset.transparency;
+    s.innerHTML = html;
+    s.onclick = e => { if (e.target === s || e.target.closest("[data-close]")) s.remove(); };
+    document.body.appendChild(s); window.lucide?.createIcons();
+  }
+
+
+  render();
+  // the page's own theme switch + AppUI demos
+  const seg = document.querySelector("#theme");
+  const paint = () => seg.innerHTML = [["auto", "자동"], ["light", "라이트"], ["dark", "다크"]].map(([v, n]) => `<button data-t="${v}" aria-pressed="${AppUI.getTheme() === v}">${n}</button>`).join("");
+  paint(); seg.onclick = e => { const b = e.target.closest("[data-t]"); if (b) { AppUI.setTheme(b.dataset.t); paint(); } };
+  document.querySelector('[data-demo-js="confirm"]').onclick = async () => {
+    const ok = await AppUI.confirm("이 항목을 삭제할까요?", { message: "되돌릴 수 없어요.", ok: "삭제", destructive: true });
+    AppUI.toast(ok ? "삭제했어요" : "취소했어요");
+  };
+  document.querySelector('[data-demo-js="sheet"]').onclick = () => {
+    const s = AppUI.sheet(`<h3 class="t-headline" style="margin:0">이름 변경</h3><input class="ui-field" value="2분기 보고서">
+      <div class="acts"><button class="ui-btn" data-close>취소</button><button class="ui-btn prominent" data-save>저장</button></div>`);
+    s.querySelector("[data-save]").onclick = () => { s.close(); AppUI.toast("저장했어요", { undo: () => AppUI.toast("되돌렸어요") }); };
+  };
+  document.querySelector('[data-demo-js="toast"]').onclick = () => AppUI.toast("게시했어요", { undo: () => {} });
+  window.addEventListener("load", () => window.lucide?.createIcons());
+})();
+</script>
+</body>
+</html>

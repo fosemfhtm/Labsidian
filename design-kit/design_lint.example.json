@@ -1,0 +1,9 @@
+{
+  "css": ["src/**/*.css"],
+  "js": ["src/**/*.js"],
+  "tokens": "design-kit/tokens.css",
+  "skip": ["src/vendor/**"],
+  "breakpoints": [760, 761, 900, 901],
+  "banned_words": {},
+  "baseline": "design_lint_baseline.json"
+}
