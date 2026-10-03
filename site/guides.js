@@ -21,7 +21,7 @@
       "gd.readBy": "연구실 {n}명 읽음", "gd.nobody": "아직 아무도 안 읽음", "gd.addedBy": "{name} 추가",
       "gd.toReading": "읽을 목록에", "gd.allToReading": "남은 논문 전부 읽을 목록에", "gd.allAdded": "{n}편을 읽을 목록에 담았어요",
       "gd.openStudy": "스터디 열기", "gd.nextStudy": "다음 스터디 제안", "gd.nextNone": "남은 논문이 없어요", "gd.studied": "스터디에서 다룸",
-      "gd.remove": "빼기", "gd.removeQ": "가이드에서 뺄까요?", "gd.noItems": "아직 논문이 없어요", "gd.sectionMove": "구간 옮기기",
+      "gd.remove": "빼기", "gd.removeQ": "가이드에서 뺄까요?", "gd.noItems": "아직 논문이 없어요", "gd.sectionMove": "구간 옮기기", "gd.manage": "관리", "gd.up": "위로", "gd.down": "아래로",
     },
     en: {
       "gd.title": "Core-paper guides", "gd.sub": "Key papers per topic, curated by the lab — with who read them and how far you are",
@@ -34,7 +34,7 @@
       "gd.readBy": "{n} in the lab read it", "gd.nobody": "Nobody in the lab has read it yet", "gd.addedBy": "added by {name}",
       "gd.toReading": "To my reading list", "gd.allToReading": "All remaining to my reading list", "gd.allAdded": "Added {n} to your reading list",
       "gd.openStudy": "Open a study", "gd.nextStudy": "Suggest the next study", "gd.nextNone": "Nothing left to read", "gd.studied": "Covered in a study",
-      "gd.remove": "Remove", "gd.removeQ": "Remove it from the guide?", "gd.noItems": "No papers yet", "gd.sectionMove": "Move to section",
+      "gd.remove": "Remove", "gd.removeQ": "Remove it from the guide?", "gd.noItems": "No papers yet", "gd.sectionMove": "Move to section", "gd.manage": "Manage", "gd.up": "Move up", "gd.down": "Move down",
     },
   });
 
@@ -82,7 +82,7 @@
       <div class="page-head row-head"><div><h1>${t("gd.title")}</h1><p class="sub">${t("gd.sub")}</p></div>
         ${me && !creating ? `<a class="btn primary" href="#/guides?new=1">＋ ${t("gd.new")}</a>` : ""}</div>
       ${creating ? form(null, params.get("tag")) : ""}
-      ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="empty">${t("gd.empty")}</div>`}`;
+      ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="empty">${t("gd.empty")}${me ? `<p><a class="btn primary" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
     if (creating) {
       const f = $("#gd-form", listView), tags = params.get("tag") ? [params.get("tag")] : [];
       wireTagPicker(f, tags);
@@ -114,11 +114,11 @@
       </div>
       <div class="gd-actions">
         ${me ? `<button class="chip ${voted ? "on" : ""}" data-act="vote">👍 ${(it.votes || []).length || ""}</button>` : ""}
-        ${me && !done ? `<button class="btn small ghost" data-act="read" title="${t("gd.toReading")}" ${inReading ? "disabled" : ""}>📚</button>` : ""}
-        ${me && !done && !studies.some(st => !st.closed) ? `<a class="btn small ghost" href="#/study/new?${studyQ}" title="${t("gd.openStudy")}">👥</a>` : ""}
-        ${me && (canManage || it.by === me.id) ? `<span class="gd-own">${canManage && sameSec > 1 ? `<button class="btn small ghost" data-act="up" title="↑">↑</button><button class="btn small ghost" data-act="down" title="↓">↓</button>` : ""}
+        ${me && !done ? `<button class="btn small" data-act="read" title="${t("gd.toReading")}" aria-label="${t("gd.toReading")}" ${inReading ? "disabled" : ""}>📚</button>` : ""}
+        ${me && !done && !studies.some(st => !st.closed) ? `<a class="btn small" href="#/study/new?${studyQ}" title="${t("gd.openStudy")}" aria-label="${t("gd.openStudy")}">👥</a>` : ""}
+        ${me && (canManage || it.by === me.id) ? `<span class="gd-own">${canManage && sameSec > 1 ? `<button class="btn small" data-act="up" title="${t("gd.up")}" aria-label="${t("gd.up")}">↑</button><button class="btn small" data-act="down" title="${t("gd.down")}" aria-label="${t("gd.down")}">↓</button>` : ""}
           ${canManage && g.sections.length > 1 ? `<select data-act="section" title="${t("gd.sectionMove")}" aria-label="${t("gd.sectionMove")}">${g.sections.map(x => `<option value="${x.id}" ${x.id === it.section ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select>` : ""}
-          <button class="btn small ghost" data-act="del" title="${t("gd.remove")}" aria-label="${t("gd.remove")}">🗑</button></span>` : ""}
+          <button class="btn small" data-act="del" title="${t("gd.remove")}" aria-label="${t("gd.remove")}">🗑</button></span>` : ""}
       </div></div>`;
   }
 
@@ -130,7 +130,8 @@
     pageView.innerHTML = `${UI.papersTabs("guides")}
       ${editing ? form(g) : `<div class="page-head row-head"><div><h1>${esc(g.title)}</h1>
           <p class="sub gd-by">${UI.avatar(g.owner)} ${t("gd.by", { name: esc(name(g.owner)) })} · ${t("gd.papers", { n: g.items.length })}</p></div>
-          <div class="btn-row">${canManage ? `<a class="btn" href="#/guide/${g.id}?edit=1">${t("gd.edit")}</a><button class="btn danger" id="gd-del">${t("gd.delete")}</button>` : ""}</div></div>
+          ${canManage ? `<details class="st-manage gd-manage"><summary>⋯ ${t("gd.manage")}</summary><div class="menu-pop">
+            <a class="link-btn" href="#/guide/${g.id}?edit=1">${t("gd.edit")}</a><hr><button class="link-btn danger" id="gd-del">${t("gd.delete")}</button></div></details>` : ""}</div>
         ${g.desc ? `<p class="gd-desc">${esc(g.desc)}</p>` : ""}<div class="tags-row">${tagChips(g.tags)}</div>`}
       ${me ? `<div class="card gd-me"><div class="row-between"><b>${t("gd.mine", { d: pr.done, n: pr.total })}</b>
           <div class="btn-row"><button class="btn small" id="gd-all-read">📚 ${t("gd.allToReading")}</button><button class="btn small primary" id="gd-next">👥 ${t("gd.nextStudy")}</button></div></div>

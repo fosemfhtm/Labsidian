@@ -184,7 +184,7 @@
     const g = e.target.closest("[data-graph]");
     if (g) {
       location.hash = "#/graph";
-      setTimeout(() => window.LabGraph?.select(g.dataset.graph, { zoom: true }), 60);
+      setTimeout(() => window.LabGraph?.select(g.dataset.graph, { zoom: true, openDrawer: true }), 60);
       return;
     }
     const el = e.target.closest("[data-open]");
@@ -204,7 +204,6 @@
       <div class="pd-head"><div class="pc-head">${avatar(id, true)}
         <div><h2 style="padding:0">${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div></div>
       ${pr.role ? `<div class="pf-role">${esc(pr.role)}</div>` : ""}
-      ${V.palette(pr.fields)}
       ${me?.id === id ? `<p class="pf-self">${t("pf.self")} · <a href="#/me">${t("pf.toMe")} →</a></p>` : ""}
       <div class="pf-stats">
         <div><b>${pr.count}</b><span>${t("pf.reviews")}</span>${V.spark(weekBuckets(p.dates), p.color)}</div>
@@ -214,15 +213,10 @@
       <div class="btn-row"><button class="btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
         ${other ? `<a class="btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
       <h4>${t("pf.terrain")}</h4>
-      ${pr.enough ? `<p class="hint">${t("pf.terrainHint")}</p>
-        ${V.radar(pr.areas, [{ values: pr.areas.map(a => a.lab), color: "var(--text-3)", dashed: true }, { values: pr.areas.map(a => a.share), color: p.color }])}
-        ${pr.lift ? `<p class="pf-insight">${esc(pr.lift)}</p>` : ""}` : `<p class="muted">${t("pf.few", { n: V.MIN_REVIEWS - pr.count })}</p>`}
-      <h4>${t("pf.methods")}</h4>
-      ${V.band(pr.methods)}
-      <h4>${t("pf.fields")}</h4>
-      <div class="tags-row">${fieldsTop.map(f => `<span class="tag" data-open="topic:${f.id}"><span class="dot" style="background:${f.color}"></span>${esc(f.label)} <b class="pf-n">${f.value}</b></span>`).join("")}
-        ${fieldsRest ? `<span class="tag">${t("pf.other")} <b class="pf-n">${fieldsRest}</b></span>` : ""}</div>
-      ${p.similar.length ? `<h4>${t("pf.similar")}</h4><p class="hint">${t("pf.similarHint")}</p>${V.orbit(id, p.similar)}` : ""}
+      ${V.terrain(id)}
+      ${pr.fields.length ? `<h4>${t("pf.fields")}</h4>
+      ${bars([...fieldsTop.map(f => [f.label, f.value, p.color, `topic:${f.id}`]), ...(fieldsRest ? [[t("pf.other"), fieldsRest, "rgb(var(--gray))"]] : [])], fieldsTop[0].value)}` : ""}
+      ${p.similar.length ? `<h4>${t("pf.similar")}</h4><p class="hint">${t("pf.similarHint")}</p>${V.similar(id, p.similar)}` : ""}
       <div class="pf-recent"><h4>${t("pf.recent")}</h4>
       <div class="mini-list">${mine.slice(0, 15).map(r => miniPaper(PA[r.paper], r.date)).join("")}</div>
       ${mine.length > 15 ? `<p class="kv"><a href="#/papers?person=${id}">${t("d.all", { n: mine.length })}</a></p>` : ""}</div>
@@ -343,20 +337,11 @@
   }
   function renderPeople() {
     $("#people-sub").textContent = t("people.sub", { n: D.people.length, r: D.reviews.length, p: D.papers.length });
-    $("#lab-bars").innerHTML = window.LabViz ? `<h3>${t("pf.ask")}</h3><p class="hint">${t("pf.askHint")}</p>${LabViz.matrix()}` : "";
-    $("#people-grid").innerHTML = [...D.people].sort((a, b) => b.count - a.count).map(p => {
-      const dom = Object.entries(p.topics).filter(([k]) => k.startsWith("d:")).slice(0, 4);
-      const wk = weekBuckets(p.dates), mx = Math.max(...wk, 1);
-      const sim = p.similar[0], pr = window.LabViz?.profile(p.id);
-      return `<div class="card person-card" data-open="person:${p.id}">
-        <div class="pc-head">${avatar(p.id)}<div><div class="pc-name">${esc(p.name)}</div>
-          <div class="pc-meta">${pr?.role ? esc(pr.role) : t("pc.metaN", { n: p.count })}</div></div></div>
-        ${pr ? LabViz.palette(pr.fields) : ""}
-        ${bars(dom.map(([k, n]) => [tl(T[k]), n, T[k].color]), dom[0]?.[1] || 1)}
-        <div class="spark" title="${t("pc.weekly")}">${wk.map(n => `<i style="height:${(100 * n / mx).toFixed(0)}%;${n ? `background:${p.color}` : ""}"></i>`).join("")}</div>
-        ${sim ? `<div class="pc-sim">${t("pc.similar")} <b style="color:${P[sim.id].color}">${esc(P[sim.id].name)}</b> (${Math.round(sim.sim * 100)}%)</div>` : ""}
-      </div>`;
-    }).join("");
+    // the whole lab on top (legend, areas ↔ methods, picker), everyone's rose below
+    const V = window.LabViz;
+    $("#view-people").dataset.vzAxis = V.kind;
+    $("#lab-bars").innerHTML = V.labCard();
+    $("#people-grid").innerHTML = V.peopleCards([...D.people].filter(p => p.count).sort((a, b) => b.count - a.count));
   }
 
   // ---------- papers page ----------
@@ -500,6 +485,7 @@
   window.addEventListener("hashchange", () => inAppNavs++);
   window.LabBack = (fallback = "#/home") => (inAppNavs > 0 ? history.back() : (location.hash = fallback));
   const currentView = () => (location.hash.replace(/^#\//, "").split(/[?/]/)[0] || "home");
+  let shownView = null;
   function route() {
     const [path, qs] = location.hash.replace(/^#\//, "").split("?");
     const [view, arg] = path.split("/");
@@ -507,6 +493,8 @@
     const pages = window.LabPages || {};
     const v = ["graph", "people", "papers", "shared", "paper", "person", ...Object.keys(pages)].includes(view) ? view : pages.home ? "home" : "graph";
     if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(decodeURIComponent(arg || "")); }
+    else if (v !== shownView) closeDrawer();  // a link out of the drawer (compare, topic page, a guide…) leaves it behind
+    shownView = v;
     document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "view-" + v));
     const navOf = { topics: "papers", topic: "papers", guides: "papers", guide: "papers", compare: "people" };
     document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.view === (navOf[v] || v)));

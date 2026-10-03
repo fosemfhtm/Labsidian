@@ -637,5 +637,276 @@
    "Valuing Time in Silicon: Can Large Language Models Replicate Human Value of Travel Time",
    "Enhancing Discrete Choice Models with Representation Learning"
   ]
- }
+ },
+ "guides": [
+  {
+   "key": "forecast",
+   "title": "교통 예측 입문",
+   "owner": "hsy",
+   "dayOffset": -40,
+   "tags": [
+    "d:forecast",
+    "m:gnn"
+   ],
+   "desc": "교통 예측을 처음 시작하는 사람을 위한 목록이에요. 기초 → 핵심 → 최신 순서로 읽으면 그래프 기반 시공간 예측의 흐름이 잡혀요.",
+   "sections": [
+    "기초",
+    "핵심",
+    "최신"
+   ],
+   "items": [
+    {
+     "section": 0,
+     "meta": {
+      "title": "Spatio-Temporal Graph Convolutional Networks: A Deep Learning Framework for Traffic Forecasting",
+      "authors": "Bing Yu, Haoteng Yin, Zhanxing Zhu",
+      "venue": "IJCAI",
+      "year": "2018",
+      "link": "https://arxiv.org/abs/1709.04875"
+     },
+     "by": "hsy",
+     "note": "그래프 합성곱 + 시간 합성곱의 출발점",
+     "votes": [
+      "cmj",
+      "yhn"
+     ]
+    },
+    {
+     "section": 0,
+     "meta": {
+      "title": "Diffusion Convolutional Recurrent Neural Network: Data-Driven Traffic Forecasting",
+      "authors": "Yaguang Li, Rose Yu, Cyrus Shahabi, Yan Liu",
+      "venue": "ICLR",
+      "year": "2018",
+      "link": "https://arxiv.org/abs/1707.01926"
+     },
+     "by": "cmj",
+     "note": "도로망을 방향 그래프 위 확산으로 본 고전",
+     "votes": [
+      "hsy",
+      "prr",
+      "yhn"
+     ]
+    },
+    {
+     "section": 0,
+     "paper": "Deep Graph Convolutional Networks for Incident-Driven Traffic Speed Prediction",
+     "by": "hsy",
+     "note": "사고가 속도에 주는 영향까지",
+     "votes": [
+      "cmj"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Graph WaveNet for Deep Spatial-Temporal Graph Modeling",
+     "by": "hsy",
+     "note": "인접 행렬을 학습하는 아이디어",
+     "votes": [
+      "cmj",
+      "prr"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Bike Flow Prediction with Multi-Graph Convolutional Networks",
+     "by": "yhn",
+     "note": "그래프를 여러 개 쓰는 법 — 자전거 수요",
+     "votes": []
+    },
+    {
+     "section": 1,
+     "paper": "Spatiotemporal Forecasting of Incidents and Congestion with Implications for Sustainable Traffic Control",
+     "by": "prr",
+     "note": "",
+     "votes": [
+      "hsy"
+     ]
+    },
+    {
+     "section": 2,
+     "paper": "LLGformer: Learnable Long-range Graph Transformer for Traffic Flow Prediction",
+     "by": "cmj",
+     "note": "스터디에서 다룬 최신 트랜스포머 계열",
+     "votes": [
+      "hsy",
+      "prr",
+      "kdy"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "signal",
+   "title": "신호제어: 대기행렬에서 강화학습·LLM까지",
+   "owner": "lkb",
+   "dayOffset": -25,
+   "tags": [
+    "d:signal",
+    "m:rl"
+   ],
+   "desc": "신호 교차로를 이해하는 기초(대기행렬 추정)부터 강화학습, LLM 에이전트까지.",
+   "sections": [
+    "기초",
+    "강화학습",
+    "LLM"
+   ],
+   "items": [
+    {
+     "section": 0,
+     "paper": "Various methods for queue length and traffic volume estimation using probe vehicle trajectories",
+     "by": "lkb",
+     "note": "프로브 궤적으로 대기행렬 추정하는 방법 총정리",
+     "votes": [
+      "osr"
+     ]
+    },
+    {
+     "section": 0,
+     "paper": "Queue Length Estimation at Traffic Signals: Connected Vehicles with Range Measurement Sensors",
+     "by": "lkb",
+     "note": "",
+     "votes": []
+    },
+    {
+     "section": 1,
+     "meta": {
+      "title": "Human-level control through deep reinforcement learning",
+      "authors": "Volodymyr Mnih et al.",
+      "venue": "Nature",
+      "year": "2015",
+      "link": "https://doi.org/10.1038/nature14236"
+     },
+     "by": "osr",
+     "note": "DQN — 신호제어 RL 논문 대부분이 여기서 출발",
+     "votes": [
+      "lkb",
+      "pjh"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Human-Centric Traffic Signal Control for Equity: A Multi-Agent Action Branching Deep Reinforcement Learning Approach",
+     "by": "lkb",
+     "note": "형평성까지 보상에 넣은 다중 에이전트 RL",
+     "votes": [
+      "osr"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Phase-free traffic signal control for balanced flow in sensor-limited environments",
+     "by": "lkb",
+     "note": "",
+     "votes": []
+    },
+    {
+     "section": 2,
+     "paper": "EvolveSignal: A Large Language Model Powered Coding Agent for Discovering Traffic Signal Control Strategies",
+     "by": "lkb",
+     "note": "LLM이 신호제어 코드를 직접 짜요",
+     "votes": [
+      "itk",
+      "prr"
+     ]
+    },
+    {
+     "section": 2,
+     "paper": "CoLLMLight: Cooperative Large Language Model Agents for Network-Wide Traffic Signal Control",
+     "by": "itk",
+     "note": "",
+     "votes": [
+      "lkb"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "llm-mobility",
+   "title": "LLM으로 이동 행태 모델링",
+   "owner": "prr",
+   "dayOffset": -12,
+   "tags": [
+    "m:llm",
+    "d:human"
+   ],
+   "desc": "사람의 이동을 LLM으로 예측·생성하는 연구들. 앞의 두 편으로 배경을 잡고 시작하세요.",
+   "sections": [
+    "배경",
+    "핵심",
+    "최신"
+   ],
+   "items": [
+    {
+     "section": 0,
+     "paper": "20 Years of Mobility Modeling & Prediction: Trends, Shortcomings & Perspectives",
+     "by": "prr",
+     "note": "이동 모델링 20년 정리 — 큰 그림",
+     "votes": [
+      "itk"
+     ]
+    },
+    {
+     "section": 0,
+     "meta": {
+      "title": "Attention Is All You Need",
+      "authors": "Ashish Vaswani et al.",
+      "venue": "NeurIPS",
+      "year": "2017",
+      "link": "https://arxiv.org/abs/1706.03762"
+     },
+     "by": "itk",
+     "note": "트랜스포머가 처음이라면",
+     "votes": [
+      "prr",
+      "hsy"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Where Would I Go Next? Large Language Models as Human Mobility Predictors",
+     "by": "itk",
+     "note": "",
+     "votes": [
+      "prr"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Large Language Models are Zero-Shot Next Location Predictors",
+     "by": "prr",
+     "note": "학습 없이 다음 장소 예측",
+     "votes": [
+      "itk"
+     ]
+    },
+    {
+     "section": 1,
+     "paper": "Large Language Models as Urban Residents: An LLM Agent Framework for Personal Mobility Generation",
+     "by": "prr",
+     "note": "LLM 에이전트로 하루 일정을 생성",
+     "votes": [
+      "itk",
+      "cmj"
+     ]
+    },
+    {
+     "section": 2,
+     "paper": "Pretrained Mobility Transformer: A Foundation Model for Human Mobility",
+     "by": "prr",
+     "note": "",
+     "votes": []
+    },
+    {
+     "section": 2,
+     "paper": "MobilityGPT: Enhanced Human Mobility Modeling with a GPT model",
+     "by": "itk",
+     "note": "",
+     "votes": [
+      "prr"
+     ]
+    }
+   ]
+  }
+ ]
 }

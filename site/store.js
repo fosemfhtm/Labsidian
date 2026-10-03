@@ -187,7 +187,24 @@
       changed = true;
     }
     if (SEED.social && !db.socialSeeded) { seedSocial(SEED.social); db.socialSeeded = true; changed = true; }
+    if (SEED.social?.guides && !db.guidesSeeded) { seedGuides(SEED.social.guides); db.guidesSeeded = true; changed = true; }  // added after the rest
     if (changed) save();
+  }
+  // demo dataset only: example core-paper guides (lab papers by id, outside ones by their details)
+  function seedGuides(list) {
+    list.forEach((x, i) => {
+      if (!db.users[x.owner]) return;
+      const id = "g_demo_" + x.key, at = new Date(Date.now() + (x.dayOffset || -7) * 864e5).toISOString();
+      const sections = x.sections.map((title, k) => ({ id: "s" + (k + 1), title }));
+      const items = x.items.map((it, k) => {
+        const p = it.paperId && SEED.papers.find(q => q.id === it.paperId);
+        if (it.paperId && !p) return null;
+        const base = { id: `gi_demo_${x.key}_${k}`, section: sections[it.section]?.id || "s1", key: normTitle(p ? p.title : it.meta.title), note: it.note || "",
+          by: db.users[it.by] ? it.by : x.owner, at: new Date(Date.parse(at) + k * 36e5).toISOString(), votes: (it.votes || []).filter(u => db.users[u]) };
+        return p ? { ...base, paperId: p.id } : { ...base, meta: { title: it.meta.title, link: it.meta.link || "", authors: it.meta.authors || "", venue: it.meta.venue || "", year: String(it.meta.year || "") } };
+      }).filter(Boolean);
+      db.guides[id] = { id, title: x.title, desc: x.desc || "", tags: x.tags || [], owner: x.owner, sections, items, createdAt: at, updatedAt: items.at(-1)?.at || at };
+    });
   }
   // demo dataset only: example studies / comments / reactions, dated relative to today so they never look stale
   function seedSocial(s) {

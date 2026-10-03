@@ -15,7 +15,6 @@
     return `<div class="card cmp-head ${side}" style="--c:${p.color}">
       <div class="pc-head">${UI.avatar(id, true)}<div><h2 style="padding:0" data-open="person:${id}">${esc(p.name)}</h2>
         <div class="pc-meta">${pr.role ? esc(pr.role) : t("pc.metaN", { n: pr.count })}</div></div></div>
-      ${V.palette(pr.fields)}
       <div class="pf-stats"><div><b>${pr.count}</b><span>${t("pf.reviews")}</span></div><div><b>${pr.shared}</b><span>${t("pf.shared")}</span></div>
         <div><b>${pr.studies}</b><span>${t("pf.studies")}</span></div></div></div>`;
   }
@@ -30,19 +29,19 @@
     const pa = UI.P[a], pb = UI.P[b], A = V.profile(a), B = V.profile(b);
     const both = Object.values(UI.PA).filter(p => p.readers.includes(a) && p.readers.includes(b)).sort((x, y) => y._last.localeCompare(x._last));
     const pick = (k, cur) => `<select data-pick="${k}" aria-label="${t("cmp.pick")}">${people.map(p => `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
-    view.innerHTML = `
+    view.innerHTML = `<button class="link-btn back" onclick="window.LabBack()">← ${t("d.back")}</button>
       <div class="page-head row-head"><div><h1>${t("cmp.title")}</h1></div><div class="btn-row">${pick("a", a)}<span class="muted">vs</span>${pick("b", b)}</div></div>
       <div class="cmp-grid">${head(a, "left")}${head(b, "right")}</div>
-      <div class="card"><h3>${t("pf.terrain")}</h3>
-        <div class="cmp-legend"><span><i style="background:${pa.color}"></i>${esc(pa.name)}</span><span><i style="background:${pb.color}"></i>${esc(pb.name)}</span></div>
-        ${V.radar(A.areas, [{ values: A.areas.map(x => x.share), color: pa.color }, { values: B.areas.map(x => x.share), color: pb.color }], { w: 400, h: 290 })}
-        <div class="cmp-rows">${A.areas.map((x, i) => {
-          const va = Math.round(x.share * 100), vb = Math.round((B.areas[i]?.share || 0) * 100);
-          return `<div class="cmp-row"><b class="${va > vb ? "win" : ""}">${va}%</b><span class="bar l"><i style="width:${va}%;background:${pa.color}"></i></span>
-            <span class="nm" title="${esc(x.full)}">${esc(x.name)}</span><span class="bar"><i style="width:${vb}%;background:${pb.color}"></i></span><b class="${vb > va ? "win" : ""}">${vb}%</b></div>`;
-        }).join("")}</div></div>
-      <div class="cmp-grid"><div class="card"><h4>${esc(pa.name)} · ${t("pf.methods")}</h4>${V.band(A.methods)}</div>
-        <div class="card"><h4>${esc(pb.name)} · ${t("pf.methods")}</h4>${V.band(B.methods)}</div></div>
+      <div class="card cmp-terrain" data-vz-axis="${V.kind}"><div class="row-between"><h3>${t("pf.terrain")}</h3>${V.axisSwitch()}</div>
+        ${V.both(k => {
+          const xa = A.by[k], xb = B.by[k], max = Math.max(...xa.map(x => x.share), ...xb.map(x => x.share));
+          return `<div class="cmp-roses">${[[pa, xa], [pb, xb]].map(([q, xs]) => `<figure><figcaption><span class="dot" style="background:${q.color}"></span>${esc(q.name)}</figcaption>${V.rose(xs.map(x => ({ ...x, lab: 0 })), { size: 180, max })}</figure>`).join("")}</div>
+          <div class="cmp-rows">${xa.map((x, i) => {
+            const va = Math.round(x.share * 100), vb = Math.round(xb[i].share * 100);
+            return `<div class="cmp-row" data-ax="${x.id}"><b class="${va > vb ? "win" : ""}">${va}%</b><span class="bar l"><i style="width:${va}%;background:${pa.color}"></i></span>
+              <span class="nm" title="${esc(x.full)}"><span class="dot" style="background:${x.color}"></span><span class="tx">${esc(x.name)}</span></span><span class="bar"><i style="width:${vb}%;background:${pb.color}"></i></span><b class="${vb > va ? "win" : ""}">${vb}%</b></div>`;
+          }).join("")}</div>`;
+        })}</div>
       <div class="card"><h3>${t("cmp.both")} · ${both.length}</h3>
         <div class="mini-list">${both.slice(0, 30).map(p => UI.miniPaper(p)).join("") || `<div class="empty">${t("cmp.none")}</div>`}</div></div>`;
     view.querySelectorAll("[data-pick]").forEach(s => s.onchange = () => {

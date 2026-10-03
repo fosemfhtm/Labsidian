@@ -134,7 +134,8 @@ body:has(#drawer.open) .legend { right: 548px; }
 .btn.primary { background: var(--accent); color: var(--on-accent); font-weight: 600; border: 0; }
 .btn.primary:hover { background: rgb(var(--accent-rgb) / .88); }
 .btn.danger { color: var(--danger); background: rgb(var(--red) / .12); border: 0; }
-.btn.small { min-height: 26px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
+.btn.small { min-height: 28px; padding: 0 10px; font-size: 12px; border-radius: 8px; }   /* 28 = macOS minimum hit size (DESIGN 3-6) */
+.link-btn.back { display: inline-flex; align-items: center; min-height: 28px; }
 .btn.wide { min-height: 40px; font-size: 15px; border-radius: 12px; }
 .btn:disabled { opacity: .4; }
 .link-btn.danger { color: var(--danger); }
@@ -232,11 +233,11 @@ html[data-ui] { background: var(--bg); }
 /* avatar stacks: lighter overlap + "+N" chip */
 .st-avs { display: inline-flex; align-items: center; vertical-align: middle; }
 .st-avs > span { display: inline-flex; }
-.st-avs .avatar { width: 24px; height: 24px; font-size: 9px; margin-right: -4px; box-shadow: 0 0 0 2px var(--panel); border: 0; }
+.st-avs .avatar { width: 26px; height: 26px; font-size: 11px; margin-right: -5px; box-shadow: 0 0 0 2px var(--panel); border: 0; }   /* initials ≥ 11px: bigger avatar, not smaller text */
 .st-meta .st-avs .avatar, .st-hero .st-avs .avatar { box-shadow: 0 0 0 2px var(--bg); }
 .av-more { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; margin-left: 8px; border-radius: 999px;
   background: var(--fill-3); color: var(--label-2); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.act-paper .st-avs .avatar { width: 20px; height: 20px; font-size: 8px; }
+.act-paper .st-avs .avatar { width: 24px; height: 24px; font-size: 11px; }
 .act-paper .av-more { height: 20px; min-width: 20px; font-size: 10px; }
 /* graph focus bar: centred in the space the drawer leaves, title truncates so "depth / clear" stay visible */
 body:has(#drawer.open) #view-graph .focus-bar { left: calc((100% - 548px) / 2); max-width: calc(100% - 548px - 32px); }

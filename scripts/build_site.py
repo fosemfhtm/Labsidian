@@ -278,6 +278,8 @@ def resolve_social(s, papers, reviews):
         "comments": [{k: v for k, v in c.items() if k != "review"} | {"reviewId": review(c["review"])} for c in s.get("comments", [])],
         "reactions": [{"reviewId": review(r["review"]), "like": r.get("like", []), "want": r.get("want", [])} for r in s.get("reactions", [])],
         "reading": {u: [paper(t) for t in ts] for u, ts in s.get("reading", {}).items()},
+        "guides": [{k: v for k, v in g.items() if k != "items"} | {"items": [{k: v for k, v in it.items() if k != "paper"} | ({"paperId": paper(it["paper"])} if "paper" in it else {})
+                                                                          for it in g["items"]]} for g in s.get("guides", [])],
     }
 
 

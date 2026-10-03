@@ -26,7 +26,6 @@
       // pages
       "people.title": "사람", "people.sub": "{n}명 · 리뷰 {r}개 · 논문 {p}편",
       "lab.domains": "연구실 전체 — 분야", "lab.methods": "연구실 전체 — 방법론",
-      "pc.meta": "리뷰 {n}편 · 평균 ★{r}", "pc.similar": "관심사가 가장 비슷한 사람:", "pc.weekly": "주별 리뷰 수",
       "papers.title": "논문", "papers.search.ph": "이 목록에서 찾기 — 제목·저자·학회·리뷰 내용", "papers.count": "{n}편", "papers.query": " · “{q}” 검색 결과",
       "f.allTopics": "모든 주제", "f.allPeople": "모든 사람", "f.allRatings": "모든 별점", "f.r4": "★4 이상", "f.r3": "★3 이상",
       "f.recent": "최신순", "f.rating": "별점순", "f.readers": "많이 읽힌 순", "f.domains": "분야", "f.methods": "방법론",
@@ -71,7 +70,6 @@
       "g.others": "Others", "g.emptyTerm": "No reviews in the selected term(s) yet. Change terms with 📅 at the top right.", "g.unknown": "Unknown", "g.multi": "Multiple",
       "people.title": "People", "people.sub": "{n} members · {r} reviews · {p} papers",
       "lab.domains": "Whole lab — fields", "lab.methods": "Whole lab — methods",
-      "pc.meta": "{n} reviews · avg ★{r}", "pc.similar": "Most similar interests:", "pc.weekly": "Reviews per week",
       "papers.title": "Papers", "papers.search.ph": "Filter this list — title, authors, venue, review text", "papers.count": "{n} papers", "papers.query": " · results for “{q}”",
       "f.allTopics": "All topics", "f.allPeople": "Everyone", "f.allRatings": "Any rating", "f.r4": "★4+", "f.r3": "★3+",
       "f.recent": "Most recent", "f.rating": "Top rated", "f.readers": "Most read", "f.domains": "Fields", "f.methods": "Methods",
