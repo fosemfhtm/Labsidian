@@ -54,6 +54,7 @@
     <section><h2 class="t-title2">세그먼트 · 칩 · 배지</h2>
       <div class="sp-row"><div class="ui-seg" data-demo="seg"><button aria-pressed="true">준비</button><button>다이어리</button><button>소개 순서</button><button>정리</button></div></div>
       <div class="sp-row">${["교통 예측", "자율주행", "강화학습", "월드모델"].map((x, i) => `<button class="ui-chip" aria-pressed="${i === 1}" data-demo="chip"><span class="dot" style="background:rgb(var(--${SYS[i * 3]}))"></span>${x}</button>`).join("")}
+        <a class="ui-chip" href="javascript:void 0">${av("도윤", "cyan", 20)}도윤<span class="m">62%</span></a>
         <span class="sp-badge-demo">${I("bell")}<span class="ui-badge">3</span></span><span class="ui-badge">12</span></div>
     </section>
 

@@ -294,7 +294,10 @@
 :where([data-ui]) .ui-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full); background: rgb(var(--red)); color: var(--on-color); font: var(--t-subhead); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
 :where([data-ui]) .ui-chip { display: inline-flex; align-items: center; gap: 5px; min-height: max(calc(var(--hit) - 6px), 22px); padding: 0 10px; border-radius: var(--r-full); background: var(--fill-3); color: var(--label); font: var(--t-subhead); border: 0; cursor: pointer; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 :where([data-ui]) .ui-chip .dot, :where([data-ui]) .ui-tag .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+:where([data-ui]) a.ui-chip { text-decoration: none; }
 :where([data-ui]) .ui-chip:hover { background: var(--fill-2); }
+:where([data-ui]) .ui-chip > :is(.avatar, .sp-av):first-child { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); margin-left: -8px; }   /* person chip */
+:where([data-ui]) .ui-chip .m { color: var(--label-meta); font-variant-numeric: tabular-nums; }
 :where([data-ui]) .ui-chip[aria-pressed="true"] { background: rgb(var(--accent-rgb) / .18); color: var(--accent); }
 /* tag: a paper's field / method (dot + name; methods outlined) — links to the topic */
 :where([data-ui]) .ui-tag { border: 0; display: inline-flex; align-items: center; gap: 5px; min-height: 20px; padding: 0 8px; border-radius: var(--r-full); background: var(--fill-3); color: var(--label); font: var(--t-subhead); text-decoration: none; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }

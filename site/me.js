@@ -1,4 +1,6 @@
-/* #/me — my page: term progress, calendar, interest drift, my reviews, draft, reading list, inbox, .docx export. */
+/* #/me — my page, this term's workspace (design/patterns §2-C): progress, calendar, drafts, reading list, inbox, the
+ * studies coming up, and my diaries to edit, delete and export. What others see of me (terrain, how my interests
+ * moved, every term) is my profile, #/person/<me>. */
 (() => {
   const { t, lang } = window.I18N, UI = window.LabUI, S = window.Store;
   const { esc } = UI;
@@ -9,38 +11,30 @@
       "me.title": "내 페이지", "me.term": "학기", "me.progress": "이번 학기 작성률", "me.of": "목표 {target}편 중 {n}편",
       "me.pace": "오늘까지 기대치 {exp}편 — {diff}", "me.ahead": "{n}편 앞서 있어요", "me.behind": "{n}편 뒤처져 있어요", "me.onpace": "딱 맞춰 가고 있어요",
       "me.left": "학기 종료까지 작성일 {d}일", "me.legendWrote": "작성", "me.legendHoliday": "공휴일", "me.legendLab": "연구실 쉬는 날 (셧다운·학회 등)", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
-      "me.calendar": "작성 캘린더", "me.driftEmpty": "다이어리를 쓰면 달마다 관심 분야가 쌓여요", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주", "me.drift": "관심사 변화 (월별)",
-      "me.reviews": "내 다이어리", "me.noReviews": "이 학기엔 아직 다이어리가 없어요", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
+      "me.calendar": "작성 캘린더", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주",
+      "me.reviews": "내 다이어리", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
+      "me.toProfile": "내 프로필 보기", "me.studies": "다가오는 스터디", "me.noStudies": "예정된 스터디가 없어요", "me.studiesAll": "스터디 전체", "me.presenting": "발표", "me.noDate": "날짜 미정",
       "me.reading": "읽을 목록", "me.noReading": "링크나 PDF로 읽을 논문을 모아 보세요", "me.readingAll": "읽을 목록 전체", "me.calWrite": "이 날짜로 다이어리 쓰기", "me.calNone": "작성 없음", "me.dow": "일월화수목금토", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
-      "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기", "me.remove": "빼기",
+      "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기",
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
       "me.mcpDraft": "내 AI 초안", "me.review": "검토하고 게시", "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
-      "me.axis.domain": "분야", "me.axis.method": "방법론", "me.none.domain": "분야 없음", "me.none.method": "방법론 없음", "me.other": "기타",
-      "me.driftHint": "막대에 올리면 편수, 누르면 아래 다이어리가 그 달·그 태그로 걸러져요", "me.driftHintAll": "학기별로 봐요 — 막대를 누르면 그 학기 다이어리가 그 태그로 걸러져요", "me.driftTip": "{m} · {tag} {n}편",
-      "me.span.term": "월별", "me.span.all": "학기별",
-      "me.search": "제목·내용 검색", "me.allDomains": "모든 분야", "me.allMethods": "모든 방법론", "me.commented": "💬 댓글 있는 것만",
-      "me.sortNew": "최신순", "me.sortRating": "별점순", "me.shown": "{all}편 중 {n}편", "me.clear": "필터 지우기", "me.month": "{y}년 {m}월",
-      "me.noMatch": "조건에 맞는 다이어리가 없어요", "me.more": "더보기", "me.termScope": "{term} 다이어리",
+      "me.more": "더보기",
     },
     en: {
       "me.title": "My page", "me.term": "Term", "me.progress": "This term's diary rate", "me.of": "{n} of {target} target",
       "me.pace": "Expected by today: {exp} — {diff}", "me.ahead": "{n} ahead", "me.behind": "{n} behind", "me.onpace": "right on pace",
       "me.left": "{d} writing days left in term", "me.legendWrote": "Wrote", "me.legendHoliday": "Public holiday", "me.legendLab": "Lab day off (shutdown, conference …)", "me.ended": "Term ended", "me.inc90": "90% (top incentive)", "me.inc70": "70%",
-      "me.calendar": "Writing calendar", "me.driftEmpty": "Write diaries and your fields pile up month by month", "me.streak": "{n}-week streak", "me.best": "best {n} weeks", "me.drift": "Interest drift (by month)",
-      "me.reviews": "My reviews", "me.noReviews": "No reviews this term yet", "me.draft": "Saved draft", "me.continue": "Continue",
+      "me.calendar": "Writing calendar", "me.streak": "{n}-week streak", "me.best": "best {n} weeks",
+      "me.reviews": "My diaries", "me.draft": "Saved draft", "me.continue": "Continue",
+      "me.toProfile": "My profile", "me.studies": "Studies coming up", "me.noStudies": "No study coming up", "me.studiesAll": "All studies", "me.presenting": "Presenting", "me.noDate": "Date to be set",
       "me.reading": "Reading list", "me.noReading": "Collect papers to read by link or PDF", "me.readingAll": "Whole reading list", "me.calWrite": "Write a diary for this day", "me.calNone": "Nothing written", "me.dow": "SMTWTFS", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
-      "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary", "me.remove": "Remove",
+      "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary",
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
       "me.color": "My colour", "me.exempt": "written · no diary duty this term",
       "me.notYet": " · starts on {d}", "me.fromDate": "Writing from {d} (target prorated from that date)", "me.customTarget": "Target set by an admin",
       "me.mcpDraft": "AI draft", "me.review": "Review & publish",
-      "me.axis.domain": "Fields", "me.axis.method": "Methods", "me.none.domain": "No field", "me.none.method": "No method", "me.other": "Other",
-      "me.driftHint": "Hover a bar for counts; click it to filter your reviews below by that month and tag", "me.driftHintAll": "By term — click a bar to see that term's reviews with that tag", "me.driftTip": "{m} · {tag} {n}",
-      "me.span.term": "By month", "me.span.all": "By term",
-      "me.search": "Search title & text", "me.allDomains": "All fields", "me.allMethods": "All methods", "me.commented": "💬 With comments",
-      "me.sortNew": "Newest", "me.sortRating": "Rating", "me.shown": "{n} of {all}", "me.clear": "Clear filters", "me.month": "{m}/{y}",
-      "me.noMatch": "No reviews match", "me.more": "More", "me.termScope": "{term} reviews",
+      "me.more": "More",
     },
   });
 
@@ -75,17 +69,19 @@
     const expected = Math.round(q.target * elapsed / total), diff = n - expected;
     const draft = S.drafts.get(), mcpDrafts = S.drafts.mcp();
 
+    const upcoming = S.studies.list().filter(st => !st.closed && st.members.includes(me.id) && (!st.date || st.date >= today)).slice(0, 4);
     view.innerHTML = `
       <div class="page-head me-head">
         <div class="pc-head">${person ? UI.avatar(me.id, true) : `<span class="avatar big admin">A</span>`}
-          <div><h1>${esc(me.name)}</h1><p class="sub">${me.role === "admin" ? "admin · " : ""}${t("me.title")}</p></div></div>
+          <div><h1>${esc(me.name)}</h1><p class="sub">${me.role === "admin" ? "admin · " : ""}${t("me.title")}${person ? ` · <a href="#/person/${me.id}">${t("me.toProfile")} →</a>` : ""}</p></div></div>
         <div class="btn-row">
-          <select id="me-term">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
+          <select id="me-term" aria-label="${t("me.term")}">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
           <a class="ui-btn prominent" href="#/write">✎ ${t("me.write")}</a>
-          <button class="ui-btn" id="me-export" ${n ? "" : "disabled"}>⬇ ${t("me.export")}</button>
           ${person ? `<label class="ui-btn color-pick" title="${t("me.color")}"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}<input type="color" id="me-color" value="${person.color}"></label>` : ""}
         </div>
       </div>
+      ${draft ? `<div class="ui-notice draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
+      ${mcpDrafts.map(d => `<div class="ui-notice info draft-row">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
       ${!person ? `<div class="ui-card">${t("me.adminNote")}</div>` : ""}
       <div class="me-grid">
         <div class="ui-card progress-card">
@@ -102,110 +98,25 @@
         </div>`}
         <div class="ui-card"><h3>${t("me.calendar")} <span class="muted" id="me-streak"></span></h3><div id="me-cal" class="cal"></div></div>
       </div>
-      <div class="me-grid me-pair">
+      <div class="me-trio">
         <div class="ui-card"><h3>${t("me.reading")}</h3><div class="mini-list" id="me-reading"></div></div>
         <div class="ui-card"><h3>${t("me.inbox")}</h3><div id="me-inbox"></div></div>
+        <div class="ui-card"><h3>${t("me.studies")}</h3>
+          ${upcoming.map(st => `<a class="ui-row two" href="#/study/${st.id}"><div class="grow"><div class="me-st-t">${esc(st.title)}</div>
+            <div class="m">${esc([st.date, st.time].filter(Boolean).join(" ") || t("me.noDate"))}${st.presenter === me.id ? ` · <span class="ui-pill accent">${t("me.presenting")}</span>` : ""}</div></div></a>`).join("")
+            || `<p class="muted">${t("me.noStudies")}</p>`}
+          <a class="ui-btn text" href="#/study">${t("me.studiesAll")} →</a></div>
       </div>
-      <div class="ui-card"><div class="row-between drift-head"><h3>${t("me.drift").replace(/ \(.*\)$/, "")}</h3>
-        <div class="drift-ctl"><div class="ui-seg small" id="me-span">${["term", "all"].map(a => `<button data-v="${a}" aria-pressed="${span === a}">${t("me.span." + a)}</button>`).join("")}</div>
-        <div class="ui-seg small" id="me-axis">${["domain", "method"].map(a => `<button data-v="${a}" aria-pressed="${axis === a}">${t("me.axis." + a)}</button>`).join("")}</div></div></div>
-        <p class="hint" id="me-drift-hint"></p><div id="me-drift"></div></div>
-      <div class="ui-card me-reviews" id="me-reviews"><h3>${t("me.reviews")} · <span id="me-rv-count">${n}</span></h3>
-        ${draft ? `<div class="ui-notice draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
-        ${mcpDrafts.map(d => `<div class="ui-notice info draft-row">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
-        <div class="rv-filters">
-          <input id="rf-q" type="search" placeholder="${t("me.search")}" value="${esc(rf.q)}">
-          <select id="rf-dom"></select><select id="rf-met"></select>
-          <button type="button" class="ui-chip" aria-pressed="${!!rf.commented}" id="rf-com">${t("me.commented")}</button>
-          <select id="rf-sort"><option value="new">${t("me.sortNew")}</option><option value="rating" ${rf.sort === "rating" ? "selected" : ""}>${t("me.sortRating")}</option></select>
-        </div>
-        <div class="rv-active" id="rf-active"></div>
-        <div id="me-rv-list"></div>
-      </div>`;
+      ${person ? `<div class="ui-card me-reviews" id="me-reviews"><div class="row-between"><h3>${t("me.reviews")} <span class="muted">${n}</span></h3>
+        <button class="ui-btn" id="me-export" ${n ? "" : "disabled"}>⬇ ${t("me.export")}</button></div><div id="me-dl"></div></div>` : ""}`;
 
-    $("#me-term", view).onchange = e => { termId = e.target.value; rf.month = ""; render(); };
+    $("#me-term", view).onchange = e => { termId = e.target.value; render(); };
     $("#me-color", view)?.addEventListener("change", async e => { await S.users.setMyColor(e.target.value); LabReload("#/me", "🎨 ✓"); });
-    $("#me-export", view).onclick = () => exportDocx(me, term, mine);
+    $("#me-export", view)?.addEventListener("click", () => exportDocx(me, term, mine));
     calendar(term, mineAll, person);
-    ctx = { mineAll, mine, term };
-    drift();
-    reviewFilters();
+    if (person) window.LabDiaries.mount($("#me-dl", view), { person: me.id, owner: true, term });
     inbox();
     reading();
-  }
-
-  // ---------------- my reviews: filters, grouped by month (folded except the newest), linked to the interest chart
-  let ctx = null;
-  const rf = { q: "", domain: "", method: "", commented: false, sort: "new", month: "", open: {} };
-  const pref = (k, d) => { try { return localStorage.getItem("labsidian.me." + k) || d; } catch (e) { return d; } };
-  const setPref = (k, v) => { try { localStorage.setItem("labsidian.me." + k, v); } catch (e) {} };
-  let axis = pref("axis", "domain"), span = pref("span", "term");  // interest chart: fields|methods, months of this term|all terms
-  const tagsOf = (p, ax) => (ax === "domain" ? p?.domains : p?.methods) || [];
-  const tagName = (ax, k) => { const x = UI.T[(ax === "domain" ? "d:" : "m:") + k]; return k === "_none" ? t("me.none." + ax) : x ? UI.tl(x) : k; };
-  const matchTag = (p, ax, k) => !k || (k === "_none" ? !tagsOf(p, ax).length : tagsOf(p, ax).includes(k));
-
-  function filtered() {
-    const base = rf.month ? ctx.mine.filter(r => r.date.startsWith(rf.month)) : ctx.mine, q = rf.q.trim().toLowerCase();
-    const list = base.filter(r => {
-      const p = UI.PA[r.paper];
-      if (q && !`${p?.title || ""} ${r.content} ${r.memo}`.toLowerCase().includes(q)) return false;
-      return matchTag(p, "domain", rf.domain) && matchTag(p, "method", rf.method) && (!rf.commented || S.comments.count(r.id));
-    });
-    return rf.sort === "rating" ? list.sort((a, b) => b.rating - a.rating || b.date.localeCompare(a.date)) : list;
-  }
-
-  function reviewFilters() {
-    const opts = ax => {
-      const c = {};
-      ctx.mineAll.forEach(r => { const ks = tagsOf(UI.PA[r.paper], ax); (ks.length ? ks : ["_none"]).forEach(k => (c[k] = (c[k] || 0) + 1)); });
-      return `<option value="">${t(ax === "domain" ? "me.allDomains" : "me.allMethods")}</option>` + Object.entries(c).sort((a, b) => b[1] - a[1])
-        .map(([k, n]) => `<option value="${esc(k)}" ${rf[ax] === k ? "selected" : ""}>${esc(tagName(ax, k))} (${n})</option>`).join("");
-    };
-    $("#rf-dom", view).innerHTML = opts("domain"); $("#rf-met", view).innerHTML = opts("method");
-    let qt = null;
-    $("#rf-q", view).oninput = e => { clearTimeout(qt); qt = setTimeout(() => { rf.q = e.target.value; reviewList(); }, 200); };
-    $("#rf-dom", view).onchange = e => { rf.domain = e.target.value; reviewList(); drift(); };
-    $("#rf-met", view).onchange = e => { rf.method = e.target.value; reviewList(); drift(); };
-    $("#rf-com", view).onclick = e => { rf.commented = !rf.commented; e.currentTarget.setAttribute("aria-pressed", rf.commented); reviewList(); };
-    $("#rf-sort", view).onchange = e => { rf.sort = e.target.value; reviewList(); };
-    reviewList();
-  }
-
-  function reviewList() {
-    const list = filtered(), base = ctx.mine;
-    const any = rf.q || rf.domain || rf.method || rf.commented || rf.month;
-    const chips = [
-      rf.month && [t("me.month", { y: rf.month.slice(0, 4), m: +rf.month.slice(5) }), "month"],
-      rf.domain && [tagName("domain", rf.domain), "domain"], rf.method && [tagName("method", rf.method), "method"],
-    ].filter(Boolean);
-    $("#rf-active", view).innerHTML = (any ? `<span class="muted">${t("me.shown", { n: list.length, all: base.length })}</span>` : `<span class="muted">${t("me.termScope", { term: esc(ctx.term.label) })}</span>`)
-      + chips.map(([label, k]) => `<button type="button" class="ui-chip" aria-pressed="true" data-clear="${k}">${esc(label)} ✕</button>`).join("")
-      + (any ? `<button class="ui-btn text" data-clear="all">${t("me.clear")}</button>` : "");
-    $("#rf-active", view).querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
-      const k = b.dataset.clear;
-      if (k === "all") Object.assign(rf, { q: "", domain: "", method: "", commented: false, month: "" }); else rf[k] = "";
-      if (k === "all") { $("#rf-q", view).value = ""; $("#rf-com", view).setAttribute("aria-pressed", "false"); }
-      reviewFilters(); drift();
-    });
-    if (!list.length) { $("#me-rv-list", view).innerHTML = `<div class="ui-empty">${t(ctx.mine.length ? "me.noMatch" : "me.noReviews")}</div>`; return; }
-    // newest month open; everything open while filtering or when there are few
-    const groups = [];
-    list.forEach(r => { const m = rf.sort === "rating" ? "" : r.date.slice(0, 7); const g = groups.at(-1); g && g.m === m ? g.rs.push(r) : groups.push({ m, rs: [r] }); });
-    const openAll = any || list.length <= 12;
-    $("#me-rv-list", view).innerHTML = groups.map((g, i) => {
-      const rows = g.rs.map(r => {
-        const p = UI.PA[r.paper], c = S.comments.count(r.id);
-        return `<div class="ui-row mini rv-row" data-open="paper:${r.paper}"><span class="t">${esc(p?.title)}
-          <span class="rv-tags">${[...(p?.domains || []).slice(0, 2).map(d => UI.tag("d:" + d)), ...(p?.methods || []).slice(0, 1).map(m => UI.tag("m:" + m))].join("")}</span></span>
-          <span class="m">${c ? "💬 " + c : ""}</span><span class="m">${UI.stars(r.rating)}</span><span class="m">${r.date.slice(5)}</span>
-          <a class="m ui-btn text" href="#/write?review=${r.id}" onclick="event.stopPropagation()">✎</a></div>`;
-      }).join("");
-      if (!g.m) return `<div class="mini-list">${rows}</div>`;
-      const open = rf.open[g.m] ?? (openAll || i === 0);
-      return `<details class="rv-month" data-m="${g.m}" ${open ? "open" : ""}><summary>${t("me.month", { y: g.m.slice(0, 4), m: +g.m.slice(5) })} <span class="muted">${g.rs.length}</span></summary>
-        <div class="mini-list">${rows}</div></details>`;
-    }).join("");
-    $("#me-rv-list", view).querySelectorAll("details.rv-month").forEach(d => d.ontoggle = () => (rf.open[d.dataset.m] = d.open));
   }
 
   // calendar cells: hover → that day's entries (or the day off); click → open the entry, or write one for that day
@@ -268,83 +179,6 @@
     if (!set.has(w)) w--;
     while (set.has(w)) { cur++; w--; }
     $("#me-streak", view).textContent = `· ${t("me.streak", { n: cur })} · ${t("me.best", { n: best })}`;
-  }
-
-  function drift() {
-    const box = $("#me-drift", view);
-    [["#me-axis", v => { axis = v; setPref("axis", v); }], ["#me-span", v => { span = v; setPref("span", v); if (v === "all") rf.month = ""; }]].forEach(([sel, set]) =>
-      $(sel, view).querySelectorAll("button").forEach(b => b.onclick = () => {
-        set(b.dataset.v); $(sel, view).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); drift(); reviewList();
-      }));
-    $("#me-drift-hint", view).textContent = t(span === "all" ? "me.driftHintAll" : "me.driftHint");
-    // rows: the months of the term shown on this page (≤ 6), or one row per term — never an endless list
-    const terms = S.terms.list().filter(x => ctx.mineAll.some(r => r.date >= x.start && r.date <= x.end));
-    const rowOf = span === "all" ? r => terms.find(x => r.date >= x.start && r.date <= x.end)?.id : r => r.date.slice(0, 7);
-    const mine = span === "all" ? ctx.mineAll : ctx.mine;
-    if (!mine.length) { box.innerHTML = `<p class="ui-empty compact">${t("me.driftEmpty")}</p>`; return; }
-    const byMonth = {}, total = {};
-    mine.forEach(r => {
-      const m = rowOf(r), ks = tagsOf(UI.PA[r.paper], axis).slice(0, 2); if (!m) return;
-      (ks.length ? ks : ["_none"]).forEach(k => { ((byMonth[m] ||= {})[k] = (byMonth[m][k] || 0) + 1); total[k] = (total[k] || 0) + 1; });
-    });
-    if (span === "term") {  // every month of the term so far, written in or not
-      for (let d = ctx.term.start.slice(0, 7); d <= (S.today() < ctx.term.end ? S.today() : ctx.term.end).slice(0, 7);
-        d = (([y, m]) => (m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`))(d.split("-").map(Number))) byMonth[d] ||= {};
-    }
-    const rowLabel = m => (span === "all" ? terms.find(x => x.id === m)?.label || m : m);
-    const top = Object.entries(total).filter(([k]) => k !== "_none").sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
-    if (total._none) top.push("_none");
-    const months = span === "all" ? terms.map(x => x.id).filter(id => byMonth[id]) : Object.keys(byMonth).sort();
-    const color = k => (k === "_none" ? "rgb(var(--gray))" : UI.T[(axis === "domain" ? "d:" : "m:") + k]?.color || "rgb(var(--gray2))");
-    const rowOn = m => (span === "all" ? m === ctx.term.id : !rf.month || rf.month === m);
-    const sel = rf[axis], seg = (m, k, n) => {
-      const on = rowOn(m) && (!sel || sel === k), active = (span === "term" && rf.month) || sel;
-      return `<i data-m="${m}" data-k="${esc(k)}" data-n="${n}" class="${active && on ? "on" : active ? "dim" : ""}" style="flex:${n};background:${color(k)}"></i>`;
-    };
-    box.innerHTML = `<div class="drift">${months.map(m => {
-      const row = byMonth[m], sum = Object.values(row).reduce((a, b) => a + b, 0);
-      const other = Object.entries(row).filter(([k]) => !top.includes(k)).reduce((a, [, v]) => a + v, 0);
-      const cur = span === "all" ? m === ctx.term.id : rf.month === m;
-      return `<div class="drift-row"><button class="ui-btn text drift-m ${cur ? "on" : ""}" data-month="${m}">${esc(rowLabel(m))}</button><div class="drift-bar">
-        ${top.map(k => (row[k] ? seg(m, k, row[k]) : "")).join("")}${other ? `<i data-m="${m}" data-k="_other" data-n="${other}" style="flex:${other};background:var(--fill)"></i>` : ""}</div>
-        <span class="muted">${sum}</span></div>`;
-    }).join("")}</div>
-    <div class="chips drift-legend">${top.map(k => `<button type="button" class="ui-tag" aria-pressed="${sel === k}" data-k="${esc(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(tagName(axis, k))}</button>`).join("")}</div>
-    <div class="drift-tip ui-tooltip" hidden></div>`;
-    const tip = $(".drift-tip", box);
-    box.querySelectorAll(".drift-bar i").forEach(el => {
-      el.onmouseenter = () => {
-        const k = el.dataset.k;
-        tip.textContent = t("me.driftTip", { m: rowLabel(el.dataset.m), tag: k === "_other" ? t("me.other") : tagName(axis, k), n: el.dataset.n });
-        tip.hidden = false;
-        const a = el.getBoundingClientRect(), b = box.getBoundingClientRect();
-        tip.style.left = Math.max(0, Math.min(b.width - tip.offsetWidth, a.left - b.left + a.width / 2 - tip.offsetWidth / 2)) + "px";
-        tip.style.top = (a.top - b.top - tip.offsetHeight - 6) + "px";
-      };
-      el.onmouseleave = () => (tip.hidden = true);
-      el.onclick = () => {  // same segment again → clear
-        const k = el.dataset.k === "_other" ? "" : el.dataset.k;
-        if (span === "all") { const same = termId === el.dataset.m && rf[axis] === k; rf[axis] = same ? "" : k; return pickTerm(el.dataset.m); }
-        const same = rf.month === el.dataset.m && rf[axis] === k;
-        rf.month = same ? "" : el.dataset.m; rf[axis] = same ? "" : k;
-        afterDriftPick();
-      };
-    });
-    box.querySelectorAll("[data-month]").forEach(b => b.onclick = () => {
-      if (span === "all") return pickTerm(b.dataset.month);
-      rf.month = rf.month === b.dataset.month ? "" : b.dataset.month; afterDriftPick();
-    });
-    box.querySelectorAll(".chips .ui-tag[data-k]").forEach(c => c.onclick = () => { rf[axis] = rf[axis] === c.dataset.k ? "" : c.dataset.k; afterDriftPick(); });
-  }
-  function pickTerm(id) {  // a term row → the whole page switches to that term (progress, calendar, reviews)
-    termId = id; rf.month = ""; rf.open = {};
-    render();
-    $("#me-reviews", view).scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-  function afterDriftPick() {
-    rf.open = {};
-    reviewFilters(); drift();
-    $("#me-reviews", view).scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   let inboxN = 5;

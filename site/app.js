@@ -221,7 +221,7 @@
       ${p.similar.length ? `<h4>${t("pf.similar")}</h4><p class="hint">${t("pf.similarHint")}</p>${V.similar(id, p.similar)}` : ""}
       <div class="pf-recent"><h4>${t("pf.recent")}</h4>
       <div class="mini-list">${mine.slice(0, 15).map(r => miniPaper(PA[r.paper], r.date)).join("")}</div>
-      ${mine.length > 15 ? `<p class="kv"><a href="#/papers?person=${id}">${t("d.all", { n: mine.length })}</a></p>` : ""}</div>
+      <p class="kv"><a href="#/person/${id}">${mine.length > 15 ? t("d.all", { n: mine.length }) : t("pf.toProfile")}</a></p></div>
     `;
   }
 
@@ -451,33 +451,43 @@
     // open every comment thread on the full page
     p.reviews.forEach(r => window.LabSocial?.openThread(r, null, v));
   }
+  // the person page is their profile (design/patterns §2-B "사람 페이지"): the same for everyone, every term — who
+  // they are in the lab's reading (terrain on both axes, how it moved) and their diaries to browse. The drawer is the
+  // short version; my own to-dos and editing live on my page.
   function personPage(id) {
     const v = pageView("person"), p = P[id];
     if (!p) { v.innerHTML = `<div class="ui-empty">404</div>`; return; }
-    const mine = Object.values(R).filter(r => r.person === id).sort((a, b) => b.date.localeCompare(a.date));
-    const terms = [...new Set(mine.map(r => r.term))].sort().reverse();
-    let shown = 20, termSel = "";
-    v.innerHTML = `${back}<div class="dp-grid person">
-      <div class="dp-main">
+    const V = window.LabViz, pr = V.profile(id), me = window.Store?.auth.current();
+    const other = me && me.id !== id && P[me.id] ? me.id : p.similar[0]?.id;
+    const fieldsTop = pr.fields.slice(0, 8), fieldsRest = pr.fields.slice(8).reduce((a, f) => a + f.value, 0);
+    const side = k => `<div class="pf-side"><h4>${t("pf.axis." + k)}</h4>
+        <div class="vz-rose-wrap">${V.rose(pr.by[k])}${V.roseLegend(pr.by[k])}</div>
+        ${pr.lift[k] ? `<p class="pf-insight">${esc(pr.lift[k])}</p>` : ""}</div>`;
+    v.innerHTML = `${back}
+      <div class="pf-top">
         <div class="pc-head">${avatar(id, true)}<div><h1>${esc(p.name)}</h1>
-          <div class="pc-meta">${t("pc.metaN", { n: mine.length })}</div></div></div>
-        <div class="btn-row"><button class="ui-btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
-          <select id="pp-term"><option value="">${t("tm.all")}</option>${terms.map(x => `<option value="${x}">${esc((Store.terms.list().find(y => y.id === x) || { label: x }).label)}</option>`).join("")}</select></div>
-        <div class="dp-reviews" id="pp-list"></div>
-        <button class="ui-btn plain load-more" id="pp-more" hidden></button>
+          ${pr.role ? `<p class="pf-role">${esc(pr.role)}</p>` : `<p class="pc-meta">${t("pc.metaN", { n: pr.count })}</p>`}
+          ${me?.id === id ? `<p class="pf-self">${t("pf.self")} · <a href="#/me">${t("pf.toMe")} →</a></p>` : ""}</div></div>
+        <div class="pf-stats">
+          <div><b>${pr.count}</b><span>${t("pf.reviews")}</span>${V.spark(weekBuckets(p.dates), p.color)}</div>
+          <div><b>${pr.shared}</b><span>${t("pf.shared")}</span></div>
+          <div><b>${pr.studies}</b><span>${t("pf.studies")}</span></div>
+        </div>
       </div>
-      <aside class="dp-side ui-card">${personDetail(id)}</aside>
-    </div>`;
-    const paint = () => {
-      const list = mine.filter(r => !termSel || r.term === termSel);
-      $("#pp-list").innerHTML = list.slice(0, shown).map(r => reviewHtml(r, { full: true, title: true })).join("");
-      const more = $("#pp-more");
-      more.hidden = list.length <= shown;
-      more.textContent = t("papers.more", { n: list.length - shown });
-    };
-    $("#pp-term").onchange = e => { termSel = e.target.value; shown = 20; paint(); };
-    $("#pp-more").onclick = () => { shown += 20; paint(); };
-    paint();
+      <div class="btn-row pf-acts"><button class="ui-btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
+        ${other ? `<a class="ui-btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
+      <section class="ui-card pf-terrain"><div class="pf-card-h"><h3>${t("pf.terrain")}</h3><p class="hint">${t("pf.terrainHint")}</p></div>
+        ${pr.enough ? `<div class="pf-sides">${side("area")}${side("method")}</div>` : `<p class="ui-empty compact">${t("pf.few", { n: V.MIN_REVIEWS - pr.count })}</p>`}</section>
+      <section class="ui-card pf-drift" id="pf-drift"></section>
+      <div class="pf-grid">
+        <section class="ui-card pf-diaries"><h3>${t("pf.diaries")} <span class="muted">${pr.count}</span></h3><div id="pf-dl"></div></section>
+        <aside class="pf-aside">
+          ${pr.fields.length ? `<section class="ui-card"><h3>${t("pf.fields")}</h3>
+            ${bars([...fieldsTop.map(f => [f.label, f.value, T[f.id]?.color || "rgb(var(--gray2))", `topic:${f.id}`]), ...(fieldsRest ? [[t("pf.other"), fieldsRest, "rgb(var(--gray))"]] : [])], fieldsTop[0].value)}</section>` : ""}
+          ${p.similar.length ? `<section class="ui-card"><h3>${t("pf.similar")}</h3><p class="hint">${t("pf.similarHint")}</p>${V.similar(id, p.similar)}</section>` : ""}
+        </aside>
+      </div>`;
+    window.LabDiaries.mount($("#pf-dl"), { person: id, driftRoot: $("#pf-drift") });
   }
 
   // ---------- routing ----------

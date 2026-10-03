@@ -170,7 +170,7 @@
     return `<div class="ui-card gd-group">
       <div class="row-between"><div><h3>${t("gd.group")}</h3><p class="gd-ginfo">${info} ${UI.avStack(gr.members, 6)}</p></div>
         ${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
-      ${sts.length ? `<ol class="gd-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">
+      ${sts.length ? `<ol class="gd-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a class="ui-row" href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">
           <span class="r">${t("gd.round", { n: i + 1 })}</span><span class="d">${esc(shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
           <span class="m">${st.closed ? (st.notes ? `✓ ${t("gd.notesDone")}` : "") : `<span class="ui-pill accent">${t("gd.nextSession")}</span> ${t("gd.presenter", { name: esc(name(st.presenter)) })}`}</span></a></li>`).join("")}</ol>`
         : `<p class="muted">${t("gd.noSessions")}</p>`}</div>`;

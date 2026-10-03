@@ -138,7 +138,7 @@
           || `<p class="muted">${t("h.noOpenQ")}</p>`}</div>
       <div class="ui-card"><h4>${t("h.together")}</h4><div class="mini-list">${together.map(p => UI.miniPaper(p)).join("")}</div></div>
       <div class="ui-card week"><h4>${t("h.thisWeek")}</h4>
-        <div class="week-writers">${Object.entries(writers).map(([id, n]) => `<span class="ww" data-open="person:${id}">${UI.avatar(id)}${name(id)}${n > 1 ? ` <span class="m">×${n}</span>` : ""}</span>`).join("")
+        <div class="week-writers">${Object.entries(writers).map(([id, n]) => `<button type="button" class="ui-chip ww" data-open="person:${id}">${UI.avatar(id)}${name(id)}${n > 1 ? `<span class="m">×${n}</span>` : ""}</button>`).join("")
           || `<p class="muted">${t("h.nobodyYet")}</p>`}</div></div>`;
   }
 

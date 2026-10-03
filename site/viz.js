@@ -19,6 +19,7 @@
       "pf.reviews": "다이어리를 쓴 논문", "pf.shared": "함께 읽은 논문", "pf.studies": "참여한 스터디", "pf.other": "기타", "pf.lab": "연구실 {v}%",
       "pf.more.area": "{x} 지역을 연구실 평균의 {k}배 읽어요", "pf.more.method": "{x} 논문을 연구실 평균의 {k}배 읽어요",
       "pf.few": "다이어리가 {n}편 더 쌓이면 연구 지형이 보여요", "vz.fewAxes": "분야가 세 가지 이상 모이면 보여요",
+      "pf.terrainHint": "꽃잎 = 비중 · 점선 = 연구실 평균 · 꽃잎이나 항목에 올리면 함께 강조돼요", "pf.diaries": "다이어리", "pf.toProfile": "프로필 전체 보기 →",
       "pf.compare": "비교하기", "pf.self": "다른 사람에게는 이렇게 보여요", "pf.toMe": "내 페이지로", "pf.role": "{area} 지역 · {method}",
       "cmp.title": "비교", "cmp.both": "둘 다 읽은 논문", "cmp.none": "아직 같이 읽은 논문이 없어요", "cmp.pick": "비교할 사람",
     },
@@ -32,6 +33,7 @@
       "pf.reviews": "Papers reviewed", "pf.shared": "Read together", "pf.studies": "Studies", "pf.other": "Other", "pf.lab": "lab {v}%",
       "pf.more.area": "Reads {x} {k}× the lab average", "pf.more.method": "Reads {x} papers {k}× the lab average",
       "pf.few": "{n} more diaries and the research terrain appears", "vz.fewAxes": "Appears once there are three or more fields",
+      "pf.terrainHint": "Petal = share · dashed = lab average · hover a petal or a row to light up both", "pf.diaries": "Diaries", "pf.toProfile": "Open the full profile →",
       "pf.compare": "Compare", "pf.self": "This is how others see you", "pf.toMe": "My page", "pf.role": "{area} · {method}",
       "cmp.title": "Compare", "cmp.both": "Read by both", "cmp.none": "No paper read by both yet", "cmp.pick": "Compare with",
     },
@@ -166,7 +168,7 @@
   const labSide = k => {
     const axes = axesOf(k), sh = sharesOf(k, D().papers, axes), xs = axes.map((a, i) => ({ ...a, share: sh[i], lab: 0 }));
     return `<div class="pp-lab-side" data-k="${k}"><h4>${t("pf.axis." + k)}</h4><div class="pp-lab-body">${rose(xs, { size: 180 })}
-      <ul class="pp-axes">${xs.map(a => `<li><button type="button" data-pick-axis="${k}|${a.id}" data-ax="${a.id}" aria-pressed="false" title="${esc(a.full || a.name)}">
+      <ul class="pp-axes">${xs.map(a => `<li><button type="button" class="ui-row" data-pick-axis="${k}|${a.id}" data-ax="${a.id}" aria-pressed="false" title="${esc(a.full || a.name)}">
         <i style="background:${a.color}"></i><span class="nm">${esc(a.name)}</span><b>${Math.round(a.share * 100)}%</b><span class="n">${t("pp.papersN", { n: axisCount(k, a, D().papers) })}</span></button></li>`).join("")}</ul></div></div>`;
   };
   const labCard = () => `<div class="ui-card pp-lab">
@@ -207,7 +209,7 @@
 
   // ---- similar interests: one row of people; each opens the two side by side
   const similar = (id, list) => `<div class="pf-similar">${list.slice(0, 5).filter(s => UI.P[s.id]).map(s =>
-    `<a class="sim-chip" href="#/compare?a=${id}&b=${s.id}">${UI.avatar(s.id)}<span>${esc(UI.P[s.id].name)}</span><em>${Math.round(s.sim * 100)}%</em></a>`).join("")}</div>`;
+    `<a class="ui-chip" href="#/compare?a=${id}&b=${s.id}">${UI.avatar(s.id)}<span>${esc(UI.P[s.id].name)}</span><span class="m">${Math.round(s.sim * 100)}%</span></a>`).join("")}</div>`;
 
   // ---- a petal and its row light up together (hover; a tap on touch screens): the person page's legend, the lab
   // card's list, and on the comparison the same axis in both roses and its bar row
