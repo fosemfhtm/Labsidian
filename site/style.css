@@ -84,6 +84,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 
 .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .filters select { max-width: 100%; }   /* a long option name would otherwise set the width and push past a phone screen */
+@media (max-width: 760px) { .filters { display: grid; grid-template-columns: 1fr 1fr; } .filters > .p-search { grid-column: 1 / -1; } .filters select { width: 100%; } }
 .list { display: grid; gap: 6px; }
 .paper-row {
   display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 12px 14px; cursor: pointer;

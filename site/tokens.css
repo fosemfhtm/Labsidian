@@ -161,22 +161,26 @@
   --label-2: rgb(60 60 67 / .85); --label-3: rgb(60 60 67 / .62); --separator: rgb(60 60 67 / .55); --on-accent: #fff;
 }
 
-/* ---------- phones: iOS text styles (Large) ---------- */
+/* ---------- phones: iOS text styles at the "Small" Dynamic Type size [HIG] — Large (17 body) was too big for
+   these information-dense pages; glass is switched off (opaque bars, no backdrop blur) for speed ---------- */
 @media (max-width: 760px) {
   [data-ui] {
-    --fs-large-title: 2.125rem; --lh-large-title: 2.5625rem; --tr-large-title: .012em;    /* 34/41 */
-    --fs-title1: 1.75rem;       --lh-title1: 2.125rem;       --tr-title1: .014em;         /* 28/34 */
-    --fs-title2: 1.375rem;      --lh-title2: 1.75rem;        --tr-title2: -.012em;        /* 22/28 */
-    --fs-title3: 1.25rem;       --lh-title3: 1.5625rem;      --tr-title3: -.023em;        /* 20/25 */
-    --fs-headline: 1.0625rem;   --lh-headline: 1.375rem;     --tr-headline: -.026em;      /* 17/22 */
-    --fs-body: 1.0625rem;       --lh-body: 1.375rem;         --tr-body: -.026em;          /* 17/22 */
-    --fs-callout: 1rem;         --lh-callout: 1.3125rem;     --tr-callout: -.02em;        /* 16/21 */
-    --fs-subhead: .9375rem;     --lh-subhead: 1.25rem;       --tr-subhead: -.016em;       /* 15/20 */
-    --fs-footnote: .8125rem;    --lh-footnote: 1.125rem;     --tr-footnote: -.006em;      /* 13/18 */
-    --fs-caption1: .75rem;      --lh-caption1: 1rem;         --tr-caption1: 0em;          /* 12/16 */
+    --fs-large-title: 2rem;     --lh-large-title: 2.4375rem; --tr-large-title: .011em;    /* 32/39 */
+    --fs-title1: 1.625rem;      --lh-title1: 2rem;           --tr-title1: .008em;         /* 26/32 */
+    --fs-title2: 1.25rem;       --lh-title2: 1.5625rem;      --tr-title2: -.022em;        /* 20/25 */
+    --fs-title3: 1.125rem;      --lh-title3: 1.4375rem;      --tr-title3: -.024em;        /* 18/23 */
+    --fs-headline: .9375rem;    --lh-headline: 1.25rem;      --tr-headline: -.015em;      /* 15/20 */
+    --fs-body: .9375rem;        --lh-body: 1.25rem;          --tr-body: -.015em;          /* 15/20 */
+    --fs-callout: .875rem;      --lh-callout: 1.1875rem;     --tr-callout: -.011em;       /* 14/19 */
+    --fs-subhead: .8125rem;     --lh-subhead: 1.125rem;      --tr-subhead: -.006em;       /* 13/18 */
+    --fs-footnote: .75rem;      --lh-footnote: 1rem;         --tr-footnote: 0em;          /* 12/16 */
+    --fs-caption1: .6875rem;    --lh-caption1: .8125rem;     --tr-caption1: .006em;       /* 11/13 */
     --fs-caption2: .6875rem;    --lh-caption2: .8125rem;     --tr-caption2: .006em;       /* 11/13 */
     --t-headline: 600 var(--fs-headline)/var(--lh-headline) var(--font);
     --t-caption2: 400 var(--fs-caption2)/var(--lh-caption2) var(--font);
+    --glass-tint: var(--sys-bg-2); --glass-tint-strong: var(--sys-bg-3); --glass-filter: none;
+    --glass-sheen: linear-gradient(transparent, transparent); --glass-accent: var(--accent);
+    --tab-h: 50px;
   }
 }
 @media (pointer: coarse) { [data-ui] { --hit: 44px; --margin: 16px; } }

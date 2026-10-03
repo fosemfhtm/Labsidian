@@ -136,7 +136,7 @@ function buildGraph() {
     const x = mine.reduce((s, p) => s + p.x, 0) / (mine.length || 1), y = mine.reduce((s, p) => s + p.y, 0) / (mine.length || 1);
     graph.addNode("u:" + u.id, {
       kind: "person", type: "border", x, y, ax: x, ay: y, size: PAPER_SCALE * (10 + Math.sqrt(u.count) * 0.55), label: u.name, color: u.color,
-      borderSize: 0.16, forceLabel: true,
+      borderSize: 0.16, forceLabel: matchMedia("(min-width: 761px)").matches,   // phones: let sigma drop labels that would overlap
     });
   });
   papers.forEach(p => p.readers.forEach(r => graph.hasNode("u:" + r) && graph.addEdge("u:" + r, p.id, { color: P[r].color })));
@@ -659,8 +659,12 @@ function start() {
   renderer.on("clickStage", () => { if (state.selected) { select(null); UI.closeDrawer(); } });
   initUI();
   buildSim();
-  let fitted = false;
-  sim.on("end", () => { computeRegions(); renderer.refresh(); if (!fitted) { fitted = true; fitNodes(); } });
+  // settle the layout off-screen in one go, then draw once — animating ~200 ticks pinned a phone's CPU for seconds
+  sim.stop();
+  const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()));
+  for (let i = 0; i < ticks; i++) sim.tick();
+  graph.updateEachNodeAttributes((n, a) => { const s = simById[n]; a.x = s.x; a.y = s.y; return a; }, { attributes: ["x", "y"] });
+  sim.on("end", () => { computeRegions(); renderer.refresh(); });   // later restarts (drag, physics, time-lapse) still animate
   computeRegions();
   updateToolbar();
   renderPeopleLegend();
@@ -691,6 +695,7 @@ const demo = {
 window.LabGraph = {
   demo,
   show() { setTimeout(() => { start(); renderer?.resize(); renderer?.refresh(); }, 0); },
+  hide() { sim?.stop(); },   // nothing keeps simulating on other pages
   select(id, opts) { start(); if (renderer) select(id, opts); },
 };
 if (UI.currentView() === "graph") window.LabGraph.show();

@@ -419,20 +419,29 @@ details.fld summary { cursor: pointer; }
 /* phones: two-row header so every control stays reachable (row 1: logo · search · term · write · bell · me; row 2: nav).
  * KO/EN moves into the user menu. --top-h must cover the whole bar: 8 inset + 6 + 34 + 6 + 38 + 6 = 98, plus 8 breathing room;
  * :root[data-ui] so it beats tokens.css ([data-ui], loaded later). */
-@media (max-width: 760px) {
-  :root[data-ui] { --top-h: 106px; }
-  header.top { flex-wrap: wrap; align-content: center; row-gap: 6px; column-gap: 6px; padding: 6px 10px; }   /* header.: beats apple.css's .top gap */
-  .top .logo { order: 0; }
-  .top .search-btn { order: 1; }
+@media (max-width: 760px) {   /* phones (iOS): a thin navigation bar on top, the sections in a tab bar at the bottom */
+  :root[data-ui] { --top-h: calc(52px + env(safe-area-inset-top)); }
+  header.top { inset: 0 0 auto 0; height: var(--top-h); min-height: 0; padding: env(safe-area-inset-top) 12px 0; gap: 4px; flex-wrap: nowrap;
+    border-radius: 0; background: var(--bg); box-shadow: 0 .5px 0 var(--separator); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .top .logo { order: 0; margin-right: auto; }
+  .top .search-btn { order: 1; margin-left: 0; }
   .top .top-right { order: 2; }
-  .top #nav { order: 3; flex: 1 0 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .top #nav::-webkit-scrollbar { display: none; }
-  .top #nav a { flex: 1 0 auto; text-align: center; padding: 6px 4px; }
+  .top #nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    height: calc(var(--tab-h) + env(safe-area-inset-bottom)); margin: 0; padding: 0 0 env(safe-area-inset-bottom); gap: 0; border-radius: 0;
+    background: var(--bg); box-shadow: 0 -.5px 0 var(--separator); }
+  .top #nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border-radius: 0;
+    background: none; box-shadow: none; opacity: 1; color: var(--label-2); font: var(--t-caption2); font-weight: 500; }
+  header.top #nav a .ic { display: block; width: 24px; height: 24px; margin: 0; }   /* header.: beats layout.css hiding nav icons in the desktop bar */
+  .top #nav a.on { color: var(--accent); background: none; box-shadow: none; font-weight: 600; }
+  .top #nav a[data-view="me"] { display: none; }   /* my page: the avatar on the right of the top bar */
+  main { padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + var(--s-4)); }
+  #view-graph { height: calc(100dvh - var(--tab-h) - env(safe-area-inset-bottom)); }
+  .toast, .mcp-banner { bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 12px); }
   .top .lang.ui-seg { display: none; }
   .menu .menu-lang { display: flex; }
-  /* iOS Safari zooms the page on focus when a field's text is under 16px */
   .term-btn { padding: 5px 8px; }
-  .menu { top: calc(var(--top-h) - 4px); }
+  header.top :is(.term-btn, .top-icon.bell, .user-btn) { background: none; }   /* plain icons on the bar; only 'write' keeps a fill */
+  .menu { top: calc(var(--top-h) + 4px); }
   .ui-card:has(> .ui-table), .tbl-wrap { overflow-x: auto; }
   .ui-card > .ui-table, .tbl-wrap > .ui-table { min-width: 560px; }
 }
@@ -762,9 +771,11 @@ details.fld summary { cursor: pointer; }
 }
 @media (max-width: 760px) {
   .pf-stats b { font: var(--t-headline); }
-  .vz-rose-wrap { grid-template-columns: minmax(120px, 160px) minmax(0, 1fr); gap: var(--s-3); }
+  .vz-rose-wrap { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: var(--s-3); }   /* rose on top, the legend full width below — names don't get cut */
+  .vz-rose-wrap .vz-rlegend { width: 100%; }
   .pp-lab-sides { grid-template-columns: 1fr; gap: var(--s-5); }
-  .pp-lab-body { grid-template-columns: 120px minmax(0, 1fr); gap: var(--s-3); justify-items: stretch; }
+  .pp-lab-body { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); justify-items: center; }
+  .pp-lab-body .pp-axes { width: 100%; }
   .pp-grid { grid-template-columns: 1fr; }
   .vz-rlegend .lab { display: none; }
   .cmp-grid, .tp-grid { grid-template-columns: 1fr; }

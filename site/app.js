@@ -505,6 +505,7 @@
     const v = ["graph", "people", "papers", "shared", "paper", "person", ...Object.keys(pages)].includes(view) ? view : pages.home ? "home" : "graph";
     if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(decodeURIComponent(arg || "")); }
     else if (v !== shownView) closeDrawer();  // a link out of the drawer (compare, topic page, a guide…) leaves it behind
+    if (shownView === "graph" && v !== "graph") window.LabGraph?.hide?.();
     shownView = v;
     document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "view-" + v));
     const navOf = { topics: "papers", topic: "papers", guides: "papers", guide: "papers", compare: "people" };
