@@ -26,7 +26,7 @@
   // ---------- render helpers ----------
   const avatar = (id, big) => {
     const p = P[id];
-    if (!p) return `<span class="avatar" style="background:#555">?</span>`;
+    if (!p) return `<span class="avatar unknown">?</span>`;
     // initials: dark on light colours (yellow, mint…), white otherwise — keeps them readable in both themes
     const h = (p.color || "#888").replace("#", ""), [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
     const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
@@ -202,7 +202,7 @@
     const fieldsTop = pr.fields.slice(0, 6), fieldsRest = pr.fields.slice(6).reduce((a, f) => a + f.value, 0);
     return `
       <div class="pd-head"><div class="pc-head">${avatar(id, true)}
-        <div><h2 style="padding:0">${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div></div>
+        <div><h2>${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div></div>
       ${pr.role ? `<div class="pf-role">${esc(pr.role)}</div>` : ""}
       ${me?.id === id ? `<p class="pf-self">${t("pf.self")} · <a href="#/me">${t("pf.toMe")} →</a></p>` : ""}
       <div class="pf-stats">
@@ -301,8 +301,8 @@
     return `
       <h2>${esc(p.title)}</h2>
       <div class="kv">${esc(p.authors)}</div>
-      <div class="kv" style="margin-top:4px">${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</div>
-      ${p.link ? `<div class="kv" style="margin-top:4px">${linkHtml(p.link)}</div>` : ""}
+      <div class="kv near">${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</div>
+      ${p.link ? `<div class="kv near">${linkHtml(p.link)}</div>` : ""}
       <div class="tags-row">${topicIds(p).map(tag).join("")}</div>
       ${cc ? `<div class="tags-row"><span class="tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
         ${c ? `<span class="tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}

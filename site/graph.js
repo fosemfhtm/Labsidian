@@ -407,11 +407,11 @@ function renderPeopleLegend() {
       `<div class="lg-note"><i class="ring"></i>${t("g.sharedRing")}</div>`;
   } else if (s.colorBy === "year") {
     el.innerHTML = `<div class="lg-title">${t("g.color.year")}</div><div class="lg-ramp" style="background:linear-gradient(90deg,${YEAR_STOPS.join(",")})"></div>
-      <div class="lg-ramp-l"><span>${YMIN}</span><span>${YMAX}</span></div><div class="lg-note"><i style="background:#4a4a58"></i>${t("g.unknown")}</div>`;
+      <div class="lg-ramp-l"><span>${YMIN}</span><span>${YMAX}</span></div><div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
   } else {
     el.innerHTML = `<div class="lg-title">${t("g.color.venue")}</div>` +
       venuesSorted.slice(0, VENUE_PALETTE.length).map(([v]) => `<div class="pl" data-venue="${esc(v)}"><i style="background:${venueColor[v]}"></i><span>${esc(v)}</span></div>`).join("") +
-      `<div class="lg-note"><i style="background:#55556a"></i>${t("g.others")}</div>`;
+      `<div class="lg-note"><i class="other"></i>${t("g.others")}</div>`;
   }
 }
 function updateToolbar() {

@@ -13,7 +13,7 @@
   function head(id, side) {
     const p = UI.P[id], pr = V.profile(id);
     return `<div class="card cmp-head ${side}" style="--c:${p.color}">
-      <div class="pc-head">${UI.avatar(id, true)}<div><h2 style="padding:0" data-open="person:${id}">${esc(p.name)}</h2>
+      <div class="pc-head">${UI.avatar(id, true)}<div><h2 data-open="person:${id}">${esc(p.name)}</h2>
         <div class="pc-meta">${pr.role ? esc(pr.role) : t("pc.metaN", { n: pr.count })}</div></div></div>
       <div class="pf-stats"><div><b>${pr.count}</b><span>${t("pf.reviews")}</span></div><div><b>${pr.shared}</b><span>${t("pf.shared")}</span></div>
         <div><b>${pr.studies}</b><span>${t("pf.studies")}</span></div></div></div>`;

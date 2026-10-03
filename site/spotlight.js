@@ -10,7 +10,7 @@
     ko: {
       "sp.btn": "검색 ( / )", "sp.ph": "논문·사람·스터디·분야 검색", "sp.papers": "논문", "sp.people": "사람", "sp.studies": "스터디", "sp.topics": "분야·방법론",
       "sp.all": "논문 목록에서 “{q}” 전체 결과 보기", "sp.empty": "“{q}”에 맞는 결과가 없어요", "sp.hint": "↑↓ 이동 · Enter 열기 · Esc 닫기",
-      "sp.recent": "최근 본 논문", "sp.reviews": "리뷰 {n}", "sp.papersOf": "논문 {n}편", "sp.inReview": "리뷰 내용에서 찾음",
+      "sp.recent": "최근 본 논문", "sp.reviews": "다이어리 {n}편", "sp.papersOf": "논문 {n}편", "sp.inReview": "다이어리 내용에서 찾음",
     },
     en: {
       "sp.btn": "Search ( / )", "sp.ph": "Search papers, people, studies, fields", "sp.papers": "Papers", "sp.people": "People", "sp.studies": "Studies", "sp.topics": "Fields & methods",

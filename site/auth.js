@@ -15,12 +15,12 @@
       "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.reading": "읽을 목록", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
       "n.title": "알림", "n.empty": "새 알림이 없어요", "n.readAll": "모두 읽음",
       "n.curation": "이번 달 태그·지도 정리할 때예요 — 비슷한 태그 합치기, 지도 영역 이름 확인 (내 AI에게 시켜도 돼요)",
-      "n.comment": "{a}님이 내 리뷰에 댓글을 남겼어요", "n.question": "{a}님이 내 리뷰에 질문했어요", "n.idea": "{a}님이 내 리뷰에 아이디어를 남겼어요",
-      "n.reply": "{a}님이 내 댓글에 답글을 남겼어요", "n.mention": "{a}님이 나를 언급했어요", "n.like": "{a}님이 내 리뷰를 좋아해요",
-      "n.want": "{a}님이 내 리뷰를 보고 읽을 목록에 담았어요", "n.sameRead": "{a}님도 내가 읽은 논문을 읽었어요",
+      "n.comment": "{a} 님이 내 다이어리에 댓글을 남겼어요", "n.question": "{a} 님이 내 다이어리에 질문했어요", "n.idea": "{a} 님이 내 다이어리에 아이디어를 남겼어요",
+      "n.reply": "{a} 님이 내 댓글에 답글을 남겼어요", "n.mention": "{a} 님이 나를 언급했어요", "n.like": "{a} 님이 내 다이어리를 좋아해요",
+      "n.want": "{a} 님이 내 다이어리를 보고 읽을 목록에 담았어요", "n.sameRead": "{a} 님도 내가 읽은 논문을 읽었어요",
       "nav.me": "내 페이지", "n.mcpDraft": "내 AI(MCP)가 다이어리 초안을 만들었어요",
-      "n.studyInvite": "{a}님이 논문 스터디에 초대했어요", "n.studyJoin": "{a}님이 내 스터디에 참가했어요", "n.studyQuestion": "{a}님이 스터디에 질문을 올렸어요",
-      "n.studyClosed": "{a}님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요", "n.guideItem": "{a}님이 가이드에 논문을 추가했어요", "n.guideSession": "다음 모임 발표 차례예요 — 모임을 만들어 주세요", "n.guideJoin": "{a}님이 모임에 참여했어요",
+      "n.studyInvite": "{a} 님이 논문 스터디에 초대했어요", "n.studyJoin": "{a} 님이 내 스터디에 참가했어요", "n.studyQuestion": "{a} 님이 스터디에 질문을 올렸어요",
+      "n.studyClosed": "{a} 님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요", "n.guideItem": "{a} 님이 가이드에 논문을 추가했어요", "n.guideSession": "다음 모임 발표 차례예요 — 모임을 만들어 주세요", "n.guideJoin": "{a} 님이 모임에 참여했어요",
       "tm.all": "모든 학기", "tm.title": "볼 학기", "tm.hint": "여러 학기를 함께 볼 수 있어요. 그래프·사람·논문 목록에 적용돼요.", "tm.apply": "적용",
       "mcp.applied": "AI(MCP) 요청 {n}건이 반영됐어요", "mcp.reload": "새로고침해서 보기",
       "sync.error": "서버에 저장하지 못했어요 — scripts/serve.py가 켜져 있는지 확인해 주세요. 다시 연결되면 자동으로 보내요.",
@@ -75,7 +75,6 @@
   window.LabConfirm = (title, opts = {}) => new Promise(resolve => {
     const m = document.createElement("div");
     m.className = "ui-scrim"; m.setAttribute("data-ui", ""); m.dataset.theme = document.documentElement.dataset.theme || "auto";
-    m.style.background = "rgb(0 0 0 / .32)";
     m.innerHTML = `<div class="ui-alert ui-glass strong" role="alertdialog" aria-modal="true"><h3>${esc(title)}</h3>${opts.message ? `<p>${esc(opts.message)}</p>` : ""}
       <div class="acts"><button class="ui-btn neutral" data-v="0">${esc(opts.cancel || t("c.cancel"))}</button>
       <button class="ui-btn ${opts.destructive ? "destructive" : "prominent"}" data-v="1">${esc(opts.ok || t("c.ok"))}</button></div></div>`;
@@ -95,7 +94,7 @@
       <p class="sub">${t("a.title")}</p>
       ${S.demo ? `<div class="gate-demo"><b>${t("a.demoPick")}</b><p class="hint">${t("a.demoHint")}</p>
         <div class="gate-people">${(window.LAB.people || []).map(p => `<button type="button" data-demo="${esc(p.id)}">${UI.avatar(p.id)}<span>${esc(p.name)}</span></button>`).join("")}
-        <button type="button" data-demo="admin"><span class="avatar" style="background:rgb(var(--indigo));color:#fff">A</span><span>${t("a.demoAdmin")}</span></button></div></div>
+        <button type="button" data-demo="admin"><span class="avatar admin">A</span><span>${t("a.demoAdmin")}</span></button></div></div>
       <details class="gate-pw"><summary>${t("a.orPw")}</summary>` : ""}
       <label>${t("a.id")}<input name="name" autocomplete="username" required></label>
       <label>${t("a.pw")}<input name="pw" type="password" autocomplete="current-password" required></label>
@@ -146,7 +145,7 @@
       <button class="term-btn ${vt.length ? "active" : ""}" id="term-btn">📅 <span class="hide-sm">${esc(termLabel)}</span><span class="caret">▾</span></button>
       <a class="btn primary small" href="#/write">✎ <span class="hide-sm">${t("m.write")}</span></a>
       <button class="icon-btn bell" id="bell" title="${t("n.title")}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>
-      <button class="user-btn" id="user-btn">${me.id === "admin" ? `<span class="avatar" style="background:rgb(var(--indigo));color:#fff">A</span>` : UI.avatar(me.id)}<span class="hide-sm">${esc(me.name)}</span><span class="caret">▾</span></button>`;
+      <button class="user-btn" id="user-btn">${me.id === "admin" ? `<span class="avatar admin">A</span>` : UI.avatar(me.id)}<span class="hide-sm">${esc(me.name)}</span><span class="caret">▾</span></button>`;
     $("#lang").before(host);
     $("#bell").onclick = e => { e.stopPropagation(); toggleMenu("notif", notifMenu, e.currentTarget); };
     $("#term-btn").onclick = e => { e.stopPropagation(); toggleMenu("terms", termMenu, e.currentTarget); };
@@ -176,7 +175,7 @@
   }
   function termMenu() {
     const vt = S.view.terms();
-    return `<div class="menu-h"><b>${t("tm.title")}</b></div><p class="hint" style="padding:0 8px">${t("tm.hint")}</p>
+    return `<div class="menu-h"><b>${t("tm.title")}</b></div><p class="hint menu-hint">${t("tm.hint")}</p>
       <label class="check menu-check"><input type="checkbox" data-all ${vt.length ? "" : "checked"}> ${t("tm.all")}</label>
       ${S.view.allTerms().reverse().map(x => `<label class="check menu-check"><input type="checkbox" data-term="${esc(x.id)}" ${vt.includes(x.id) ? "checked" : ""}> ${esc(x.label)}</label>`).join("")}
       <div class="menu-foot"><button class="btn primary small" data-act="apply">${t("tm.apply")}</button></div>`;
@@ -221,7 +220,7 @@
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="link-btn" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
       (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
-        ${n.type === "curation" ? `<span class="avatar" style="background:rgb(var(--indigo));color:#fff">🧹</span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
+        ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="empty">${t("n.empty")}</div>`);
   }

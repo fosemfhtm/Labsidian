@@ -10,7 +10,7 @@
       "s.kind.comment": "댓글", "s.kind.question": "질문", "s.kind.idea": "아이디어", "s.reply": "답글", "s.resolve": "해결됨으로 표시",
       "s.resolved": "해결됨", "s.reopen": "다시 열기", "s.delete": "삭제", "s.post": "남기기", "s.ph": "@이름으로 언급할 수 있어요",
       "s.noComments": "아직 댓글이 없어요. 첫 질문을 남겨보세요.", "s.translated": "번역 (브라우저 내장 번역 · 기기 안에서 처리)",
-      "s.trNone": "이 브라우저에선 내장 번역을 쓸 수 없어요 (최신 Chrome 데스크톱 필요).", "s.trMcp": "MCP를 연결한 Claude/Codex에 “Labsidian에서 ‘{title}’ 리뷰 번역해줘”라고 하면 돼요.",
+      "s.trNone": "이 브라우저에선 내장 번역을 쓸 수 없어요 (최신 Chrome 데스크톱 필요).", "s.trMcp": "MCP를 연결한 Claude/Codex에 “Labsidian에서 ‘{title}’ 다이어리 번역해줘”라고 하면 돼요.",
       "s.trLoading": "번역 중…", "s.added": "읽을 목록에 담았어요", "s.removed": "읽을 목록에서 뺐어요",
     },
     en: {

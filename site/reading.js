@@ -16,8 +16,8 @@
       "rl.empty.reading": "읽기 시작한 논문이 여기 와요", "rl.empty.todo": "링크나 PDF로 논문을 추가해 보세요", "rl.empty.read": "다 읽고 아직 정리 안 한 논문이 여기 와요",
       "rl.nudgeRead": "다 읽고 정리 안 한 논문 {n}편", "rl.nudgeStale": "2주 넘게 안 읽은 논문 {n}편",
       "rl.start": "읽기 시작", "rl.done": "다 읽음", "rl.write": "다이어리 쓰기", "rl.myDiary": "내 다이어리", "rl.attach": "PDF 첨부",
-      "rl.back": "읽을 예정으로 되돌리기", "rl.remove": "목록에서 빼기", "rl.removeQ": "목록에서 뺄까요? 올린 PDF도 지워져요.", "rl.note": "메모",
-      "rl.notePh": "왜 읽으려는지, 읽으면서 든 생각…", "rl.save": "저장", "rl.editTitle": "제목 고치기",
+      "rl.back": "읽을 예정으로 되돌리기", "rl.remove": "읽을 목록에서 제거", "rl.removeQ": "읽을 목록에서 제거할까요?", "rl.removeMsg": "올린 PDF도 함께 지워지고 되돌릴 수 없어요.", "rl.removeOk": "제거", "rl.note": "메모",
+      "rl.notePh": "왜 읽으려는지, 읽으면서 든 생각…", "rl.save": "저장", "rl.editTitle": "제목 편집",
       "rl.labRead": "연구실 {n}명 읽음", "rl.addedAgo": "{d}일 전 추가", "rl.startedAgo": "{d}일째 읽는 중", "rl.readAgo": "{d}일 전에 다 읽음",
       "rl.addedToday": "오늘 추가", "rl.startedToday": "오늘부터 읽는 중", "rl.readToday": "오늘 다 읽음", "rl.openPdf": "PDF 열기", "rl.openLink": "논문 링크",
     },
@@ -29,8 +29,8 @@
       "rl.empty.reading": "Papers you start reading show up here", "rl.empty.todo": "Add a paper by link or PDF", "rl.empty.read": "Papers you finished but haven't written up show up here",
       "rl.nudgeRead": "{n} read but not written up", "rl.nudgeStale": "{n} waiting for over two weeks",
       "rl.start": "Start reading", "rl.done": "Finished", "rl.write": "Write diary", "rl.myDiary": "My diary", "rl.attach": "Attach PDF",
-      "rl.back": "Back to 'to read'", "rl.remove": "Remove from list", "rl.removeQ": "Remove it? An uploaded PDF goes too.", "rl.note": "Note",
-      "rl.notePh": "Why you want to read it, thoughts while reading…", "rl.save": "Save", "rl.editTitle": "Edit title",
+      "rl.back": "Back to 'to read'", "rl.remove": "Remove from Reading List", "rl.removeQ": "Remove from your reading list?", "rl.removeMsg": "The uploaded PDF is deleted too, and this can't be undone.", "rl.removeOk": "Remove", "rl.note": "Note",
+      "rl.notePh": "Why you want to read it, thoughts while reading…", "rl.save": "Save", "rl.editTitle": "Edit Title",
       "rl.labRead": "{n} in the lab read it", "rl.addedAgo": "added {d}d ago", "rl.startedAgo": "reading for {d}d", "rl.readAgo": "finished {d}d ago",
       "rl.addedToday": "added today", "rl.startedToday": "started today", "rl.readToday": "finished today", "rl.openPdf": "Open PDF", "rl.openLink": "Paper link",
     },
@@ -142,11 +142,16 @@
           if (["reading", "read", "todo"].includes(act)) { await S.reading.update(id, { status: act }); render(); }
           if (act === "note") { const ed = $(".rl-note-edit", el); ed.hidden = !ed.hidden; if (!ed.hidden) $("textarea", ed).focus(); }
           if (act === "note-save") { await S.reading.update(id, { note: $(".rl-note-edit textarea", el).value }); render(); }
-          if (act === "title") {
-            const x = S.reading.get(id), v = prompt(t("rl.editTitle"), x.title);
-            if (v && v.trim()) { await S.reading.update(id, { title: v.trim() }); render(); }
+          if (act === "title") {   // a small sheet instead of the browser's own dialog (components §16)
+            const x = S.reading.get(id);
+            const m = LabModal(`<h2>${t("rl.editTitle")}</h2><input class="ui-field rl-title-in" value="${esc(x.title)}">
+              <div class="btn-row"><button class="btn" data-close>${t("c.cancel")}</button><button class="btn primary" data-save>${t("rl.save")}</button></div>`);
+            const inp = $(".rl-title-in", m), save = async () => { const v = inp.value.trim(); if (v) { m.remove(); await S.reading.update(id, { title: v }); render(); } };
+            $("[data-save]", m).onclick = save;
+            inp.onkeydown = e => { if (e.key === "Enter") save(); if (e.key === "Escape") m.remove(); };
+            inp.focus(); inp.select();
           }
-          if (act === "del" && confirm(t("rl.removeQ"))) { await S.reading.remove(id); render(); }
+          if (act === "del" && await LabConfirm(t("rl.removeQ"), { message: t("rl.removeMsg"), ok: t("rl.removeOk"), destructive: true })) { await S.reading.remove(id); render(); }
         };
       });
     });

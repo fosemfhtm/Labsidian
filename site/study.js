@@ -27,7 +27,7 @@
       "st.knownPaper": "연구실에서 {n}명이 읽은 논문이에요", "st.newPaper": "아직 연구실에서 아무도 안 읽은 논문이에요",
       // detail
       "st.join": "참가하기", "st.leave": "참가 취소", "st.joined": "참가했어요 · 읽을 목록에 담았어요", "st.write": "✎ 이 논문 다이어리 쓰기", "st.myReview": "내 다이어리 보기",
-      "st.countsHint": "스터디에서 쓰는 리뷰도 평소 다이어리와 같은 양식이라, 쓰면 내 다이어리에 그대로 쌓여요", "st.edit": "수정", "st.close": "스터디 마치기", "st.reopen": "다시 열기", "st.delete": "삭제",
+      "st.countsHint": "스터디에서 쓰는 다이어리도 평소와 같은 양식이라, 쓰면 내 다이어리에 그대로 쌓여요", "st.edit": "수정", "st.close": "스터디 마치기", "st.reopen": "다시 열기", "st.delete": "삭제",
       "st.confirmDelete": "이 스터디를 삭제할까요? 질문과 정리 노트도 함께 지워져요.", "st.confirmClose": "스터디를 마칠까요? 참가자에게 알림이 가요.",
       "st.compare": "다이어리 비교", "st.notYet": "아직 다이어리를 안 썼어요", "st.ratings": "별점",
       "st.board": "질문 보드", "st.boardHint": "모이기 전에 궁금한 점을 올리고 👍로 투표하세요. 많이 받은 순서대로 이야기해요.",

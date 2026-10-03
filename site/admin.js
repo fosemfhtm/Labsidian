@@ -9,7 +9,7 @@
     ko: {
       "ad.title": "관리자", "ad.only": "관리자만 볼 수 있어요",
       "ad.tab.members": "멤버", "ad.tab.tags": "태그", "ad.tab.terms": "학기", "ad.tab.data": "데이터", "ad.tab.log": "변경 기록",
-      "ad.name": "이름", "ad.role": "역할", "ad.reviews": "리뷰", "ad.status": "상태", "ad.pending": "첫 로그인 전", "ad.active": "사용 중", "ad.disabled": "비활성",
+      "ad.name": "이름", "ad.role": "역할", "ad.reviews": "다이어리", "ad.status": "상태", "ad.pending": "첫 로그인 전", "ad.active": "사용 중", "ad.disabled": "비활성",
       "ad.reset": "비밀번호 초기화", "ad.disable": "비활성화", "ad.enable": "활성화", "ad.add": "멤버 추가", "ad.color": "색",
       "ad.tempTitle": "임시 비밀번호", "ad.tempSub": "{name} 님에게 전달하세요. 첫 로그인 때 본인이 바꾸게 돼요. 이 창을 닫으면 다시 볼 수 없어요.",
       "ad.copy": "복사", "ad.close": "닫기", "ad.exists": "같은 이름이 이미 있어요",
@@ -24,7 +24,7 @@
       "ad.autoHolidays": "자동 공휴일 {y}", "ad.noOff": "아직 없어요 — 셧다운이나 학회 기간을 넣어 주세요",
       "ad.kind": "종류", "ad.kind.holiday": "공휴일", "ad.kind.shutdown": "셧다운", "ad.kind.event": "학회·행사", "ad.offLabel": "이름", "ad.addOff": "쉬는 날 추가", "ad.remove": "삭제",
       "ad.export": "전체 변경 데이터 JSON 내보내기", "ad.import": "JSON 가져오기", "ad.resetAll": "이 브라우저의 데이터 초기화",
-      "ad.resetConfirm": "이 브라우저에 저장된 계정·리뷰·댓글을 모두 지울까요? (가져온 다이어리 원본은 남아요)",
+      "ad.resetConfirm": "이 브라우저에 저장된 계정·다이어리·댓글을 모두 지울까요? (가져온 다이어리 원본은 남아요)",
       "ad.dataNote": "지금은 데모 모드라 데이터가 이 브라우저에만 있어요. DB를 연결할 때 이 JSON으로 그대로 이관해요.",
       "ad.done": "적용했어요", "ad.when": "시각", "ad.who": "누가", "ad.what": "무엇을",
       "ad.duty": "작성 의무", "ad.dutyOn": "있음", "ad.dutyOff": "면제", "ad.rate": "작성률", "ad.term": "학기",
@@ -88,7 +88,7 @@
         const member = !!UI.P[u.id], full = S.users.get(u.id), q = member ? S.quota(u.id, term) : null, n = member ? written(u.id) : 0;
         const rate = q && !q.exempt && q.target ? Math.round(100 * n / q.target) : null;
         return `<tr data-id="${u.id}">
-        <td class="nowrap">${member ? UI.avatar(u.id) : `<span class="avatar" style="background:rgb(var(--indigo));color:#fff">A</span>`} ${esc(u.name)}</td>
+        <td class="nowrap">${member ? UI.avatar(u.id) : `<span class="avatar admin">A</span>`} ${esc(u.name)}</td>
         <td><select data-act="role"><option value="member" ${u.role === "member" ? "selected" : ""}>member</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>admin</option></select></td>
         <td>${member ? `<select data-f="exempt"><option value="0">${t("ad.dutyOn")}</option><option value="1" ${full.quota.exempt ? "selected" : ""}>${t("ad.dutyOff")}</option></select>` : "—"}</td>
         <td>${member ? `<input type="date" data-f="start" value="${full.quota.start || ""}">` : ""}</td>
@@ -211,14 +211,14 @@
       <form class="inline-form" id="ad-term"><b>${t("ad.addTerm")}</b><input name="id" placeholder="2027H1" required><input name="label" placeholder="2027 상반기" required>
         <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" placeholder="${t("ad.targetAuto")}" style="width:120px">
         <button class="btn primary small">${t("ad.addTerm")}</button></form></div>
-      <div class="card" style="margin-top:14px"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
+      <div class="card ad-sec"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
         ${S.calendar.list().length ? `<table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
         ${S.calendar.list().map(o => `<tr data-off="${esc(o.id)}"><td>${o.start}</td><td>${o.end}</td><td>${esc(o.label)}</td><td>${t("ad.kind." + o.kind)}</td>
           <td><button class="btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">${t("ad.noOff")}</p>`}
         <form class="inline-form" id="ad-off"><b>${t("ad.addOff")}</b><input type="date" name="start" required><input type="date" name="end">
           <input name="label" placeholder="${t("ad.offLabel")}" required><select name="kind">${["shutdown", "event", "holiday"].map(k => `<option value="${k}">${t("ad.kind." + k)}</option>`).join("")}</select>
           <button class="btn primary small">${t("ad.addOff")}</button></form>
-        <p class="hint" style="margin-top:12px"><b>${t("ad.autoHolidays", { y: S.today().slice(0, 4) })}</b> · ${S.calendar.holidays(S.today().slice(0, 4))
+        <p class="hint ad-holidays"><b>${t("ad.autoHolidays", { y: S.today().slice(0, 4) })}</b> · ${S.calendar.holidays(S.today().slice(0, 4))
           .filter(h => !S.calendar.isWeekend(h.date)).map(h => `${+h.date.slice(5, 7)}/${+h.date.slice(8)} ${esc(h.label)}`).join(", ")}</p></div>`;
     el.querySelectorAll('[data-act="off-del"]').forEach(b => b.onclick = async () => { await S.calendar.remove(b.closest("tr").dataset.off); terms(el); });
     $("#ad-off", el).onsubmit = async e => {

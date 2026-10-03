@@ -10,18 +10,18 @@
       "me.pace": "오늘까지 기대치 {exp}편 — {diff}", "me.ahead": "{n}편 앞서 있어요", "me.behind": "{n}편 뒤처져 있어요", "me.onpace": "딱 맞춰 가고 있어요",
       "me.left": "학기 종료까지 작성일 {d}일", "me.legendWrote": "작성", "me.legendHoliday": "공휴일", "me.legendLab": "연구실 쉬는 날 (셧다운·학회 등)", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
       "me.calendar": "작성 캘린더", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주", "me.drift": "관심사 변화 (월별)",
-      "me.reviews": "내 리뷰", "me.noReviews": "이 학기엔 아직 리뷰가 없어요", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
+      "me.reviews": "내 다이어리", "me.noReviews": "이 학기엔 아직 다이어리가 없어요", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
       "me.reading": "읽을 목록", "me.noReading": "링크나 PDF로 읽을 논문을 모아 보세요", "me.readingAll": "읽을 목록 전체", "me.calWrite": "이 날짜로 다이어리 쓰기", "me.calNone": "작성 없음", "me.dow": "일월화수목금토", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
       "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기", "me.remove": "빼기",
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
-      "me.mcpDraft": "내 AI 초안", "me.review": "검토하고 게시", "me.adminNote": "관리자 계정은 리뷰를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
+      "me.mcpDraft": "내 AI 초안", "me.review": "검토하고 게시", "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
       "me.axis.domain": "분야", "me.axis.method": "방법론", "me.none.domain": "분야 없음", "me.none.method": "방법론 없음", "me.other": "기타",
-      "me.driftHint": "막대에 올리면 편수, 누르면 아래 리뷰가 그 달·그 태그로 걸러져요", "me.driftHintAll": "학기별로 봐요 — 막대를 누르면 그 학기 리뷰가 그 태그로 걸러져요", "me.driftTip": "{m} · {tag} {n}편",
+      "me.driftHint": "막대에 올리면 편수, 누르면 아래 다이어리가 그 달·그 태그로 걸러져요", "me.driftHintAll": "학기별로 봐요 — 막대를 누르면 그 학기 다이어리가 그 태그로 걸러져요", "me.driftTip": "{m} · {tag} {n}편",
       "me.span.term": "월별", "me.span.all": "학기별",
       "me.search": "제목·내용 검색", "me.allDomains": "모든 분야", "me.allMethods": "모든 방법론", "me.commented": "💬 댓글 있는 것만",
       "me.sortNew": "최신순", "me.sortRating": "별점순", "me.shown": "{all}편 중 {n}편", "me.clear": "필터 지우기", "me.month": "{y}년 {m}월",
-      "me.noMatch": "조건에 맞는 리뷰가 없어요", "me.more": "더보기", "me.termScope": "{term} 리뷰",
+      "me.noMatch": "조건에 맞는 다이어리가 없어요", "me.more": "더보기", "me.termScope": "{term} 다이어리",
     },
     en: {
       "me.title": "My page", "me.term": "Term", "me.progress": "This term's diary rate", "me.of": "{n} of {target} target",
@@ -77,7 +77,7 @@
 
     view.innerHTML = `
       <div class="page-head me-head">
-        <div class="pc-head">${person ? UI.avatar(me.id, true) : `<span class="avatar big" style="background:rgb(var(--indigo));color:#fff">A</span>`}
+        <div class="pc-head">${person ? UI.avatar(me.id, true) : `<span class="avatar big admin">A</span>`}
           <div><h1>${esc(me.name)}</h1><p class="sub">${me.role === "admin" ? "admin · " : ""}${t("me.title")}</p></div></div>
         <div class="btn-row">
           <select id="me-term">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
@@ -309,7 +309,7 @@
         ${top.map(k => (row[k] ? seg(m, k, row[k]) : "")).join("")}${other ? `<i data-m="${m}" data-k="_other" data-n="${other}" style="flex:${other};background:var(--fill)"></i>` : ""}</div>
         <span class="muted">${sum}</span></div>`;
     }).join("")}</div>
-    <div class="chips" style="margin-top:8px">${top.map(k => `<span class="tag ${sel === k ? "on" : ""}" data-k="${esc(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(tagName(axis, k))}</span>`).join("")}</div>
+    <div class="chips drift-legend">${top.map(k => `<span class="tag ${sel === k ? "on" : ""}" data-k="${esc(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(tagName(axis, k))}</span>`).join("")}</div>
     <div class="drift-tip" hidden></div>`;
     const tip = $(".drift-tip", box);
     box.querySelectorAll(".drift-bar i").forEach(el => {

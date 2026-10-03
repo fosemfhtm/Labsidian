@@ -1,4 +1,4 @@
-/* #/design — specimen of the Apple-HIG redesign (docs/DESIGN.md, P0).
+/* #/design — specimen of the Apple-HIG redesign (docs/design/).
  * Every token and component, rendered side by side in light and dark (and increased contrast) so it can be
  * reviewed before it is applied to the real pages. Uses only tokens.css ([data-ui] scope) + Lucide icons.
  */
@@ -138,7 +138,7 @@
   function render() {
     const themes = mode.view === "side" ? ["light", "dark"] : [mode.view];
     view.innerHTML = `
-      <div class="page-head"><h1>디자인 견본</h1><p class="sub">Apple HIG 기반 리뉴얼 (docs/DESIGN.md P0). 아직 실제 화면에는 적용되지 않았어요.</p></div>
+      <div class="page-head"><h1>디자인 견본</h1><p class="sub">Apple HIG 기반 컴포넌트 견본. 규칙은 docs/design/에 있어요.</p></div>
       <div class="sp-controls" data-ui data-theme="dark">
         <div class="ui-seg" data-k="view">${[["side", "나란히"], ["light", "라이트"], ["dark", "다크"], ["auto", "자동"]].map(([v, n]) => `<button data-v="${v}" aria-pressed="${mode.view === v}">${n}</button>`).join("")}</div>
         <div class="ui-seg" data-k="contrast">${[["normal", "표준 대비"], ["more", "고대비"]].map(([v, n]) => `<button data-v="${v}" aria-pressed="${mode.contrast === v}">${n}</button>`).join("")}</div>
@@ -160,7 +160,7 @@
     const host = btn.closest("[data-ui]");
     const s = document.createElement("div");
     s.className = "ui-scrim " + kind; s.setAttribute("data-ui", ""); s.dataset.theme = host.dataset.theme; s.dataset.contrast = host.dataset.contrast; s.dataset.transparency = host.dataset.transparency;
-    s.style.background = "rgb(0 0 0 / .32)"; s.innerHTML = html;
+    s.innerHTML = html;
     s.onclick = e => { if (e.target === s || e.target.closest("[data-close]")) s.remove(); };
     document.body.appendChild(s); window.lucide?.createIcons();
   }
