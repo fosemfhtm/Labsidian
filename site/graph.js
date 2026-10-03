@@ -13,7 +13,6 @@ import { forceSimulation, forceManyBody, forceLink, forceX, forceY, forceCollide
 const D = window.LAB, UI = window.LabUI, { t } = window.I18N;
 const { P, T, R, CL, esc, clusterName } = UI;
 const $ = s => document.querySelector(s);
-const DIM = "#2b2b38", DIM_PERSON = "#3a3a48";
 
 const papers = D.papers.filter(p => p.x != null);
 const PA = Object.fromEntries(papers.map(p => [p.id, p]));
@@ -28,8 +27,9 @@ const YMIN = Math.min(...years, 2000), YMAX = Math.max(...years, 2026);
 const venueCount = {};
 papers.forEach(p => p.venueNorm && (venueCount[p.venueNorm] = (venueCount[p.venueNorm] || 0) + 1));
 const venuesSorted = Object.entries(venueCount).sort((a, b) => b[1] - a[1]);
-const VENUE_PALETTE = ["#7aa2f7", "#f7768e", "#9ece6a", "#e0af68", "#bb9af7", "#7dcfff", "#ff9e64", "#73daca", "#f4b8e4", "#c0caf5"];
-const venueColor = Object.fromEntries(venuesSorted.slice(0, VENUE_PALETTE.length).map(([v], i) => [v, VENUE_PALETTE[i]]));
+// top venues get system colours in this order; the rest are "other" (gray) — docs/design/data-viz.md §2
+const VENUE_NAMES = ["blue", "red", "green", "orange", "purple", "cyan", "yellow", "teal", "pink", "indigo"];
+const venueName = Object.fromEntries(venuesSorted.slice(0, VENUE_NAMES.length).map(([v], i) => [v, VENUE_NAMES[i]]));
 
 const DEFAULT_PHYSICS = { repel: 8, link: 0.5, anchor: 0.18 };
 const state = {
@@ -45,33 +45,50 @@ let graph, renderer, sim, simById = {}, started = false;
 // ---------------- colours ----------------
 // sigma's WebGL blending makes low-alpha colours look nearly opaque → pre-blend over the background
 const CSSV = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const hexRgb = h => { h = (h || "").replace("#", ""); if (h.length === 3) h = [...h].map(c => c + c).join(""); const n = parseInt(h || "1c1c1e", 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
-const BG = hexRgb(CSSV("--sys-bg")), MIX = {};
-const DARK = BG[0] + BG[1] + BG[2] < 384;
-const THEME = {
-  ring: DARK ? "#ffffff" : "#1c1c1e",                    // "read by 2+ people" ring
-  label: DARK ? "#ffffff" : "#000000", label2: DARK ? "#c7c7cc" : "#3c3c43",
-  halo: `rgba(${BG.join(",")},0.92)`, box: CSSV("--sys-bg-3") || "#3a3a3c", boxLine: DARK ? "rgba(84,84,88,.6)" : "rgba(60,60,67,.29)",
-  font: '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, sans-serif',
+const hexRgb = h => { h = (h || "").replace("#", ""); if (h.length === 3) h = [...h].map(c => c + c).join(""); const n = parseInt(h || "8e8e93", 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const toHex = rgb => "#" + rgb.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+// any colour the data uses — "#rrggbb", "rgb(var(--teal))", a system colour name — as #rrggbb for the current theme
+let HEXC = {};
+const hex = c => HEXC[c] ??= hexOf(c);
+const hexOf = c => {
+  c = String(c || "");
+  if (c[0] === "#") return toHex(hexRgb(c));
+  const name = (c.match(/var\(--([a-z0-9]+)\)/) || [, c])[1];
+  const v = CSSV("--" + name).split(/\s+/).map(Number);
+  return v.length === 3 && v.every(n => !isNaN(n)) ? toHex(v) : toHex(hexRgb(CSSV("--sys-bg")));
 };
+let BG, DARK, THEME, MIX = {}, venueColor = {}, yearStops = [];
+const YEAR_NAMES = ["blue", "cyan", "green", "yellow", "orange"];   // old → new
+// read the theme's colours (again after the theme changes: retheme())
+function readTheme() {
+  HEXC = {}; MIX = {};
+  BG = hexRgb(hex(CSSV("--sys-bg"))); DARK = BG[0] + BG[1] + BG[2] < 384;
+  THEME = {
+    ring: CSSV("--label"), label: CSSV("--label"), label2: CSSV("--label-2"),   // ring = "read by 2+ people"
+    halo: `rgba(${BG.join(",")},0.92)`, box: CSSV("--sys-bg-3"), boxLine: CSSV("--separator"),
+    font: CSSV("--font"), dim: hex("gray5"), dimPerson: hex("gray4"), other: hex("gray"), unknown: hex("gray2"),
+  };
+  venueColor = Object.fromEntries(Object.entries(venueName).map(([v, n]) => [v, hex(n)]));
+  yearStops = YEAR_NAMES.map(hex);
+}
+readTheme();
 function fade(hex, a) {
   const key = hex + a;
   if (MIX[key]) return MIX[key];
   const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
   return (MIX[key] = "#" + c.map((v, i) => Math.round(BG[i] + (v - BG[i]) * a).toString(16).padStart(2, "0")).join(""));
 }
-const YEAR_STOPS = ["#3b4cc0", "#5aa7d9", "#8fd3a6", "#f2d36b", "#f28c5b"];
 function yearColor(y) {
-  if (!y) return "#4a4a58";
-  const k = (y - YMIN) / Math.max(1, YMAX - YMIN) * (YEAR_STOPS.length - 1);
-  const i = Math.min(YEAR_STOPS.length - 2, Math.floor(k)), f = k - i;
-  const a = [1, 3, 5].map(j => parseInt(YEAR_STOPS[i].slice(j, j + 2), 16)), b = [1, 3, 5].map(j => parseInt(YEAR_STOPS[i + 1].slice(j, j + 2), 16));
-  return "#" + a.map((v, j) => Math.round(v + (b[j] - v) * f).toString(16).padStart(2, "0")).join("");
+  if (!y) return THEME.unknown;
+  const k = (y - YMIN) / Math.max(1, YMAX - YMIN) * (yearStops.length - 1);
+  const i = Math.min(yearStops.length - 2, Math.floor(k)), f = k - i;
+  const a = hexRgb(yearStops[i]), b = hexRgb(yearStops[i + 1]);
+  return toHex(a.map((v, j) => v + (b[j] - v) * f));
 }
 function paperColor(p) {
   if (state.colorBy === "year") return yearColor(p.year);
-  if (state.colorBy === "venue") return venueColor[p.venueNorm] || "#55556a";
-  return P[p._first]?.color || "#888";
+  if (state.colorBy === "venue") return venueColor[p.venueNorm] || THEME.other;
+  return P[p._first]?.color ? hex(P[p._first].color) : THEME.other;
 }
 
 // ---------------- filters ----------------
@@ -119,7 +136,7 @@ function buildGraph() {
     const x = mine.reduce((s, p) => s + p.x, 0) / (mine.length || 1), y = mine.reduce((s, p) => s + p.y, 0) / (mine.length || 1);
     graph.addNode("u:" + u.id, {
       kind: "person", type: "border", x, y, ax: x, ay: y, size: PAPER_SCALE * (10 + Math.sqrt(u.count) * 0.55), label: u.name, color: u.color,
-      borderColor: "#16161e", borderSize: 0.16, forceLabel: true,
+      borderSize: 0.16, forceLabel: true,
     });
   });
   papers.forEach(p => p.readers.forEach(r => graph.hasNode("u:" + r) && graph.addEdge("u:" + r, p.id, { color: P[r].color })));
@@ -173,10 +190,10 @@ function nodeReducer(node, data) {
   if (!nodeOn(node, data)) { res.hidden = true; return res; }
   const active = focusSet || hoverSet || state.find;
   if (data.kind === "person") {
-    res.zIndex = 3;
+    res.zIndex = 3; res.borderColor = toHex(BG);
     const filteredOut = state.people.size && !state.people.has(node.slice(2));
     if (filteredOut || (active && !active.has(node))) {
-      res.color = DIM_PERSON; res.zIndex = 1;
+      res.color = THEME.dimPerson; res.zIndex = 1;
       if (filteredOut || active !== hoverSet) res.label = "";
     }
     return res;
@@ -186,7 +203,7 @@ function nodeReducer(node, data) {
   res.borderColor = THEME.ring;
   res.zIndex = 1;
   const dimmed = !matches(p) || (active && !active.has(node));
-  if (dimmed) { res.color = DIM; res.borderColor = DIM; res.label = ""; res.zIndex = 0; res.size = data.size * 0.85; }
+  if (dimmed) { res.color = THEME.dim; res.borderColor = THEME.dim; res.label = ""; res.zIndex = 0; res.size = data.size * 0.85; }
   else if (active && active.size < 16) res.forceLabel = true; // only small neighbourhoods, otherwise labels pile up
   if (node === state.selected || node === state.hovered) { res.highlighted = true; res.zIndex = 4; }
   return res;
@@ -205,7 +222,7 @@ function edgeReducer(edge, data) {
   if (!state.layers.links) { res.hidden = true; return res; }
   const uid = s.slice(2), p = PA[tg];
   const dimmed = !matches(p) || (state.people.size && !state.people.has(uid));
-  res.color = dimmed ? fade("#78788c", 0.05) : fade(data.color, 0.22);
+  res.color = dimmed ? fade(THEME.other, 0.05) : fade(data.color, 0.22);
   return res;
 }
 
@@ -284,8 +301,9 @@ function drawOverlay() {
         i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y);
       }));
       ctx.closePath();
-      ctx.fillStyle = c.color + (dimAll ? "08" : DARK ? "12" : "1c"); ctx.fill("evenodd");
-      ctx.strokeStyle = c.color + (dimAll ? "14" : DARK ? "3a" : "66"); ctx.lineWidth = 1; ctx.stroke();
+      const col = hex(c.color);
+      ctx.fillStyle = col + (dimAll ? "08" : DARK ? "12" : "1c"); ctx.fill("evenodd");
+      ctx.strokeStyle = col + (dimAll ? "14" : DARK ? "3a" : "66"); ctx.lineWidth = 1; ctx.stroke();
     });
     ctx.globalAlpha = 1;
   }
@@ -406,11 +424,11 @@ function renderPeopleLegend() {
         <i style="background:${u.color}"></i><span>${esc(u.name)}</span><span class="muted">${u.count}</span></div>`).join("") +
       `<div class="lg-note"><i class="ring"></i>${t("g.sharedRing")}</div>`;
   } else if (s.colorBy === "year") {
-    el.innerHTML = `<div class="lg-title">${t("g.color.year")}</div><div class="lg-ramp" style="background:linear-gradient(90deg,${YEAR_STOPS.join(",")})"></div>
+    el.innerHTML = `<div class="lg-title">${t("g.color.year")}</div><div class="lg-ramp" style="background:linear-gradient(90deg,${YEAR_NAMES.map(n => `rgb(var(--${n}))`).join(",")})"></div>
       <div class="lg-ramp-l"><span>${YMIN}</span><span>${YMAX}</span></div><div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
   } else {
     el.innerHTML = `<div class="lg-title">${t("g.color.venue")}</div>` +
-      venuesSorted.slice(0, VENUE_PALETTE.length).map(([v]) => `<div class="pl" data-venue="${esc(v)}"><i style="background:${venueColor[v]}"></i><span>${esc(v)}</span></div>`).join("") +
+      venuesSorted.slice(0, VENUE_NAMES.length).map(([v]) => `<div class="pl" data-venue="${esc(v)}"><i style="background:rgb(var(--${venueName[v]}))"></i><span>${esc(v)}</span></div>`).join("") +
       `<div class="lg-note"><i class="other"></i>${t("g.others")}</div>`;
   }
 }
@@ -625,6 +643,10 @@ function start() {
   const xs = papers.map(p => p.x), ys = papers.map(p => p.y), m = 1.25;
   renderer.setCustomBBox({ x: [Math.min(...xs) * m, Math.max(...xs) * m], y: [Math.min(...ys) * m, Math.max(...ys) * m] });
   renderer.on("afterRender", drawOverlay);
+  // the theme changed (menu or OS setting): re-read the colours and repaint — no reload
+  const retheme = () => { readTheme(); renderer.refresh(); };
+  window.addEventListener("lab:theme", retheme);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => document.documentElement.dataset.theme === "auto" && retheme());
   renderer.on("enterNode", ({ node }) => {
     state.hovered = node;
     if (!state.selected) hoverSet = neighborhood(node, 1);

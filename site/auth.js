@@ -201,7 +201,9 @@
       e.stopPropagation();
       const v = b.dataset.themeSet;
       try { v === "auto" ? localStorage.removeItem("lab.theme") : localStorage.setItem("lab.theme", v); } catch (x) {}
-      location.reload();   // the graph's WebGL colours are computed for the theme at load
+      document.documentElement.dataset.theme = v;   // CSS follows by itself; canvases (the graph) listen for lab:theme
+      m.querySelectorAll("[data-theme-set]").forEach(x => x.classList.toggle("on", x === b));
+      window.dispatchEvent(new Event("lab:theme"));
     }));
     m.querySelectorAll("[data-lang-set]").forEach(b => (b.onclick = () => b.dataset.langSet !== lang && I18N.setLang(b.dataset.langSet)));
     m.querySelector('[data-act="logout"]').onclick = async () => { await S.auth.signOut(); location.hash = "#/home"; location.reload(); };

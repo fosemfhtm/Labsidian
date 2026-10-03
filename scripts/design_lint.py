@@ -94,6 +94,10 @@ NATIVE = re.compile(r"(?<![\w.$])(?:window\.)?(confirm|prompt|alert)\s*\(")
 
 def js_findings(path):
     text = path.read_text(encoding="utf-8")
+    # "// design-lint: off (reason)" … "// design-lint: on" hides a block from js-color — only for data tables that
+    # must hold hex (legacy palettes, person colours); each such block is listed in docs/design/decisions.md
+    off = [(m.start(), (text.find("design-lint: on", m.end()) % (len(text) + 1)) or len(text))
+           for m in re.finditer(r"design-lint: off", text)]
     out = []
 
     def add(check, pos, snippet):
@@ -103,7 +107,8 @@ def js_findings(path):
         if STYLE_BAD.search(m.group(2)):
             add("inline-style", m.start(), m.group())
     for m in re.finditer(r"""(?<=["'`(:\s,])""" + HEX, text):
-        add("js-color", m.start(), text[max(0, m.start() - 30): m.end() + 10])
+        if not any(a <= m.start() < b for a, b in off):
+            add("js-color", m.start(), text[max(0, m.start() - 30): m.end() + 10])
     for m in NATIVE.finditer(text):
         add("native-dialog", m.start(), text[m.start(): m.start() + 60])
     for m in re.finditer("리뷰", text):

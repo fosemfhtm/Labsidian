@@ -23,15 +23,11 @@ DATASET = "" if DATA.resolve() == (ROOT / "data").resolve() else DATA.name
 PERSON_COLORS = ["#f78c6c", "#82aaff", "#c3e88d", "#c792ea", "#ffcb6b",
                  "#89ddff", "#ff5370", "#f07178", "#b2ccd6", "#addb67",
                  "#7fdbca", "#e2b93d"]
-TOPIC_COLORS = ["#ff7b72", "#ffa657", "#d2a8ff", "#79c0ff", "#7ee787", "#f2cc60",
-                "#ff9bce", "#a5d6ff", "#56d4dd", "#e3b341", "#bc8cff", "#ffb4a1",
-                "#8ddb8c", "#f0883e", "#a371f7", "#6cb6ff", "#d0d7de"]
-METHOD_COLORS = ["#e0a3ff", "#ff8f6b", "#6ee7b7", "#93c5fd", "#fca5a5", "#5eead4",
-                 "#fcd34d", "#c4b5fd", "#a3e635", "#f9a8d4", "#94a3b8"]
-
-
-CLUSTER_COLORS = ["#7aa2f7", "#f7768e", "#9ece6a", "#e0af68", "#bb9af7", "#7dcfff", "#ff9e64",
-                  "#2ac3de", "#c0caf5", "#f4b8e4", "#73daca", "#e5c890", "#a6d189", "#ca9ee6"]
+# Data colours are system colour *names* (docs/design/data-viz.md §2): the site turns them into rgb(var(--name)),
+# so they follow light / dark / increased contrast. 12 colours, repeated when there are more tags.
+TOPIC_COLORS = ["red", "orange", "purple", "blue", "green", "yellow", "pink", "cyan", "teal", "brown", "indigo", "mint"]
+METHOD_COLORS = ["purple", "orange", "mint", "blue", "red", "teal", "yellow", "indigo", "green", "pink", "brown", "cyan"]
+CLUSTER_COLORS = ["blue", "red", "green", "yellow", "purple", "cyan", "orange", "teal", "indigo", "pink", "mint", "brown"]
 
 # Venue aliases: regex on the lower-cased raw string -> canonical short name
 VENUE_RULES = [

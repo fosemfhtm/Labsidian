@@ -18,13 +18,39 @@
   const MOCK_INITIAL_PASSWORD = "labsidian";
   const SEED = window.LAB;
   const DEMO = SEED.dataset === "demo";  // public demo lab: one-click sign-in, no forced password change
+  // design-lint: off (person colours are hex by design — members pick any colour; legacy palettes map old data)
   // Apple system colours (light variants read well on both themes): orange blue green purple yellow cyan red pink gray mint teal brown indigo
   const SYSTEM_COLORS = ["#ff8d28", "#0088ff", "#34c759", "#cb30e0", "#ffcc00", "#00c0e8", "#ff383c", "#ff2d55", "#8e8e93", "#00c8b3", "#00c3d0", "#ac7f5e", "#6155f5"];
-  const LEGACY_TO_SYSTEM = { "#f78c6c": 0, "#82aaff": 1, "#c3e88d": 2, "#c792ea": 3, "#ffcb6b": 4, "#89ddff": 5, "#ff5370": 6, "#f07178": 11,
-    "#b2ccd6": 8, "#addb67": 9, "#7fdbca": 10, "#e2b93d": 11, "#ff9cac": 7, "#a6accd": 12, "#ffd580": 12, "#80cbc4": 10 };
+  // the 12 colours the site build hands out map to 12 different system colours, never gray ("other / none" in charts)
+  const LEGACY_TO_SYSTEM = { "#f78c6c": 0, "#82aaff": 1, "#c3e88d": 2, "#c792ea": 3, "#ffcb6b": 4, "#89ddff": 5, "#ff5370": 6, "#f07178": 7,
+    "#b2ccd6": 12, "#addb67": 9, "#7fdbca": 10, "#e2b93d": 11, "#ff9cac": 7, "#a6accd": 12, "#ffd580": 4, "#80cbc4": 10 };
   const sysColor = c => (c && LEGACY_TO_SYSTEM[c.toLowerCase()] != null ? SYSTEM_COLORS[LEGACY_TO_SYSTEM[c.toLowerCase()]] : c);
+  // Data colours (docs/design/data-viz.md §2): topics, methods and map regions use system colour *names*, kept as
+  // "rgb(var(--name))" so they follow the theme. Older builds wrote fixed palettes — mapped here by position.
+  const SYS_NAMES = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown"];
+  const LEGACY_DATA = {};
+  [[["#ff7b72", "#ffa657", "#d2a8ff", "#79c0ff", "#7ee787", "#f2cc60", "#ff9bce", "#a5d6ff", "#56d4dd", "#e3b341", "#bc8cff", "#ffb4a1",
+     "#8ddb8c", "#f0883e", "#a371f7", "#6cb6ff", "#d0d7de"], ["red", "orange", "purple", "blue", "green", "yellow", "pink", "cyan", "teal", "brown", "indigo", "mint"]],
+   [["#e0a3ff", "#ff8f6b", "#6ee7b7", "#93c5fd", "#fca5a5", "#5eead4", "#fcd34d", "#c4b5fd", "#a3e635", "#f9a8d4", "#94a3b8"],
+    ["purple", "orange", "mint", "blue", "red", "teal", "yellow", "indigo", "green", "pink", "brown"]],
+   [["#7aa2f7", "#f7768e", "#9ece6a", "#e0af68", "#bb9af7", "#7dcfff", "#ff9e64", "#2ac3de", "#c0caf5", "#f4b8e4", "#73daca", "#e5c890", "#a6d189", "#ca9ee6"],
+    ["blue", "red", "green", "yellow", "purple", "cyan", "orange", "teal", "indigo", "pink", "mint", "brown"]],
+  ].forEach(([hexes, names]) => hexes.forEach((h, i) => (LEGACY_DATA[h] = names[i % names.length])));
+  LEGACY_DATA["#9da7b3"] = "gray2";   // "no colour chosen" for custom tags
+  // a tag still on an old palette colour gets the next of 12 names by its place in its axis (old palettes had 11 and repeated)
+  const AXIS_NAMES = { domain: ["red", "orange", "purple", "blue", "green", "yellow", "pink", "cyan", "teal", "brown", "indigo", "mint"],
+    method: ["purple", "orange", "mint", "blue", "red", "teal", "yellow", "indigo", "green", "pink", "brown", "cyan"] };
+  const dataColor = c => {
+    const k = String(c || "").trim().toLowerCase();
+    if (/^rgb\(var\(--[a-z0-9]+\)\)$/.test(k)) return k;
+    const name = SYS_NAMES.includes(k) || k === "gray" || k === "gray2" ? k : LEGACY_DATA[k];
+    if (name) return `rgb(var(--${name}))`;
+    return /^#[0-9a-f]{3}([0-9a-f]{3})?$/.test(k) ? k : "rgb(var(--gray2))";   // a hex an admin picked stays as it is
+  };
+  (SEED.clusters || []).forEach(c => { if (c.color) c.color = dataColor(c.color); });
   const PERSON_COLORS = ["#f78c6c", "#82aaff", "#c3e88d", "#c792ea", "#ffcb6b", "#89ddff", "#ff5370", "#f07178",
     "#b2ccd6", "#addb67", "#7fdbca", "#e2b93d", "#ff9cac", "#a6accd", "#ffd580", "#80cbc4"];
+  // design-lint: on
 
   // ---------------------------------------------------------------- persistence
   const empty = () => ({
@@ -121,7 +147,8 @@
   const fileUrls = {};
   const cleanFiles = list => (Array.isArray(list) ? list : []).filter(f => f && f.id && (f.kind === "pdf" || f.kind === "image"))
     .map(({ id, name, type, size, kind }) => ({ id, name: String(name || "").slice(0, 200), type, size: +size || 0, kind }));
-  const safeColor = c => (/^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "#9da7b3");
+  // tag colours: a system colour name (data-viz.md §2), or an older #hex; anything else → "gray2"
+  const safeColor = c => (SYS_NAMES.includes(c) || c === "gray2" || /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "gray2");
   const cleanTag = id => { const m = /^([dmf]):(.+)$/.exec(String(id || "")); return m ? `${m[1]}:${m[2].toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)}` : null; };
   const isDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || "") && !isNaN(Date.parse(d));
 
@@ -277,11 +304,16 @@
     const merges = {};
     let topics = SEED_TOPICS.map(t => ({ ...t }));
     db.tagOps.forEach(op => {
-      if (op.op === "create" && !topics.some(t => t.id === op.id)) topics.push({ id: op.id, axis: op.axis, label: op.label, labelEn: op.labelEn || op.label, color: op.color || "#9da7b3", custom: true });
+      if (op.op === "create" && !topics.some(t => t.id === op.id)) topics.push({ id: op.id, axis: op.axis, label: op.label, labelEn: op.labelEn || op.label, color: op.color || "gray2", custom: true });
       if (op.op === "rename") topics.forEach(t => { if (t.id === op.id) { t.label = op.label ?? t.label; t.labelEn = op.labelEn ?? t.labelEn; if (op.color) t.color = op.color; } });
       if (op.op === "merge") merges[op.from] = op.into;
     });
     topics = topics.filter(t => !merges[t.id]);
+    const axisIdx = {};
+    topics.forEach(t => {
+      const i = (axisIdx[t.axis] = (axisIdx[t.axis] ?? -1) + 1), old = LEGACY_DATA[String(t.color || "").toLowerCase()];
+      t.color = dataColor(old && old !== "gray2" && AXIS_NAMES[t.axis] ? AXIS_NAMES[t.axis][i % 12] : t.color);
+    });
     const R = tid => resolveTag(tid, merges);
 
     // people: seed + members created by admin; each member may pick their own colour
@@ -388,7 +420,7 @@
     });
 
     // free tags show up as topics too
-    full.live.forEach(p => p.free.forEach(tid => { if (!topics.some(t => t.id === tid)) topics.push({ id: tid, axis: "free", label: tid.slice(2), labelEn: tid.slice(2), color: "#9da7b3" }); }));
+    full.live.forEach(p => p.free.forEach(tid => { if (!topics.some(t => t.id === tid)) topics.push({ id: tid, axis: "free", label: tid.slice(2), labelEn: tid.slice(2), color: "rgb(var(--gray2))" }); }));
 
     Object.assign(SEED, {
       people, topics, papers: live, reviews,

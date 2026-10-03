@@ -89,6 +89,7 @@ python scripts/design_lint.py --update     # 정리해서 개수가 줄었으면
 ```
 
 새 위반을 통과시키려고 `--update`를 쓰지 않는다. 정말 예외라면 [decisions.md](decisions.md)에 먼저 적는다.
+hex가 꼭 필요한 JS 데이터 표(사람 색 팔레트 등)는 `// design-lint: off (이유)` … `// design-lint: on`으로 감싸고, 그 위치를 decisions.md에 적는다.
 
 ## 쓸 수 없는 것 (라이선스·상표)
 

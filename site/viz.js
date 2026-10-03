@@ -18,7 +18,7 @@
       "pf.similar": "관심사가 비슷한 사람", "pf.similarHint": "읽은 분야가 비슷한 순 · 누르면 나란히 비교해요", "pf.recent": "최근 다이어리",
       "pf.reviews": "다이어리를 쓴 논문", "pf.shared": "함께 읽은 논문", "pf.studies": "참여한 스터디", "pf.other": "기타", "pf.lab": "연구실 {v}%",
       "pf.more.area": "{x} 지역을 연구실 평균의 {k}배 읽어요", "pf.more.method": "{x} 논문을 연구실 평균의 {k}배 읽어요",
-      "pf.few": "다이어리가 {n}편 더 쌓이면 연구 지형이 보여요",
+      "pf.few": "다이어리가 {n}편 더 쌓이면 연구 지형이 보여요", "vz.fewAxes": "분야가 세 가지 이상 모이면 보여요",
       "pf.compare": "비교하기", "pf.self": "다른 사람에게는 이렇게 보여요", "pf.toMe": "내 페이지로", "pf.role": "{area} 지역 · {method}",
       "cmp.title": "비교", "cmp.both": "둘 다 읽은 논문", "cmp.none": "아직 같이 읽은 논문이 없어요", "cmp.pick": "비교할 사람",
     },
@@ -31,7 +31,7 @@
       "pf.similar": "Similar interests", "pf.similarHint": "Most alike in what they read first · open one to compare side by side", "pf.recent": "Recent reviews",
       "pf.reviews": "Papers reviewed", "pf.shared": "Read together", "pf.studies": "Studies", "pf.other": "Other", "pf.lab": "lab {v}%",
       "pf.more.area": "Reads {x} {k}× the lab average", "pf.more.method": "Reads {x} papers {k}× the lab average",
-      "pf.few": "{n} more reviews and the research terrain appears",
+      "pf.few": "{n} more diaries and the research terrain appears", "vz.fewAxes": "Appears once there are three or more fields",
       "pf.compare": "Compare", "pf.self": "This is how others see you", "pf.toMe": "My page", "pf.role": "{area} · {method}",
       "cmp.title": "Compare", "cmp.both": "Read by both", "cmp.none": "No paper read by both yet", "cmp.pick": "Compare with",
     },
@@ -108,7 +108,7 @@
 
   // ---- rose: one petal per axis, petal area ∝ share; the lab average is a dashed arc on each petal
   function rose(axes, { size = 220, max } = {}) {
-    const n = axes.length; if (n < 3) return "";
+    const n = axes.length; if (n < 3) return `<p class="ui-empty compact">${t("vz.fewAxes")}</p>`;
     const c = size / 2, R = c - 4, step = 2 * Math.PI / n, gap = Math.min(0.06, step * 0.08);
     const top = max || Math.max(0.0001, ...axes.flatMap(a => [a.share, a.lab ?? 0]));
     const rad = v => R * Math.sqrt(Math.max(0, v) / top);

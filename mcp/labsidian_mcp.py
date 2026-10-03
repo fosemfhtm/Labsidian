@@ -52,6 +52,14 @@ mcp = FastMCP("labsidian", instructions=(
 
 
 # ------------------------------------------------------------------ data
+# tag colours are system colour names (docs/design/data-viz.md §2); a hex is still accepted for older callers
+TAG_COLORS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown", "gray2"]
+
+
+def _tag_color_ok(c):
+    return c in TAG_COLORS or _re_hex(c)
+
+
 def _re_hex(c):
     return bool(re.fullmatch(r"#[0-9a-fA-F]{3,8}", c or ""))
 
@@ -697,9 +705,10 @@ def admin_merge_tags(from_tag: str, into_tag: str) -> dict:
 
 @mcp.tool()
 def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color: str = "") -> dict:
-    """[admin] Rename a tag (Korean and/or English label) or change its colour (#rrggbb)."""
-    if color and not _re_hex(color):
-        raise ToolError("color must be a hex colour like #82aaff")
+    """[admin] Rename a tag (Korean and/or English label) or change its colour — a system colour name
+    (red orange yellow green mint teal cyan blue indigo purple pink brown gray2), which follows the site's theme."""
+    if color and not _tag_color_ok(color):
+        raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
     u, d = require_admin(), DB.data()
     t = d["T"].get(tag_id)
     if not t:
@@ -709,10 +718,11 @@ def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color:
 
 
 @mcp.tool()
-def admin_create_tag(axis: str, label_ko: str, label_en: str, color: str = "#9da7b3") -> dict:
-    """[admin] Create a new field (axis="domain") or method (axis="method") tag."""
-    if not _re_hex(color):
-        raise ToolError("color must be a hex colour like #82aaff")
+def admin_create_tag(axis: str, label_ko: str, label_en: str, color: str = "gray2") -> dict:
+    """[admin] Create a new field (axis="domain") or method (axis="method") tag. color: a system colour name
+    (red orange yellow green mint teal cyan blue indigo purple pink brown gray2)."""
+    if not _tag_color_ok(color):
+        raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
     u = require_admin()
     if axis not in ("domain", "method"):
         raise ToolError("axis must be domain or method")

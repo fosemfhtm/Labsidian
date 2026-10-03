@@ -28,11 +28,13 @@
     const p = P[id];
     if (!p) return `<span class="avatar unknown">?</span>`;
     // initials: dark on light colours (yellow, mint…), white otherwise — keeps them readable in both themes
-    const h = (p.color || "#888").replace("#", ""), [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
+    const h = /^#/.test(p.color || "") ? p.color.slice(1) : "8e8e93", [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
     const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
-    const ink = (lum + .05) / .0607 > 1.05 / (lum + .05) ? "#1c1c1e" : "#fff";   // whichever of black/white contrasts more
+    const ink = (lum + .05) / .0607 > 1.05 / (lum + .05) ? "var(--ink-on-light)" : "var(--on-color)";   // whichever of black/white contrasts more
     return `<span class="avatar${big ? " big" : ""}" title="${esc(p.name)}" style="background:${esc(p.color)};color:${ink};text-shadow:none">${esc(initial(p.name))}</span>`;
   };
+  // a data colour that's safe inside style="": #hex or rgb(var(--name)); anything else → gray
+  const safeColor = c => (/^#[0-9a-f]{3,8}$/i.test(c || "") || /^rgb\(var\(--[a-z0-9]+\)\)$/.test(c || "") ? c : "rgb(var(--gray2))");
   const avStack = (ids, max = 5, cls = id => "") => {
     const shown = ids.slice(0, max), rest = ids.slice(max);
     return `<span class="st-avs">${shown.map(u => `<span class="${cls(u)}">${avatar(u)}</span>`).join("")}${rest.length
@@ -44,7 +46,7 @@
   };
   const tag = tid => {
     const x = T[tid];
-    return x ? `<span class="tag ${esc(x.axis)}" data-open="topic:${esc(tid)}"><span class="dot" style="background:${/^#[0-9a-f]{3,8}$/i.test(x.color) ? x.color : "#9da7b3"}"></span>${esc(tl(x))}</span>` : "";
+    return x ? `<span class="tag ${esc(x.axis)}" data-open="topic:${esc(tid)}"><span class="dot" style="background:${safeColor(x.color)}"></span>${esc(tl(x))}</span>` : "";
   };
   const bars = (items, max) => `<div class="bars">${items.map(([label, n, color, open]) => `
     <div class="bar-row ${open ? "click" : ""}" ${open ? `data-open="${open}"` : ""}>
@@ -120,15 +122,15 @@
     return mine ? `<a class="btn primary" href="#/write?review=${mine.id}">✎ ${t("s.myDiary")}</a>` : `<a class="btn primary" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>`; };
   const readingBtn = p => (myReviewOn(p) ? "" : `<button class="btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>`);
   const reviewHtml = (r, opts = {}) => {
-    const p = P[r.person] || { name: t("unknownPerson"), color: "#555" };
+    const p = P[r.person] || { name: t("unknownPerson"), color: "rgb(var(--gray))" };
     const mine = window.Store?.auth.current()?.id === r.person;
     // study "write first, then read": hidden until I post my own entry on this paper
-    if (window.Store?.studies.hidden(r)) return `<div class="review blind" id="rv-${r.id}" data-review="${r.id}" style="border-left-color:${p.color}">
+    if (window.Store?.studies.hidden(r)) return `<div class="review blind" id="rv-${r.id}" data-review="${r.id}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b><span class="date">${esc(r.date)}</span></div>
       <p class="blind-msg">🙈 ${t("st.blindMsg")} <a class="link-btn" href="#/write?study=${r.studyId}">${t("st.writeMine")}</a></p></div>`;
     const long = !opts.full && r.content.length > 380;
-    return `<div class="review ${opts.full ? "full" : ""} ${mine ? "mine" : ""}" id="rv-${r.id}" data-review="${r.id}" style="border-left-color:${p.color}">
+    return `<div class="review ${opts.full ? "full" : ""} ${mine ? "mine" : ""}" id="rv-${r.id}" data-review="${r.id}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b>${stars(r.rating)}
         <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>${regBadge(r)}
@@ -215,7 +217,7 @@
       <h4>${t("pf.terrain")}</h4>
       ${V.terrain(id)}
       ${pr.fields.length ? `<h4>${t("pf.fields")}</h4>
-      ${bars([...fieldsTop.map(f => [f.label, f.value, p.color, `topic:${f.id}`]), ...(fieldsRest ? [[t("pf.other"), fieldsRest, "rgb(var(--gray))"]] : [])], fieldsTop[0].value)}` : ""}
+      ${bars([...fieldsTop.map(f => [f.label, f.value, T[f.id]?.color || "rgb(var(--gray2))", `topic:${f.id}`]), ...(fieldsRest ? [[t("pf.other"), fieldsRest, "rgb(var(--gray))"]] : [])], fieldsTop[0].value)}` : ""}
       ${p.similar.length ? `<h4>${t("pf.similar")}</h4><p class="hint">${t("pf.similarHint")}</p>${V.similar(id, p.similar)}` : ""}
       <div class="pf-recent"><h4>${t("pf.recent")}</h4>
       <div class="mini-list">${mine.slice(0, 15).map(r => miniPaper(PA[r.paper], r.date)).join("")}</div>

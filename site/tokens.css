@@ -69,6 +69,7 @@
   /* avatars: four sizes; initials stay this size on phones too (the circle doesn't grow) — components §7 */
   --av-xs: 20px; --av-s: 28px; --av-m: 36px; --av-l: 56px;
   --fs-av-xs: .625rem; --fs-av-s: .6875rem; --fs-av-m: .8125rem; --fs-av-l: 1.25rem;
+  --ink-on-light: #1c1c1e;               /* text on a light data colour (yellow, mint avatars) */
   --on-color: #fff;                      /* text/icons on a coloured fill (badge, tile, avatar) — accent fills use --on-accent */
   --on-color-2: var(--on-color-2);   /* secondary text on a coloured fill */
   --on-color-fill: var(--on-color-fill);
@@ -333,6 +334,7 @@
 [data-ui] .ui-empty > .ic { width: 40px; height: 40px; color: var(--label-3); stroke-width: 1.5; margin-bottom: 6px; }
 [data-ui] .ui-empty h4 { margin: 0; font: var(--t-title3); letter-spacing: var(--tr-title3); }
 [data-ui] .ui-empty p { margin: 0 0 10px; font: var(--t-body); color: var(--label-2); max-width: 34ch; }
+[data-ui] .ui-empty.compact { display: block; padding: var(--s-2) 0; text-align: left; font: var(--t-callout); color: var(--label-meta); }
 [data-ui] .ui-toast { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px 10px 16px; border-radius: var(--r-full); font: var(--t-body); }
 
 @keyframes ui-spin { to { transform: rotate(360deg); } }

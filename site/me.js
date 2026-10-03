@@ -9,7 +9,7 @@
       "me.title": "내 페이지", "me.term": "학기", "me.progress": "이번 학기 작성률", "me.of": "목표 {target}편 중 {n}편",
       "me.pace": "오늘까지 기대치 {exp}편 — {diff}", "me.ahead": "{n}편 앞서 있어요", "me.behind": "{n}편 뒤처져 있어요", "me.onpace": "딱 맞춰 가고 있어요",
       "me.left": "학기 종료까지 작성일 {d}일", "me.legendWrote": "작성", "me.legendHoliday": "공휴일", "me.legendLab": "연구실 쉬는 날 (셧다운·학회 등)", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
-      "me.calendar": "작성 캘린더", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주", "me.drift": "관심사 변화 (월별)",
+      "me.calendar": "작성 캘린더", "me.driftEmpty": "다이어리를 쓰면 달마다 관심 분야가 쌓여요", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주", "me.drift": "관심사 변화 (월별)",
       "me.reviews": "내 다이어리", "me.noReviews": "이 학기엔 아직 다이어리가 없어요", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
       "me.reading": "읽을 목록", "me.noReading": "링크나 PDF로 읽을 논문을 모아 보세요", "me.readingAll": "읽을 목록 전체", "me.calWrite": "이 날짜로 다이어리 쓰기", "me.calNone": "작성 없음", "me.dow": "일월화수목금토", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
       "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기", "me.remove": "빼기",
@@ -27,7 +27,7 @@
       "me.title": "My page", "me.term": "Term", "me.progress": "This term's diary rate", "me.of": "{n} of {target} target",
       "me.pace": "Expected by today: {exp} — {diff}", "me.ahead": "{n} ahead", "me.behind": "{n} behind", "me.onpace": "right on pace",
       "me.left": "{d} writing days left in term", "me.legendWrote": "Wrote", "me.legendHoliday": "Public holiday", "me.legendLab": "Lab day off (shutdown, conference …)", "me.ended": "Term ended", "me.inc90": "90% (top incentive)", "me.inc70": "70%",
-      "me.calendar": "Writing calendar", "me.streak": "{n}-week streak", "me.best": "best {n} weeks", "me.drift": "Interest drift (by month)",
+      "me.calendar": "Writing calendar", "me.driftEmpty": "Write diaries and your fields pile up month by month", "me.streak": "{n}-week streak", "me.best": "best {n} weeks", "me.drift": "Interest drift (by month)",
       "me.reviews": "My reviews", "me.noReviews": "No reviews this term yet", "me.draft": "Saved draft", "me.continue": "Continue",
       "me.reading": "Reading list", "me.noReading": "Collect papers to read by link or PDF", "me.readingAll": "Whole reading list", "me.calWrite": "Write a diary for this day", "me.calNone": "Nothing written", "me.dow": "SMTWTFS", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
       "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary", "me.remove": "Remove",
@@ -245,13 +245,13 @@
     mine.forEach(r => (counts[r.date] = (counts[r.date] || 0) + 1));
     const start = new Date(term.start), dow = (start.getDay() + 6) % 7; // Monday = 0
     const first = addDays(term.start, -dow), weeks = Math.ceil((days(first, term.end) + 1) / 7);
-    const color = person?.color || "#6155f5";
+    const color = person?.color || "rgb(var(--indigo))";
     // weekdays only (no diary is owed on weekends); the lab's days off are shaded and named in the tooltip
     let html = `<div class="cal-grid" style="grid-template-columns:repeat(${weeks},1fr)">`;
     for (let w = 0; w < weeks; w++) for (let d = 0; d < 5; d++) {
       const day = addDays(first, w * 7 + d), c = counts[day] || 0, out = day < term.start || day > term.end;
       const off = !out && S.calendar.offDay(day), cls = [out && "out", day === S.today() && "today", off && (off.kind === "holiday" ? "off-holiday" : "off-lab")];
-      html += `<i class="${cls.filter(Boolean).join(" ")}" ${out ? "" : `data-day="${day}"`} style="grid-column:${w + 1};grid-row:${d + 1};${c ? `background:${color};opacity:${Math.min(1, 0.45 + c * 0.3)}` : ""}"></i>`;
+      html += `<i class="${cls.filter(Boolean).join(" ")}" ${out ? "" : `data-day="${day}"`} style="grid-column:${w + 1};grid-row:${d + 1};${c ? `background:color-mix(in srgb, ${color} ${Math.round(Math.min(1, 0.45 + c * 0.3) * 100)}%, var(--fill-3))` : ""}"></i>`;
     }
     html += "</div>";
     html += `<div class="cal-legend"><span><i style="background:${color}"></i>${t("me.legendWrote")}</span><span><i class="off-holiday"></i>${t("me.legendHoliday")}</span><span><i class="off-lab"></i>${t("me.legendLab")}</span></div>`;
@@ -281,7 +281,7 @@
     const terms = S.terms.list().filter(x => ctx.mineAll.some(r => r.date >= x.start && r.date <= x.end));
     const rowOf = span === "all" ? r => terms.find(x => r.date >= x.start && r.date <= x.end)?.id : r => r.date.slice(0, 7);
     const mine = span === "all" ? ctx.mineAll : ctx.mine;
-    if (!mine.length) { box.innerHTML = `<div class="empty">—</div>`; return; }
+    if (!mine.length) { box.innerHTML = `<p class="ui-empty compact">${t("me.driftEmpty")}</p>`; return; }
     const byMonth = {}, total = {};
     mine.forEach(r => {
       const m = rowOf(r), ks = tagsOf(UI.PA[r.paper], axis).slice(0, 2); if (!m) return;

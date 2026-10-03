@@ -164,7 +164,7 @@
 
   function paintStars() { view.querySelectorAll("#w-stars button").forEach(b => b.classList.toggle("on", +b.dataset.v <= rating)); }
   const topicLabel = id => { const x = UI.T[id]; return x ? UI.tl(x) : id.slice(2); };
-  const topicColor = id => UI.T[id]?.color || "#9da7b3";
+  const topicColor = id => UI.T[id]?.color || "rgb(var(--gray2))";
   function paintTags() {
     $("#w-tags", view).innerHTML = tags.map(id => `<span class="chip on" data-id="${esc(id)}"><span class="dot" style="background:${topicColor(id)}"></span>${esc(topicLabel(id))} ✕</span>`).join("");
   }

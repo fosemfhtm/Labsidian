@@ -3,11 +3,6 @@
   "style.css": 2
  },
  "js-color": {
-  "admin.js": 3,
-  "app.js": 5,
-  "graph.js": 29,
-  "me.js": 1,
-  "store.js": 48,
-  "write.js": 1
+  "admin.js": 1
  }
 }
