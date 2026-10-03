@@ -22,6 +22,12 @@
       "gd.toReading": "읽을 목록에", "gd.allToReading": "남은 논문 전부 읽을 목록에", "gd.allAdded": "{n}편을 읽을 목록에 담았어요",
       "gd.openStudy": "스터디 열기", "gd.nextStudy": "다음 스터디 제안", "gd.nextNone": "남은 논문이 없어요", "gd.studied": "스터디에서 다룸",
       "gd.remove": "빼기", "gd.removeQ": "가이드에서 뺄까요?", "gd.noItems": "아직 논문이 없어요", "gd.sectionMove": "구간 옮기기", "gd.manage": "관리", "gd.up": "위로", "gd.down": "아래로",
+      "gd.group": "모임", "gd.groupOn": "모임으로 진행 (정기 스터디)", "gd.groupHint": "이 가이드에서 연 스터디가 모임의 회차가 되고, 모임에서 읽은 논문·가져온 논문·'다음에 볼 것'이 이 목록에 쌓여요",
+      "gd.cadence": "일정", "gd.every1": "매주", "gd.every2": "격주", "gd.weekday": "요일", "gd.noWeekday": "정하지 않음", "gd.time": "시간", "gd.place": "장소",
+      "gd.wd": "일,월,화,수,목,금,토", "gd.rhythm": "{every} {wd}요일 {time}", "gd.members": "참여 {n}명", "gd.rounds": "{n}회 진행",
+      "gd.join": "모임 참여", "gd.joined": "참여 중", "gd.leave": "모임 나가기", "gd.newSession": "다음 모임 만들기", "gd.nextSession": "다음 모임",
+      "gd.round": "{n}회차", "gd.notesDone": "정리 있음", "gd.presenter": "발표 {name}", "gd.noSessions": "아직 모임이 없어요 — 첫 모임을 만들어 보세요",
+      "gd.st.next": "다음 모임 · {n}회차", "gd.st.read": "읽음 · {n}회차", "gd.st.from": "{n}회차에서 나옴", "gd.sessionHere": "이 논문으로 다음 모임", "gd.editGroup": "가이드·모임 설정",
     },
     en: {
       "gd.title": "Core-paper guides", "gd.sub": "Key papers per topic, curated by the lab — with who read them and how far you are",
@@ -35,6 +41,12 @@
       "gd.toReading": "To my reading list", "gd.allToReading": "All remaining to my reading list", "gd.allAdded": "Added {n} to your reading list",
       "gd.openStudy": "Open a study", "gd.nextStudy": "Suggest the next study", "gd.nextNone": "Nothing left to read", "gd.studied": "Covered in a study",
       "gd.remove": "Remove", "gd.removeQ": "Remove it from the guide?", "gd.noItems": "No papers yet", "gd.sectionMove": "Move to section", "gd.manage": "Manage", "gd.up": "Move up", "gd.down": "Move down",
+      "gd.group": "Reading group", "gd.groupOn": "Run as a reading group (regular study)", "gd.groupHint": "Studies opened from this guide become its sessions; what they read, the papers members bring and the notes' 'read next' join this list",
+      "gd.cadence": "Schedule", "gd.every1": "Every week", "gd.every2": "Every other week", "gd.weekday": "Day", "gd.noWeekday": "Not set", "gd.time": "Time", "gd.place": "Place",
+      "gd.wd": "Sun,Mon,Tue,Wed,Thu,Fri,Sat", "gd.rhythm": "{every}, {wd} {time}", "gd.members": "{n} members", "gd.rounds": "{n} sessions so far",
+      "gd.join": "Join the group", "gd.joined": "Member", "gd.leave": "Leave the group", "gd.newSession": "Set up the next session", "gd.nextSession": "Next session",
+      "gd.round": "Session {n}", "gd.notesDone": "Notes", "gd.presenter": "{name} presents", "gd.noSessions": "No sessions yet — set up the first one",
+      "gd.st.next": "Next session · #{n}", "gd.st.read": "Read · session {n}", "gd.st.from": "Came up in session {n}", "gd.sessionHere": "Next session on this paper", "gd.editGroup": "Guide and group settings",
     },
   });
 
@@ -44,11 +56,15 @@
   const name = id => UI.P[id]?.name || (id === "admin" ? "admin" : id);
   const progressBar = (d, n) => `<div class="gd-prog"><i style="width:${n ? (d / n * 100).toFixed(0) : 0}%"></i></div>`;
   const tagChips = tags => (tags || []).filter(x => UI.T[x]).map(x => UI.tag(x)).join("");
+  const wdName = i => t("gd.wd").split(",")[i] || "";
+  const rhythm = g => { const c = g.group?.cadence; return c ? t("gd.rhythm", { every: t("gd.every" + (c.every || 1)), wd: wdName(c.weekday), time: c.time || "" }).trim() : ""; };
+  const shortDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString(I18N.lang === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", weekday: "short" }) : "";
 
   function card(g) {
     const me = S.auth.current(), pr = me ? S.guides.progress(g, me.id) : { done: 0, total: g.items.length };
     return `<a class="card gd-card" href="#/guide/${g.id}">
       <div class="gd-card-t">${esc(g.title)}</div>
+      ${S.guides.isGroup(g) ? `<div class="gd-card-g"><span class="pill acc">${t("gd.group")}</span>${[rhythm(g), t("gd.rounds", { n: S.guides.sessions(g).length })].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
       ${g.desc ? `<div class="gd-card-d">${esc(g.desc.slice(0, 120))}</div>` : ""}
       <div class="tags-row small">${tagChips(g.tags)}</div>
       <div class="gd-card-f"><span>${UI.avatar(g.owner)} ${t("gd.papers", { n: g.items.length })}</span><span class="muted">${t("gd.mine", { d: pr.done, n: pr.total })}</span></div>
@@ -72,8 +88,21 @@
       <label class="fld"><span>${t("gd.desc")}</span><textarea name="desc" rows="2" placeholder="${t("gd.desc.ph")}">${esc(g?.desc || "")}</textarea></label>
       <div class="fld"><span>${t("gd.tags")}</span>${tagPicker(g?.tags || (preTag ? [preTag] : []))}</div>
       <label class="fld"><span>${t("gd.sections")}</span><input name="sections" placeholder="${t("gd.sections.ph")}" value="${esc((g?.sections || []).map(x => x.title).join(", ") || (I18N.lang === "en" ? "Basics, Core, Recent" : "기초, 핵심, 최신"))}"></label>
+      ${groupFields(g?.group)}
       <div class="form-foot"><a class="btn" href="${g ? "#/guide/" + g.id : "#/guides"}">${t("gd.cancel")}</a><button class="btn primary">${g ? t("gd.save") : t("gd.create")}</button></div></form>`;
   }
+
+  function groupFields(gr) {
+    const c = gr?.cadence;
+    return `<div class="fld gd-groupset"><label class="check"><input type="checkbox" name="groupOn" ${gr?.on ? "checked" : ""}><span><b>${t("gd.groupOn")}</b><em class="hint">${t("gd.groupHint")}</em></span></label>
+      <div class="gd-cad" ${gr?.on ? "" : "hidden"}>
+        <label class="fld"><span>${t("gd.cadence")}</span><select name="every"><option value="1">${t("gd.every1")}</option><option value="2" ${c?.every === 2 ? "selected" : ""}>${t("gd.every2")}</option></select></label>
+        <label class="fld"><span>${t("gd.weekday")}</span><select name="weekday"><option value="">${t("gd.noWeekday")}</option>${[1, 2, 3, 4, 5, 6, 0].map(i => `<option value="${i}" ${c && c.weekday === i ? "selected" : ""}>${wdName(i)}</option>`).join("")}</select></label>
+        <label class="fld"><span>${t("gd.time")}</span><input type="time" name="time" value="${esc(c?.time || "")}"></label>
+        <label class="fld"><span>${t("gd.place")}</span><input name="place" maxlength="80" value="${esc(gr?.place || "")}"></label></div></div>`;
+  }
+  const groupOf = f => ({ on: f.groupOn.checked, cadence: { weekday: f.weekday.value, time: f.time.value, every: f.every.value }, place: f.place.value });
+  const wireGroupFields = f => { f.groupOn.onchange = () => { $(".gd-cad", f).hidden = !f.groupOn.checked; }; };
 
   function renderList(params) {
     const me = S.auth.current(), creating = params.get("new") === "1" && me;
@@ -85,10 +114,11 @@
       ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="empty">${t("gd.empty")}${me ? `<p><a class="btn primary" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
     if (creating) {
       const f = $("#gd-form", listView), tags = params.get("tag") ? [params.get("tag")] : [];
-      wireTagPicker(f, tags);
+      wireTagPicker(f, tags); wireGroupFields(f);
       f.onsubmit = async e => {
         e.preventDefault();
         const id = await S.guides.create({ title: f.title.value, desc: f.desc.value, tags, sections: f.sections.value.split(",").map(s => s.trim()).filter(Boolean) });
+        if (f.groupOn.checked) await S.guides.setGroup(id, groupOf(f));
         location.hash = "#/guide/" + id;
       };
     }
@@ -101,7 +131,16 @@
     const link = p?.link || it.meta?.link || "", studies = S.guides.studiesFor(it), voted = me && (it.votes || []).includes(me.id);
     const inReading = me && (p ? S.reading.has(p.id) : S.reading.list().some(x => S.normTitle(x.title) === it.key));
     const sameSec = g.items.filter(x => x.section === it.section).length;
-    const studyQ = p ? `paper=${p.id}` : `title=${encodeURIComponent(title)}&link=${encodeURIComponent(link)}`;
+    const group = S.guides.isGroup(g), stt = group ? S.guides.itemState(g, it) : null;
+    const studyQ = group ? `guide=${g.id}&item=${it.id}` : p ? `paper=${p.id}` : `title=${encodeURIComponent(title)}&link=${encodeURIComponent(link)}`;
+    const canOpen = group ? !stt.next && !stt.read && !S.guides.upcoming(g) && (S.guides.member(g) || S.guides.canManage(g)) : !studies.some(st => !st.closed);
+    const notesQ = st => (st.closed && st.notes ? "?tab=notes" : "");
+    const badges = stt
+      ? [stt.next ? `<a class="reg next" href="#/study/${stt.next.id}">${t("gd.st.next", { n: stt.nextRound })}</a>` : "",
+         stt.round ? `<a class="reg study" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.st.read", { n: stt.round })}</a>`
+           : stt.read ? `<a class="reg study" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.studied")} · ${esc(stt.read.date || "")}</a>` : "",
+         stt.fromRound ? `<span class="reg from">${t("gd.st.from", { n: stt.fromRound })}</span>` : ""].join("")
+      : studies.map(st => `<a class="reg study" href="#/study/${st.id}${notesQ(st)}">${t("gd.studied")} · ${esc(st.date || "")}</a>`).join("");
     return `<div class="gd-item ${done ? "done" : ""}" data-item="${it.id}">
       <span class="gd-check" title="${done ? "✓" : ""}">${done ? "✓" : ""}</span>
       <div class="gd-main">
@@ -109,17 +148,32 @@
         ${meta ? `<div class="muted gd-meta">${esc(meta)}</div>` : ""}
         ${it.note ? `<div class="gd-note">${esc(it.note)}</div>` : ""}
         <div class="gd-badges">${p?.readers.length ? `<span>${UI.avStack(p.readers, 5)} ${t("gd.readBy", { n: p.readers.length })}</span>` : `<span class="muted">${t("gd.nobody")}</span>`}
-          ${studies.map(st => `<a class="reg study" href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">${t("gd.studied")} · ${esc(st.date || "")}</a>`).join("")}
+          ${badges}
           <span class="muted">${t("gd.addedBy", { name: esc(name(it.by)) })}</span></div>
       </div>
       <div class="gd-actions">
         ${me ? `<button class="chip ${voted ? "on" : ""}" data-act="vote">👍 ${(it.votes || []).length || ""}</button>` : ""}
         ${me && !done ? `<button class="btn small" data-act="read" title="${t("gd.toReading")}" aria-label="${t("gd.toReading")}" ${inReading ? "disabled" : ""}>📚</button>` : ""}
-        ${me && !done && !studies.some(st => !st.closed) ? `<a class="btn small" href="#/study/new?${studyQ}" title="${t("gd.openStudy")}" aria-label="${t("gd.openStudy")}">👥</a>` : ""}
+        ${me && !done && canOpen ? `<a class="btn small" href="#/study/new?${studyQ}" title="${t(group ? "gd.sessionHere" : "gd.openStudy")}" aria-label="${t(group ? "gd.sessionHere" : "gd.openStudy")}">👥</a>` : ""}
         ${me && (canManage || it.by === me.id) ? `<span class="gd-own">${canManage && sameSec > 1 ? `<button class="btn small" data-act="up" title="${t("gd.up")}" aria-label="${t("gd.up")}">↑</button><button class="btn small" data-act="down" title="${t("gd.down")}" aria-label="${t("gd.down")}">↓</button>` : ""}
           ${canManage && g.sections.length > 1 ? `<select data-act="section" title="${t("gd.sectionMove")}" aria-label="${t("gd.sectionMove")}">${g.sections.map(x => `<option value="${x.id}" ${x.id === it.section ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select>` : ""}
           <button class="btn small" data-act="del" title="${t("gd.remove")}" aria-label="${t("gd.remove")}">🗑</button></span>` : ""}
       </div></div>`;
+  }
+
+  // the reading group: rhythm, members, the next session (or the button to set it up) and every session so far
+  function groupCard(g, me) {
+    const gr = g.group, sts = S.guides.sessions(g), next = S.guides.upcoming(g), member = S.guides.member(g), canRun = member || S.guides.canManage(g);
+    const info = [rhythm(g), gr.place, t("gd.members", { n: gr.members.length })].filter(Boolean).map(esc).join(" · ");
+    const acts = (me && me.id !== g.owner ? `<button class="btn small" id="gd-join" data-on="${member ? "0" : "1"}">${member ? t("gd.leave") : t("gd.join")}</button>` : "")
+      + (!next && canRun ? `<a class="btn small primary" href="#/study/new?guide=${g.id}">👥 ${t("gd.newSession")}</a>` : "");
+    return `<div class="card gd-group">
+      <div class="row-between"><div><h3>${t("gd.group")}</h3><p class="gd-ginfo">${info} ${UI.avStack(gr.members, 6)}</p></div>
+        ${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
+      ${sts.length ? `<ol class="gd-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">
+          <span class="r">${t("gd.round", { n: i + 1 })}</span><span class="d">${esc(shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
+          <span class="m">${st.closed ? (st.notes ? `✓ ${t("gd.notesDone")}` : "") : `<span class="pill acc">${t("gd.nextSession")}</span> ${t("gd.presenter", { name: esc(name(st.presenter)) })}`}</span></a></li>`).join("")}</ol>`
+        : `<p class="muted">${t("gd.noSessions")}</p>`}</div>`;
   }
 
   function renderPage(params, id) {
@@ -131,10 +185,11 @@
       ${editing ? form(g) : `<div class="page-head row-head"><div><h1>${esc(g.title)}</h1>
           <p class="sub gd-by">${UI.avatar(g.owner)} ${t("gd.by", { name: esc(name(g.owner)) })} · ${t("gd.papers", { n: g.items.length })}</p></div>
           ${canManage ? `<details class="st-manage gd-manage"><summary>⋯ ${t("gd.manage")}</summary><div class="menu-pop">
-            <a class="link-btn" href="#/guide/${g.id}?edit=1">${t("gd.edit")}</a><hr><button class="link-btn danger" id="gd-del">${t("gd.delete")}</button></div></details>` : ""}</div>
-        ${g.desc ? `<p class="gd-desc">${esc(g.desc)}</p>` : ""}<div class="tags-row">${tagChips(g.tags)}</div>`}
+            <a class="link-btn" href="#/guide/${g.id}?edit=1">${t("gd.editGroup")}</a><hr><button class="link-btn danger" id="gd-del">${t("gd.delete")}</button></div></details>` : ""}</div>
+        ${g.desc ? `<p class="gd-desc">${esc(g.desc)}</p>` : ""}<div class="tags-row">${tagChips(g.tags)}</div>
+        ${S.guides.isGroup(g) ? groupCard(g, me) : ""}`}
       ${me ? `<div class="card gd-me"><div class="row-between"><b>${t("gd.mine", { d: pr.done, n: pr.total })}</b>
-          <div class="btn-row"><button class="btn small" id="gd-all-read">📚 ${t("gd.allToReading")}</button><button class="btn small primary" id="gd-next">👥 ${t("gd.nextStudy")}</button></div></div>
+          <div class="btn-row"><button class="btn small" id="gd-all-read">📚 ${t("gd.allToReading")}</button>${S.guides.isGroup(g) ? "" : `<button class="btn small primary" id="gd-next">👥 ${t("gd.nextStudy")}</button>`}</div></div>
         ${progressBar(pr.done, pr.total)}</div>` : ""}
       ${g.sections.map(sec => {
         const items = g.items.filter(it => it.section === sec.id);
@@ -153,16 +208,18 @@
     const rerender = () => renderPage(new URLSearchParams(location.hash.split("?")[1] || ""), g.id);
     if (editing) {
       const f = $("#gd-form", pageView), tags = [...(g.tags || [])];
-      wireTagPicker(f, tags);
+      wireTagPicker(f, tags); wireGroupFields(f);
       f.onsubmit = async e => {
         e.preventDefault();
         const titles = f.sections.value.split(",").map(s => s.trim()).filter(Boolean);
         const sections = titles.map(title => g.sections.find(x => x.title === title) || { title });
         await S.guides.update(g.id, { title: f.title.value, desc: f.desc.value, tags, sections });
+        if (f.groupOn.checked || g.group) await S.guides.setGroup(g.id, groupOf(f));
         location.hash = "#/guide/" + g.id;
       };
       return;
     }
+    $("#gd-join", pageView)?.addEventListener("click", async e => { await S.guides.joinGroup(g.id, e.currentTarget.dataset.on === "1"); rerender(); });
     $("#gd-del", pageView)?.addEventListener("click", async () => { if (await LabConfirm(t("gd.deleteQ"), { ok: t("gd.delete"), destructive: true })) { await S.guides.remove(g.id); location.hash = "#/guides"; } });
     $("#gd-all-read", pageView)?.addEventListener("click", async () => {
       const me = S.auth.current(); let n = 0;

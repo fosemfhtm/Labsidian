@@ -519,7 +519,10 @@ def list_studies(include_past: bool = False) -> list:
         if st.get("closed") and not include_past:
             continue
         qs = [q for q in d.get("studyQuestions") or [] if q["studyId"] == st["id"]]
+        g = next((x for x in d.get("guides") or [] if x["id"] == st.get("guideId")), None)
+        rnd = sorted((x for x in d.get("studies") or [] if x.get("guideId") == st.get("guideId")), key=lambda x: (x.get("date") or "9999", x.get("createdAt", ""))).index(st) + 1 if g else None
         out.append({"id": st["id"], "title": st["title"], "date": st.get("date") or None, "time": st.get("time") or None, "place": st.get("place") or None,
+                    **({"reading_group": g["title"], "round": rnd, "guide_id": g["id"]} if g else {}),
                     "presenter": _name(st["presenter"]), "members": [_name(u) for u in st["members"]], "questions": len(qs),
                     "closed": bool(st.get("closed")), "open": f"{SITE}/#/study/{st['id']}"})
     return out
@@ -614,7 +617,8 @@ def list_guides(tag: str = "") -> list:
 @mcp.tool()
 def get_guide(guide_id: str) -> dict:
     """One guide by section: every paper with who added it and why, 👍 count, who in the lab read it, whether I wrote
-    a diary on it, and the studies that covered it. Good for planning what to read or study next."""
+    a diary on it, and the studies that covered it. Good for planning what to read or study next. When the guide runs
+    as a reading group: its members, schedule and every session (round, paper, presenter, notes) — get_study for one."""
     d, g = DB.data(), _guide(guide_id)
     uid = me()["id"] if ME else ""
     mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
@@ -624,8 +628,16 @@ def get_guide(guide_id: str) -> dict:
                         "read_by": [_name(u) for u in it.get("readers") or []], "i_wrote": it.get("paperId") in mine,
                         "studies": [{"id": s, "title": st[s]["title"], "date": st[s].get("date") or None} for s in it.get("studies") or [] if s in st]}
                        for it in g["items"] if it["section"] == sid]
+    gr = g.get("group") or {}
+    sessions = sorted((x for x in st.values() if x.get("guideId") == g["id"]), key=lambda x: (x.get("date") or "9999", x.get("createdAt", "")))
+    days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    group = {"members": [_name(u) for u in gr.get("members") or []], "place": gr.get("place") or None,
+             "schedule": (f"every {'other ' if (gr.get('cadence') or {}).get('every') == 2 else ''}{days[gr['cadence']['weekday']]} {gr['cadence'].get('time', '')}".strip()
+                          if gr.get("cadence") else None),
+             "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenter": _name(x["presenter"]),
+                           "finished": bool(x.get("closed")), "has_notes": bool(x.get("notes"))} for i, x in enumerate(sessions)]} if gr.get("on") else None
     return {"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "tags": [tag_label(x) for x in g.get("tags") or []],
-            "sections": [{"section": x["title"], "papers": sec(x["id"])} for x in g["sections"]], "open": f"{SITE}/#/guide/{g['id']}"}
+            "reading_group": group, "sections": [{"section": x["title"], "papers": sec(x["id"])} for x in g["sections"]], "open": f"{SITE}/#/guide/{g['id']}"}
 
 
 @mcp.tool()
