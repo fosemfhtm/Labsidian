@@ -149,10 +149,10 @@
       <div class="ui-seg page-tabs">${["open", "past", "shared"].map(k => `<a href="#/study?tab=${k}" aria-current="${tab === k ? "page" : "false"}">${t("st.tab." + k)}${k === "open" && open.length ? ` <span class="ui-pill accent">${open.length}</span>` : ""}</a>`).join("")}</div>
       ${tab === "shared" ? sharedHtml() : `
         ${tab === "open" && (cands.length || gcands.length) ? `<div class="ui-card st-cands"><h4>${t("st.cands")}</h4><p class="hint">${t("st.candsHint")}</p>
-          ${cands.map(c => { const p = UI.PA[c.paperId]; return p ? `<div class="cand-row"><span class="t" data-open="paper:${p.id}">${esc(p.title)}</span>
+          ${cands.map(c => { const p = UI.PA[c.paperId]; return p ? `<div class="ui-row ruled cand-row"><span class="t" data-open="paper:${p.id}">${esc(p.title)}</span>
             ${UI.avStack(c.members, 4)}<a class="ui-btn small" href="#/study/new?paper=${p.id}">${t("st.candOpen")}</a></div>` : ""; }).join("")}
           ${gcands.map(({ guide: g, item: it }) => { const p = S.guides.paperOf(it), title = S.guides.titleOf(it);
-            return `<div class="cand-row"><span class="t">${p ? `<span data-open="paper:${p.id}">${esc(title)}</span>` : esc(title)}
+            return `<div class="ui-row ruled cand-row"><span class="t">${p ? `<span data-open="paper:${p.id}">${esc(title)}</span>` : esc(title)}
               <a class="m" href="#/guide/${g.id}">${t("st.gCand", { g: esc(g.title), n: it.votes.length })}</a></span>
             ${UI.avStack(it.votes, 4)}<a class="ui-btn small" href="#/study/new?${p ? `paper=${p.id}` : `title=${encodeURIComponent(title)}&link=${encodeURIComponent(it.meta?.link || "")}`}">${t("st.candOpen")}</a></div>`; }).join("")}</div>` : ""}
         ${grouped(tab === "open" ? open : past) || `<div class="ui-empty">${t(tab === "open" ? "st.empty" : "st.pastEmpty")}</div>`}`}`;
@@ -317,7 +317,7 @@
       ? `<div class="st-todo-done">✓ ${t("st.todo.allDone")}</div>`
       : !joined
       ? `<div class="ui-card st-todo join"><span>${t("st.todo.joinFirst")}</span><button class="ui-btn prominent" data-act="join">${t("st.join")}</button></div>`
-      : `<div class="ui-card st-todo"><b>${t("st.todo")}</b>${todo.map(x => `<div class="todo ${x.done ? "done" : ""} ${x.optional ? "opt" : ""}">
+      : `<div class="ui-card st-todo"><b>${t("st.todo")}</b>${todo.map(x => `<div class="ui-row todo ${x.done ? "done" : ""} ${x.optional ? "opt" : ""}">
           <span class="box">${x.done ? "✓" : ""}</span><span class="lbl">${x.label}</span>${x.go}</div>`).join("")}</div>`;
 
     // ---- tab bodies
@@ -334,7 +334,7 @@
         </div>
         <div class="st-side">
           <div class="ui-card st-prep"><h3>${t("st.prepStatus")}</h3>
-            ${st.members.map(u => `<div class="prep-row" data-open="person:${u}">${UI.avatar(u)}<span class="nm">${name(u)}${u === st.presenter ? ` <span class="ui-pill accent">${t("st.presenter")}</span>` : ""}</span>
+            ${st.members.map(u => `<div class="ui-row prep-row" data-open="person:${u}">${UI.avatar(u)}<span class="nm">${name(u)}${u === st.presenter ? ` <span class="ui-pill accent">${t("st.presenter")}</span>` : ""}</span>
               <span class="ck ${byPerson[u] ? "on" : ""}">${byPerson[u] ? "✓" : "·"} ${t("st.prepDiary")}</span>
               ${st.bring ? `<span class="ck ${st.picks?.[u] ? "on" : ""}">${st.picks?.[u] ? "✓" : "·"} ${t("st.prepPick")}</span>` : ""}</div>`).join("")}</div>
           ${p?.abstract ? `<details class="ui-card st-abs"><summary><h3>${t("st.abstract")}</h3></summary><p class="abstract-full">${esc(p.abstract)}</p></details>` : ""}
@@ -383,7 +383,7 @@
           <div class="form-foot"><span class="muted">${t("st.n.saved", { name: name(notes.by), at: fmtAt(notes.at) })}</span>
             ${canWriteNotes ? `<button class="ui-btn" data-act="nedit">${t("st.n.edit")}</button>` : ""}</div></div>`
         : `<div class="ui-card st-notes-empty"><p>${t("st.n.empty")}</p>${canWriteNotes ? `<button class="ui-btn prominent" data-act="nedit">${t("st.n.write")}</button>` : ""}</div>`}
-      ${discussed.length ? `<div class="ui-card st-discussed"><h4>${t("st.discussed")} · ${discussed.length}</h4>${discussed.map(q => `<div class="dq">👍 ${q.votes.length} · ${esc(q.body)}</div>`).join("")}</div>` : ""}`;
+      ${discussed.length ? `<div class="ui-card st-discussed"><h4>${t("st.discussed")} · ${discussed.length}</h4>${discussed.map(q => `<div class="ui-row ruled dq">👍 ${q.votes.length} · ${esc(q.body)}</div>`).join("")}</div>` : ""}`;
 
     view.innerHTML = `
       <a class="ui-btn text back" href="#/study">← ${t("st.title")}</a>

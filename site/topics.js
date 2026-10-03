@@ -21,7 +21,7 @@
       return { x, n: ps.length, people: new Set(ps.flatMap(p => p.readers)).size, guides: window.Store ? Store.guides.forTag(x.id).length : 0 };
     }).filter(r => r.n).sort((a, b) => b.n - a.n);
     const mx = list[0]?.n || 1;
-    return list.map(r => `<a class="tp-row" href="#/topic/${encodeURIComponent(r.x.id)}">
+    return list.map(r => `<a class="ui-row tp-row" href="#/topic/${encodeURIComponent(r.x.id)}">
       <span class="nm"><span class="dot" style="background:${r.x.color}"></span>${esc(UI.tl(r.x))}</span>
       <span class="track"><span class="fill" style="width:${(r.n / mx * 100).toFixed(1)}%;background:${r.x.color}"></span></span>
       <span class="m">${t("tp.papers", { n: r.n })} · ${t("tp.readers", { n: r.people })}${r.guides ? ` · 📚 ${r.guides}` : ""}</span></a>`).join("");

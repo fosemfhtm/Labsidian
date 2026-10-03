@@ -144,7 +144,7 @@
       ${window.LabSocial ? window.LabSocial.footer(r) : ""}
     </div>`;
   };
-  const miniPaper = (p, right) => `<div class="mini" data-open="paper:${p.id}"><span class="t">${esc(p.title)}</span>
+  const miniPaper = (p, right) => `<div class="ui-row mini" data-open="paper:${p.id}"><span class="t">${esc(p.title)}</span>
       <span class="m">${avStack(p.readers, 4)}</span>
       <span class="m">${right ?? stars(p.rating)}</span></div>`;
 
@@ -259,7 +259,7 @@
       <div class="mini-list">${top.map(p => miniPaper(p)).join("")}</div>
       <h4>${t("d.recentRead")}</h4>
       <div class="mini-list">${recent.map(p => miniPaper(p, p._last)).join("")}</div>
-      ${window.Store?.guides.forTag(tid).length ? `<h4>${t("gd.title")}</h4><div class="mini-list">${Store.guides.forTag(tid).map(g => `<a class="mini" href="#/guide/${g.id}"><span class="t">${esc(g.title)}</span><span class="m">${g.items.length}</span></a>`).join("")}</div>` : ""}
+      ${window.Store?.guides.forTag(tid).length ? `<h4>${t("gd.title")}</h4><div class="mini-list">${Store.guides.forTag(tid).map(g => `<a class="ui-row mini" href="#/guide/${g.id}"><span class="t">${esc(g.title)}</span><span class="m">${g.items.length}</span></a>`).join("")}</div>` : ""}
       <p class="kv"><a href="#/topic/${encodeURIComponent(tid)}">${t("tp.page")} →</a> · <a href="#/papers?topic=${encodeURIComponent(tid)}">${t("d.topicAll")}</a></p>
     `;
   }
@@ -405,10 +405,10 @@
   function studiesCard(pid) {
     const L = window.Store?.studies.forPaper(pid) || [];
     if (!L.length) return "";
-    const pickLink = pk => { const pp = Store.studies.pickPaper(pk); return `<div class="st-with">${avatar(pk.uid)}${pp ? `<a href="#/paper/${pp.id}">${esc(pk.title)}</a>` : esc(pk.title)}</div>`; };
+    const pickLink = pk => { const pp = Store.studies.pickPaper(pk); return `<div class="ui-row st-with">${avatar(pk.uid)}${pp ? `<a href="#/paper/${pp.id}">${esc(pk.title)}</a>` : esc(pk.title)}</div>`; };
     return `<div class="ui-card"><h3>${t("d.studies")}</h3>${L.map(({ st, common, picks }) => {
       const others = common ? Store.studies.picks(st) : [];
-      return `<a class="side-st" href="#/study/${st.id}"><b>📚 ${esc(st.title)}</b>
+      return `<a class="ui-row two side-st" href="#/study/${st.id}"><b>📚 ${esc(st.title)}</b>
         <span class="m">${common ? t("d.studyCommon") : t("d.studyPicked", { names: picks.map(pk => esc(P[pk.uid]?.name || pk.uid)).join(", ") })}${st.date ? " · " + esc(st.date) : ""}</span></a>
         ${others.length ? `<div class="m st-with-h">${t("d.studyWith")}</div>${others.map(pickLink).join("")}` : ""}`;
     }).join("")}</div>`;
@@ -443,7 +443,7 @@
         </div>
         <aside class="dp-side">
           ${studiesCard(p.id)}
-          <div class="ui-card"><h3>${t("d.readers")}</h3>${p.readers.map(r => `<div class="sim-row" data-open="person:${r}">${avatar(r)}<span>${esc(P[r]?.name || r)}</span><span></span><span class="m">${R[p.reviews.find(x => R[x].person === r)]?.date || ""}</span></div>`).join("")}</div>
+          <div class="ui-card"><h3>${t("d.readers")}</h3>${p.readers.map(r => `<div class="ui-row sim-row" data-open="person:${r}">${avatar(r)}<span>${esc(P[r]?.name || r)}</span><span></span><span class="m">${R[p.reviews.find(x => R[x].person === r)]?.date || ""}</span></div>`).join("")}</div>
           ${related.length ? `<div class="ui-card"><h3>${t("d.related")}</h3><div class="mini-list">${related.map(([x, s]) => miniPaper(x, Math.round(s * 100) + "%")).join("")}</div></div>` : ""}
           ${refs.length ? `<div class="ui-card"><h3>${t("d.citesIn")}</h3><div class="mini-list">${refs.map(x => miniPaper(x)).join("")}</div></div>` : ""}
         </aside>

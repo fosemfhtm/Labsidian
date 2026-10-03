@@ -195,7 +195,7 @@
     $("#me-rv-list", view).innerHTML = groups.map((g, i) => {
       const rows = g.rs.map(r => {
         const p = UI.PA[r.paper], c = S.comments.count(r.id);
-        return `<div class="mini rv-row" data-open="paper:${r.paper}"><span class="t">${esc(p?.title)}
+        return `<div class="ui-row mini rv-row" data-open="paper:${r.paper}"><span class="t">${esc(p?.title)}
           <span class="rv-tags">${[...(p?.domains || []).slice(0, 2).map(d => UI.tag("d:" + d)), ...(p?.methods || []).slice(0, 1).map(m => UI.tag("m:" + m))].join("")}</span></span>
           <span class="m">${c ? "💬 " + c : ""}</span><span class="m">${UI.stars(r.rating)}</span><span class="m">${r.date.slice(5)}</span>
           <a class="m ui-btn text" href="#/write?review=${r.id}" onclick="event.stopPropagation()">✎</a></div>`;
@@ -350,7 +350,7 @@
   let inboxN = 5;
   function inbox() {
     const all = S.notifications.list(), list = all.slice(0, inboxN);
-    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-type="${nf.type}">
+    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="ui-row two notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-type="${nf.type}">
       ${UI.avatar(nf.actor)}<div><div>${esc(LabNotifText(nf))}</div>${nf.excerpt ? `<div class="excerpt">“${esc(nf.excerpt)}”</div>` : ""}<div class="muted">${LabAgo(nf.at)}</div></div></div>`).join("")
       || `<div class="muted">${t("me.noInbox")}</div>`;
     if (all.length > inboxN) $("#me-inbox", view).insertAdjacentHTML("beforeend", `<button class="ui-btn text" id="me-inbox-more">${t("me.more")} (${all.length - inboxN})</button>`);
@@ -365,7 +365,7 @@
     const list = S.reading.list(), st = x => (x.written ? "written" : x.status), by = s => list.filter(x => st(x) === s);
     const active = [...by("reading"), ...by("read"), ...by("todo")].slice(0, 5);
     $("#me-reading", view).innerHTML = `<div class="rl-counts">${["reading", "todo", "read"].map(s => `<a href="#/reading"><b>${by(s).length}</b>${t("rl.s." + s)}</a>`).join("")}</div>`
-      + (active.map(x => `<div class="mini" ${x.paperId ? `data-open="paper:${esc(x.paperId)}"` : `onclick="location.hash='#/reading'"`}><span class="t">${esc(x.title)}</span>
+      + (active.map(x => `<div class="ui-row mini" ${x.paperId ? `data-open="paper:${esc(x.paperId)}"` : `onclick="location.hash='#/reading'"`}><span class="t">${esc(x.title)}</span>
         <span class="m rl-dot rl-st-${st(x)}">${t("rl.s." + st(x))}</span></div>`).join("") || `<div class="muted">${t("me.noReading")}</div>`)
       + `<a class="ui-btn text rl-all" href="#/reading">${t("me.readingAll")} →</a>`;
   }

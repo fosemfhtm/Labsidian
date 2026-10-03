@@ -79,7 +79,7 @@
     active = 0;
     let i = 0;
     box.querySelector(".spot-list").innerHTML = groups.map(g => `${g.group ? `<div class="spot-h">${esc(g.group)}</div>` : `<div class="spot-sep"></div>`}
-      ${g.items.map(it => `<div class="spot-row ${i === 0 ? "on" : ""}" role="option" data-i="${i++}">
+      ${g.items.map(it => `<div class="ui-row spot-row ${i === 0 ? "on" : ""}" role="option" data-i="${i++}">
         <span class="lead">${it.lead || (it.dot ? `<span class="dot" style="background:${esc(it.dot)}"></span>` : `<i data-lucide="${ICON[it.kind]}" class="ic"></i>`)}</span>
         <span class="txt"><b>${esc(it.title)}</b>${it.sub ? `<span>${esc(it.sub)}</span>` : ""}</span>
         <i data-lucide="corner-down-left" class="ic ret"></i></div>`).join("")}`).join("")

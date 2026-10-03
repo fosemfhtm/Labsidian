@@ -420,7 +420,7 @@ function renderPeopleLegend() {
   const s = state, el = $("#g-people");
   if (s.colorBy === "person") {
     el.innerHTML = `<div class="lg-title">${t("g.peopleLegend")}${s.people.size ? `<button class="ui-btn text" id="people-clear">${t("g.all")}</button>` : ""}</div>` +
-      [...D.people].filter(u => u.count).sort((a, b) => b.count - a.count).map(u => `<div class="pl ${s.people.size && !s.people.has(u.id) ? "off" : ""} ${s.people.has(u.id) ? "on" : ""}" data-id="${u.id}">
+      [...D.people].filter(u => u.count).sort((a, b) => b.count - a.count).map(u => `<div class="ui-row pl ${s.people.size && !s.people.has(u.id) ? "off" : ""} ${s.people.has(u.id) ? "on" : ""}" data-id="${u.id}">
         <i style="background:${u.color}"></i><span>${esc(u.name)}</span><span class="muted">${u.count}</span></div>`).join("") +
       `<div class="lg-note"><i class="ring"></i>${t("g.sharedRing")}</div>`;
   } else if (s.colorBy === "year") {
@@ -428,7 +428,7 @@ function renderPeopleLegend() {
       <div class="lg-ramp-l"><span>${YMIN}</span><span>${YMAX}</span></div><div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
   } else {
     el.innerHTML = `<div class="lg-title">${t("g.color.venue")}</div>` +
-      venuesSorted.slice(0, VENUE_NAMES.length).map(([v]) => `<div class="pl" data-venue="${esc(v)}"><i style="background:rgb(var(--${venueName[v]}))"></i><span>${esc(v)}</span></div>`).join("") +
+      venuesSorted.slice(0, VENUE_NAMES.length).map(([v]) => `<div class="ui-row pl" data-venue="${esc(v)}"><i style="background:rgb(var(--${venueName[v]}))"></i><span>${esc(v)}</span></div>`).join("") +
       `<div class="lg-note"><i class="other"></i>${t("g.others")}</div>`;
   }
 }
@@ -564,9 +564,9 @@ function initUI() {
     const ppl = D.people.filter(u => u.name.toLowerCase().includes(q));
     s.find = new Set([...hits.map(p => p.id), ...ppl.map(u => "u:" + u.id)]);
     results.hidden = false;
-    results.innerHTML = [...ppl.map(u => `<div class="fr" data-id="u:${u.id}"><span class="dot" style="background:${u.color}"></span>${esc(u.name)}</div>`),
-      ...hits.slice(0, 8).map(p => `<div class="fr" data-id="${p.id}"><span class="dot" style="background:${paperColor(p)}"></span>${esc(p.title)}</div>`)].join("")
-      || `<div class="fr muted">—</div>`;
+    results.innerHTML = [...ppl.map(u => `<div class="ui-row fr" data-id="u:${u.id}"><span class="dot" style="background:${u.color}"></span>${esc(u.name)}</div>`),
+      ...hits.slice(0, 8).map(p => `<div class="ui-row fr" data-id="${p.id}"><span class="dot" style="background:${paperColor(p)}"></span>${esc(p.title)}</div>`)].join("")
+      || `<div class="ui-row fr muted">—</div>`;
     renderer.refresh();
   };
   find.onkeydown = e => { if (e.key === "Enter") results.querySelector(".fr[data-id]")?.click(); if (e.key === "Escape") { find.value = ""; find.oninput(); } };

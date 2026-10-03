@@ -221,7 +221,7 @@
   function notifMenu() {
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="ui-btn text" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
-      (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
+      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
         ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="ui-empty">${t("n.empty")}</div>`);

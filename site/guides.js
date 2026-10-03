@@ -141,7 +141,7 @@
            : stt.read ? `<a class="ui-pill ok" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.studied")} · ${esc(stt.read.date || "")}</a>` : "",
          stt.fromRound ? `<span class="ui-pill outline">${t("gd.st.from", { n: stt.fromRound })}</span>` : ""].join("")
       : studies.map(st => `<a class="ui-pill ok" href="#/study/${st.id}${notesQ(st)}">${t("gd.studied")} · ${esc(st.date || "")}</a>`).join("");
-    return `<div class="gd-item ${done ? "done" : ""}" data-item="${it.id}">
+    return `<div class="ui-row rich ruled gd-item ${done ? "done" : ""}" data-item="${it.id}">
       <span class="gd-check" title="${done ? "✓" : ""}">${done ? "✓" : ""}</span>
       <div class="gd-main">
         <div class="gd-t">${p ? `<a data-open="paper:${p.id}">${esc(title)}</a>` : link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(title)}</a>` : esc(title)}</div>
