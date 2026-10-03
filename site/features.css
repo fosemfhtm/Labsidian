@@ -122,8 +122,8 @@ details.fld summary { cursor: pointer; }
 .me-head h1 { margin: 0; }
 .me-head .sub { margin: 0; }
 .me-head .btn-row { margin: 0; }
-.me-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin: var(--s-4) 0; }
-.page .ui-card h3 { margin: 0 0 10px; font-size: var(--fs-body); }
+.me-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-6); margin: var(--s-6) 0; }
+.page .ui-card h3 { margin: 0 0 var(--s-3); font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .side-col { display: grid; gap: 14px; align-content: start; }
 .big-num { display: flex; align-items: baseline; gap: 10px; }
 .big-num b { font-size: var(--fs-large-title); letter-spacing: -.03em; }
@@ -201,9 +201,9 @@ details.fld summary { cursor: pointer; }
 .back { margin-bottom: 10px; display: inline-block; font-size: var(--fs-body); }
 .dp-head h1 { font-size: var(--fs-title1); line-height: 1.3; letter-spacing: -.02em; margin: 8px 0 8px; }
 .dp-head .kv { margin-top: 3px; }
-.dp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; margin-top: 18px; align-items: start; }
+.dp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--s-6); margin-top: var(--s-6); align-items: start; }
 .dp-main { display: grid; gap: 14px; min-width: 0; }
-.dp-side { display: grid; gap: 14px; position: sticky; top: calc(var(--top-h) + 16px); max-height: calc(100vh - var(--top-h) - 32px); overflow: auto; }
+.dp-side { display: grid; gap: var(--s-6); position: sticky; top: calc(var(--top-h) + 16px); max-height: calc(100vh - var(--top-h) - 32px); overflow: auto; }
 .dp-side.ui-card .pd-head { display: none; }
 .dp-side h4:first-of-type { margin-top: 0; }
 .dp-sec { margin: 6px 0 0; font-size: var(--fs-body); display: flex; align-items: center; gap: 8px; }
@@ -247,8 +247,8 @@ details.fld summary { cursor: pointer; }
 .att.img button { position: absolute; top: 2px; right: 2px; background: var(--scrim-strong); color: var(--on-color); border-radius: 50%; width: 18px; height: 18px; line-height: 18px; text-align: center; padding: 0; }
 
 /* home feed */
-.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; }
-.feed { display: grid; gap: 14px; }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s-6); align-items: start; }
+.feed { display: grid; gap: var(--s-6); }
 .feed-item { display: grid; gap: 8px; }
 .feed-ctx { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: var(--fs-body); color: var(--text-2); }
 .feed-ctx .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); }
@@ -260,8 +260,8 @@ details.fld summary { cursor: pointer; }
 .feed-item.act.idea { border-left: 3px solid rgb(var(--green)); }
 .act-body { font-size: var(--fs-body); line-height: 1.55; white-space: pre-wrap; }
 .act-paper { font-size: var(--fs-callout); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.home-side { position: sticky; top: calc(var(--top-h) + 16px); display: grid; gap: 12px; }
-.home-side h4 { margin: 0 0 8px; font-size: var(--fs-body); }
+.home-side { position: sticky; top: calc(var(--top-h) + 16px); display: grid; gap: var(--s-6); }
+.home-side h4 { margin: 0 0 var(--s-3); font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .compose { display: grid; gap: 12px; }
 .compose-row { display: flex; gap: 10px; align-items: center; font-size: var(--fs-body); }
 .compose-row .muted { font-size: var(--fs-callout); margin-top: 3px; }
@@ -278,7 +278,7 @@ details.fld summary { cursor: pointer; }
 
 /* paper study */
 .row-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--s-6); }
 .st-card { display: grid; gap: 8px; text-decoration: none; color: var(--text); transition: border-color .15s; }
 .st-card:hover { border-color: var(--accent); }
 .st-card.closed { opacity: .8; }
@@ -310,7 +310,7 @@ details.fld summary { cursor: pointer; }
 .st-q-form textarea { resize: vertical; }
 .st-q-form .ui-btn { justify-self: end; }
 .st-qs { display: grid; gap: 8px; }
-.st-q { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 9px 10px; background: var(--bg-2); border-radius: var(--r-control); font-size: var(--fs-body); }
+.st-q { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: var(--s-3) 0; border-top: .5px solid var(--separator); font-size: var(--fs-body); }
 .st-q.done { opacity: .55; }
 .st-q.done .body { text-decoration: line-through; text-decoration-color: var(--text-3); }
 .st-q .body { white-space: pre-wrap; line-height: 1.5; }
@@ -383,7 +383,7 @@ details.fld summary { cursor: pointer; }
 .st-manage hr { border: 0; border-top: 1px solid var(--line); margin: 2px 0; width: 100%; }
 .st-manage .ui-btn.text { text-align: left; }
 .st-todo { display: grid; gap: 4px; margin-bottom: 16px; max-width: 640px; }
-.st-todo > b { font-size: var(--fs-body); margin-bottom: 4px; }
+.st-todo > h3 { margin-bottom: 4px; }
 .st-todo.join { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-2); font-size: var(--fs-body); }
 .todo { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .todo.done .lbl { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--separator); }
@@ -442,7 +442,6 @@ details.fld summary { cursor: pointer; }
 @media (max-width: 420px) { .top #nav a { padding: 6px 2px; font-size: var(--fs-caption1); } }   /* small phones: all six tabs still fit (English is the longest) */
 
 /* ---------- my own diary stands out among the others on a paper ---------- */
-.review.mine { background: rgb(var(--accent-rgb) / .07); }
 
 /* ---------- popovers of the calendar / interest chart: the elevated surface of the design system ---------- */
 .cal-tip, .drift-tip { position: absolute; z-index: 5; line-height: 1.45; pointer-events: none; }

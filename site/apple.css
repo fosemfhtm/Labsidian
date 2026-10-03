@@ -83,7 +83,7 @@ body:has(#drawer.open) .legend { right: 548px; }
 .paper-row:hover, .person-card:hover, .feed-item.act:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); border: 0; transform: none; }
 .drawer .ui-card, .modal .ui-card { background: var(--fill-4); box-shadow: none; }
 .review { border-left: 0; background: var(--panel); border-radius: var(--r-card); padding: 14px 16px; box-shadow: var(--shadow-1); }
-.ui-card .review, .drawer .review, .shared-item .review, .pk-diary .review, .modal .review { background: var(--fill-4); box-shadow: none; }
+.ui-card .review, .drawer .review, .shared-item .review, .pk-diary .review, .modal .review { background: none; box-shadow: none; border-radius: 0; border-top: .5px solid var(--separator); padding-inline: 0; }
 .review.st-missing { border: 1.5px dashed var(--separator); background: none; box-shadow: none; }
 .rv-head { font-size: var(--fs-body); }
 .rv-head b { font-size: var(--fs-body); }
@@ -92,7 +92,7 @@ body:has(#drawer.open) .legend { right: 548px; }
 .rv-body:not(.open) { -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
 .rv-body:not(.open)::after { display: none; }
 .rv-toggle { color: var(--accent); font-size: var(--fs-body); }
-.rv-memo { background: rgb(var(--accent-rgb) / .08); border-radius: var(--r-control); padding: 10px 12px; font-size: var(--fs-body); color: var(--label); }
+.rv-memo { background: none; border-top: .5px solid var(--separator); border-radius: 0; padding: var(--s-3) 0 0; font-size: var(--fs-body); color: var(--label); }   /* inside a card: a separator, not a grey box (Settings) */
 .rv-memo::before { font-size: var(--fs-subhead); letter-spacing: .06em; }
 .rv-files .rv-pdf, .att.pdf { background: var(--fill-4); border: 0; border-radius: var(--r-control); }
 .stat { background: var(--fill-4); }
@@ -118,7 +118,7 @@ body:has(#drawer.open) .legend { right: 548px; }
 
 /* ---------- menus, popovers, notifications ---------- */
 .notif.unread { background: rgb(var(--accent-rgb) / .1); }
-.tb-search .find-results { border-radius: var(--r-card); }
+.tb-search .find-results { border-radius: var(--r-popover); }
 .tb-search .find-results > div:hover { background: var(--fill-3); }
 
 /* ---------- modal (alert / sheet), login, toast ---------- */
@@ -134,7 +134,6 @@ body:has(#drawer.open) .legend { right: 548px; }
 .todo.done .lbl { color: var(--label-3); text-decoration-color: var(--label-4); }
 .st-todo-done { color: rgb(var(--green)); }
 .pk-n { background: var(--accent); }
-.st-q { background: var(--fill-4); }
 .st-q .vote { background: var(--panel); border: 0; box-shadow: inset 0 0 0 1px var(--separator); }
 .st-q .vote.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .st-card:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); }

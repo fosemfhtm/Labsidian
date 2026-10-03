@@ -317,7 +317,7 @@
       ? `<div class="st-todo-done">✓ ${t("st.todo.allDone")}</div>`
       : !joined
       ? `<div class="ui-card st-todo join"><span>${t("st.todo.joinFirst")}</span><button class="ui-btn prominent" data-act="join">${t("st.join")}</button></div>`
-      : `<div class="ui-card st-todo"><b>${t("st.todo")}</b>${todo.map(x => `<div class="ui-row todo ${x.done ? "done" : ""} ${x.optional ? "opt" : ""}">
+      : `<div class="ui-card st-todo"><h3>${t("st.todo")}</h3>${todo.map(x => `<div class="ui-row todo ${x.done ? "done" : ""} ${x.optional ? "opt" : ""}">
           <span class="ui-done ${x.done ? "checked" : ""}">${x.done ? "✓" : ""}</span><span class="lbl">${x.label}</span>${x.go}</div>`).join("")}</div>`;
 
     // ---- tab bodies

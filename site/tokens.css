@@ -48,13 +48,13 @@
   --label-3: rgb(235 235 245 / .3);
   --label-4: rgb(235 235 245 / .18);
   --label-meta: rgb(235 235 245 / .56);   /* app text that must stay ≥ 4.5:1 (dates, counts, hints) */
-  --link-text: #2997ff;
-  --sys-bg: #1c1c1e;              /* base (gray6) — not pure black */
-  --sys-bg-2: #2c2c2e;            /* cards on base (gray5) */
-  --sys-bg-3: #3a3a3c;            /* elevated: popovers, sheets, menus (gray4) */
-  --bg-grouped: #1c1c1e;
-  --bg-grouped-2: #2c2c2e;
-  --bg-grouped-3: #3a3a3c;
+  --link-text: var(--accent);
+  --sys-bg: #000;                 /* base — black, as in the Settings app */
+  --sys-bg-2: #1c1c1e;            /* cards on base (gray6) */
+  --sys-bg-3: #2c2c2e;            /* elevated: popovers, sheets, menus (gray5) */
+  --bg-grouped: #000;
+  --bg-grouped-2: #1c1c1e;
+  --bg-grouped-3: #2c2c2e;
   --separator: rgb(84 84 88 / .6);
   --separator-opaque: #38383a;
   --fill: rgb(120 120 128 / .36);
@@ -93,7 +93,7 @@
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-11: 44px;
   --margin: 20px;              /* screen margin: 16 compact / 20 regular [외부] */
   --readable: 672px;           /* readable content width [외부] */
-  --r-sheet: 20px; --r-card: 14px; --r-control: 10px; --r-control-sm: 8px; --r-xs: 4px; --r-full: 999px;
+  --r-sheet: 20px; --r-card: 20px; --r-popover: 14px; --r-control: 10px; --r-control-sm: 8px; --r-xs: 4px; --r-full: 999px;
   --shadow-1: none;            /* dark: separate layers by colour, not shadow */
   --shadow-2: 0 18px 50px rgb(0 0 0 / .45);
   --ease: cubic-bezier(.2, .8, .2, 1);
@@ -114,7 +114,7 @@
   --red: 255 56 60; --orange: 255 141 40; --yellow: 255 204 0; --green: 52 199 89; --mint: 0 200 179; --teal: 0 195 208;
   --cyan: 0 192 232; --blue: 0 136 255; --indigo: 97 85 245; --purple: 203 48 224; --pink: 255 45 85; --brown: 172 127 94;
   --gray: 142 142 147; --gray2: 174 174 178; --gray3: 199 199 204; --gray4: 209 209 214; --gray5: 229 229 234; --gray6: 242 242 247;
-  --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: #0066cc;
+  --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: var(--accent);
   --sys-bg: #fff; --sys-bg-2: #f2f2f7; --sys-bg-3: #fff;
   --bg-grouped: #f2f2f7; --bg-grouped-2: #fff; --bg-grouped-3: #f2f2f7;
   --separator: rgb(60 60 67 / .29); --separator-opaque: #c6c6c8;
@@ -133,7 +133,7 @@
     --red: 255 56 60; --orange: 255 141 40; --yellow: 255 204 0; --green: 52 199 89; --mint: 0 200 179; --teal: 0 195 208;
     --cyan: 0 192 232; --blue: 0 136 255; --indigo: 97 85 245; --purple: 203 48 224; --pink: 255 45 85; --brown: 172 127 94;
     --gray: 142 142 147; --gray2: 174 174 178; --gray3: 199 199 204; --gray4: 209 209 214; --gray5: 229 229 234; --gray6: 242 242 247;
-    --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: #0066cc;
+    --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: var(--accent);
     --sys-bg: #fff; --sys-bg-2: #f2f2f7; --sys-bg-3: #fff;
     --bg-grouped: #f2f2f7; --bg-grouped-2: #fff; --bg-grouped-3: #f2f2f7;
     --separator: rgb(60 60 67 / .29); --separator-opaque: #c6c6c8;
@@ -352,7 +352,7 @@
 :where([data-ui]) .ui-toolbar .zone { display: flex; align-items: center; gap: 4px; }
 :where([data-ui]) .ui-toolbar .zone.mid { flex: 1; justify-content: center; }
 :where([data-ui]) .ui-toolbar .title { font: var(--t-headline); letter-spacing: var(--tr-headline); padding: 0 6px; }
-:where([data-ui]) .ui-menu { min-width: 220px; padding: 6px; border-radius: var(--r-card); color: var(--label); }
+:where([data-ui]) .ui-menu { min-width: 220px; padding: 6px; border-radius: var(--r-popover); color: var(--label); }
 :where([data-ui]) .ui-menu > a, :where([data-ui]) .ui-menu > button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: max(var(--hit), 26px); padding: 0 10px; border: 0; border-radius: var(--r-control-sm);
   background: none; color: var(--label); font: var(--t-body); text-align: left; text-decoration: none; cursor: pointer; }
 :where([data-ui]) .ui-menu > a:hover, :where([data-ui]) .ui-menu > button:hover { background: rgb(var(--accent-rgb)); color: var(--on-accent); }
@@ -361,7 +361,7 @@
 :where([data-ui]) .ui-menu hr { border: 0; height: .5px; background: var(--separator); margin: 5px 8px; }
 /* popover: anchored to a control, one at a time (filters, pickers, autocomplete — .list for a plain list of rows) */
 :where([data-ui]) .ui-popover { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
-  box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-card); padding: var(--s-3); color: var(--label); }
+  box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-popover); padding: var(--s-3); color: var(--label); }
 :where([data-ui]) .ui-popover.list { padding: 6px; }
 :where([data-ui]) .ui-popover.list > div { border-radius: var(--r-control-sm); }
 :where([data-ui]) .ui-popover.list > div:hover { background: var(--fill-3); }
