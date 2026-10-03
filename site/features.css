@@ -500,7 +500,8 @@ details.fld summary { cursor: pointer; }
 .rl-home { display: inline-block; margin-top: 4px; font-size: var(--fs-callout); }
 
 /* ---------- my page: reading | inbox | studies, then my diaries ---------- */
-.me-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); margin: var(--s-4) 0; align-items: stretch; }
+.me-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-6); margin: var(--s-6) 0; align-items: stretch; }
+@media (max-width: 900px) { .me-trio, .me-grid { grid-template-columns: minmax(0, 1fr); } }   /* one column: three cards side by side don't fit a phone */
 .me-trio > .ui-card { margin: 0; display: flex; flex-direction: column; gap: var(--s-1); }
 .me-trio > .ui-card > .ui-btn.text:last-child { margin-top: auto; align-self: flex-start; }
 .me-st-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

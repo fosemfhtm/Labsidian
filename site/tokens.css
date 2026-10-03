@@ -243,7 +243,7 @@
 :where([data-ui]) .ui-btn.text:active { transform: none; }
 :where([data-ui]) .ui-btn.text.destructive { color: var(--danger); }
 :where([data-ui]) .ui-btn.text .ic { margin-right: .25em; }
-:where([data-ui]) .ui-btn.large { min-height: max(var(--hit), 34px); padding: 0 18px; font-size: var(--fs-title3); }
+:where([data-ui]) .ui-btn.large { min-height: max(var(--hit), 34px); padding: 0 18px; font-weight: 600; }   /* bigger target, same text size (iOS large buttons keep body text) */
 :where([data-ui]) .ui-btn.small { min-height: max(var(--hit), 22px); padding: 0 8px; border-radius: var(--r-control-sm); }
 :where([data-ui]) .ui-btn.icon { width: max(var(--hit), 28px); padding: 0; }
 :where([data-ui]) .ui-btn.small.icon { width: max(var(--hit), 22px); }
