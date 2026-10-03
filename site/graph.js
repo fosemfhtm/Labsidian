@@ -400,7 +400,7 @@ function select(id, opts = {}) {
 
 // ---------------- UI: toolbar popovers, people legend, settings ----------------
 const chip = (id, label, color, on) =>
-  `<span class="chip ${on ? "on" : ""}" data-id="${esc(id)}">${color ? `<span class="dot" style="background:${color}"></span>` : ""}${esc(label)}</span>`;
+  `<button type="button" class="ui-chip" aria-pressed="${!!on}" data-id="${esc(id)}">${color ? `<span class="dot" style="background:${color}"></span>` : ""}${esc(label)}</button>`;
 const toggleSet = (set, id) => (set.has(id) ? set.delete(id) : set.add(id));
 
 function renderPopovers() {
@@ -419,7 +419,7 @@ function renderPopovers() {
 function renderPeopleLegend() {
   const s = state, el = $("#g-people");
   if (s.colorBy === "person") {
-    el.innerHTML = `<div class="lg-title">${t("g.peopleLegend")}${s.people.size ? `<button class="link-btn" id="people-clear">${t("g.all")}</button>` : ""}</div>` +
+    el.innerHTML = `<div class="lg-title">${t("g.peopleLegend")}${s.people.size ? `<button class="ui-btn text" id="people-clear">${t("g.all")}</button>` : ""}</div>` +
       [...D.people].filter(u => u.count).sort((a, b) => b.count - a.count).map(u => `<div class="pl ${s.people.size && !s.people.has(u.id) ? "off" : ""} ${s.people.has(u.id) ? "on" : ""}" data-id="${u.id}">
         <i style="background:${u.color}"></i><span>${esc(u.name)}</span><span class="muted">${u.count}</span></div>`).join("") +
       `<div class="lg-note"><i class="ring"></i>${t("g.sharedRing")}</div>`;
@@ -434,7 +434,7 @@ function renderPeopleLegend() {
 }
 function updateToolbar() {
   const s = state;
-  const badge = (id, n) => { const b = $(id); b.classList.toggle("active", n > 0); b.querySelector(".n").textContent = n ? n : ""; };
+  const badge = (id, n) => { const b = $(id); b.setAttribute("aria-pressed", n > 0); b.querySelector(".n").textContent = n ? n : ""; };
   badge("#tb-field", s.tags.size + s.methods.size);
   badge("#tb-venue", s.venues.size + s.vtypes.size);
   badge("#tb-year", s.yearMin !== YMIN || s.yearMax !== YMAX || !s.yearUnknown ? 1 : 0);
@@ -476,11 +476,11 @@ function initUI() {
 
   renderPopovers();
   $("#pop-field").addEventListener("click", e => {
-    const c = e.target.closest(".chip"); if (!c) return;
+    const c = e.target.closest(".ui-chip"); if (!c) return;
     const [ax, k] = c.dataset.id.split(":");
-    toggleSet(ax === "d" ? s.tags : s.methods, k); c.classList.toggle("on"); changed();
+    toggleSet(ax === "d" ? s.tags : s.methods, k); c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); changed();
   });
-  $("#pop-venue .chips").onclick = e => { const c = e.target.closest(".chip"); if (!c) return; toggleSet(s.vtypes, c.dataset.id); c.classList.toggle("on"); changed(); };
+  $("#pop-venue .chips").onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; toggleSet(s.vtypes, c.dataset.id); c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); changed(); };
   $("#pop-venue .checklist").onchange = e => { if (e.target.dataset.id) { toggleSet(s.venues, e.target.dataset.id); changed(); } };
   $("#venue-q").oninput = renderPopovers;
 
@@ -497,7 +497,7 @@ function initUI() {
 
   const seg = (sel, fn) => $(sel).addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    $(sel).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); fn(b.dataset.v);
+    $(sel).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); fn(b.dataset.v);
   });
   seg("#f-rating", v => { s.minRating = +v; changed(); });
   seg("#f-mode", v => { s.mode = v; changed(); });
@@ -509,7 +509,7 @@ function initUI() {
     Object.assign(s, { people: new Set(), tags: new Set(), methods: new Set(), venues: new Set(), vtypes: new Set(),
       yearMin: YMIN, yearMax: YMAX, yearUnknown: true, minRating: 0, sharedOnly: false });
     resetYear(); $("#f-year-unknown").checked = true; $("#f-shared").checked = false;
-    $("#f-rating").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === 0));
+    $("#f-rating").querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", i === 0));
     renderPopovers(); changed();
   };
 

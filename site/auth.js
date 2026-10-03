@@ -76,7 +76,7 @@
     const m = document.createElement("div");
     m.className = "ui-scrim"; m.setAttribute("data-ui", ""); m.dataset.theme = document.documentElement.dataset.theme || "auto";
     m.innerHTML = `<div class="ui-alert ui-glass strong" role="alertdialog" aria-modal="true"><h3>${esc(title)}</h3>${opts.message ? `<p>${esc(opts.message)}</p>` : ""}
-      <div class="acts"><button class="ui-btn neutral" data-v="0">${esc(opts.cancel || t("c.cancel"))}</button>
+      <div class="acts"><button class="ui-btn" data-v="0">${esc(opts.cancel || t("c.cancel"))}</button>
       <button class="ui-btn ${opts.destructive ? "destructive" : "prominent"}" data-v="1">${esc(opts.ok || t("c.ok"))}</button></div></div>`;
     const done = v => { m.remove(); document.removeEventListener("keydown", key); resolve(v); };
     const key = e => { if (e.key === "Escape") done(false); if (e.key === "Enter") done(true); };
@@ -99,12 +99,12 @@
       <label>${t("a.id")}<input name="name" autocomplete="username" required></label>
       <label>${t("a.pw")}<input name="pw" type="password" autocomplete="current-password" required></label>
       <p class="err" id="login-err"></p>
-      <button class="btn primary wide">${t("a.login")}</button>
+      <button class="ui-btn prominent large">${t("a.login")}</button>
       ${S.demo ? "</details>" : S.mock ? `<p class="hint">${t("a.mock")}</p>` : ""}
-      <div class="lang seg gate-lang"><button type="button" data-v="ko">KO</button><button type="button" data-v="en">EN</button></div>
+      <div class="lang ui-seg small gate-lang"><button type="button" data-v="ko">KO</button><button type="button" data-v="en">EN</button></div>
     </form>`;
     document.body.appendChild(g);
-    g.querySelectorAll(".gate-lang button").forEach(b => { b.classList.toggle("on", b.dataset.v === lang); b.onclick = () => I18N.setLang(b.dataset.v); });
+    g.querySelectorAll(".gate-lang button").forEach(b => { b.setAttribute("aria-pressed", b.dataset.v === lang); b.onclick = () => I18N.setLang(b.dataset.v); });
     g.querySelector("form").onsubmit = async e => {
       e.preventDefault();
       const f = e.target;
@@ -121,7 +121,7 @@
       <label>${t("a.new")}<input name="n1" type="password" autocomplete="new-password" required></label>
       <label>${t("a.new2")}<input name="n2" type="password" autocomplete="new-password" required></label>
       <p class="err" id="pw-err"></p>
-      <div class="modal-foot">${forced ? "" : `<button type="button" class="btn" data-close>${t("a.cancel")}</button>`}<button class="btn primary">${t("a.save")}</button></div>
+      <div class="modal-foot">${forced ? "" : `<button type="button" class="ui-btn" data-close>${t("a.cancel")}</button>`}<button class="ui-btn prominent">${t("a.save")}</button></div>
     </form>`, { forced });
     m.querySelector("form").onsubmit = async e => {
       e.preventDefault();
@@ -143,8 +143,8 @@
     const termLabel = !vt.length ? t("tm.all") : vt.length === 1 ? (all.find(x => x.id === vt[0])?.label || vt[0]) : `${all.find(x => x.id === vt[0])?.label || vt[0]} +${vt.length - 1}`;
     host.innerHTML = `
       <button class="term-btn ${vt.length ? "active" : ""}" id="term-btn">📅 <span class="hide-sm">${esc(termLabel)}</span><span class="caret">▾</span></button>
-      <a class="btn primary small" href="#/write">✎ <span class="hide-sm">${t("m.write")}</span></a>
-      <button class="icon-btn bell" id="bell" title="${t("n.title")}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>
+      <a class="ui-btn prominent small" href="#/write">✎ <span class="hide-sm">${t("m.write")}</span></a>
+      <button class="top-icon bell" id="bell" title="${t("n.title")}">🔔${n ? `<span class="ui-badge">${n > 99 ? "99+" : n}</span>` : ""}</button>
       <button class="user-btn" id="user-btn">${me.id === "admin" ? `<span class="avatar admin">A</span>` : UI.avatar(me.id)}<span class="hide-sm">${esc(me.name)}</span><span class="caret">▾</span></button>`;
     $("#lang").before(host);
     $("#bell").onclick = e => { e.stopPropagation(); toggleMenu("notif", notifMenu, e.currentTarget); };
@@ -178,7 +178,7 @@
     return `<div class="menu-h"><b>${t("tm.title")}</b></div><p class="hint menu-hint">${t("tm.hint")}</p>
       <label class="check menu-check"><input type="checkbox" data-all ${vt.length ? "" : "checked"}> ${t("tm.all")}</label>
       ${S.view.allTerms().reverse().map(x => `<label class="check menu-check"><input type="checkbox" data-term="${esc(x.id)}" ${vt.includes(x.id) ? "checked" : ""}> ${esc(x.label)}</label>`).join("")}
-      <div class="menu-foot"><button class="btn primary small" data-act="apply">${t("tm.apply")}</button></div>`;
+      <div class="menu-foot"><button class="ui-btn prominent small" data-act="apply">${t("tm.apply")}</button></div>`;
   }
   function wireTerms(m) {
     const all = m.querySelector("[data-all]"), boxes = [...m.querySelectorAll("[data-term]")];
@@ -190,8 +190,8 @@
     const me = S.auth.current();
     return `<a href="#/me" data-go>${t("m.me")}</a><a href="#/reading" data-go>${t("m.reading")}</a><a href="#/write" data-go>${t("m.write")}</a>
       <button data-act="pw">${t("m.pw")}</button>${me.role === "admin" ? `<a href="#/admin" data-go>${t("m.admin")}</a>` : ""}
-      <hr><div class="menu-theme"><span>${t("m.theme")}</span><div class="seg">${["auto", "light", "dark"].map(v => `<button data-theme-set="${v}" class="${(document.documentElement.dataset.theme || "auto") === v ? "on" : ""}">${t("m." + v)}</button>`).join("")}</div></div>
-      <div class="menu-theme menu-lang"><span>${t("m.lang")}</span><div class="seg">${["ko", "en"].map(v => `<button data-lang-set="${v}" class="${lang === v ? "on" : ""}">${v.toUpperCase()}</button>`).join("")}</div></div>
+      <hr><div class="menu-theme"><span>${t("m.theme")}</span><div class="ui-seg small">${["auto", "light", "dark"].map(v => `<button data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "auto") === v}">${t("m." + v)}</button>`).join("")}</div></div>
+      <div class="menu-theme menu-lang"><span>${t("m.lang")}</span><div class="ui-seg small">${["ko", "en"].map(v => `<button data-lang-set="${v}" aria-pressed="${lang === v}">${v.toUpperCase()}</button>`).join("")}</div></div>
       <hr><button data-act="logout">${t("m.logout")}</button>`;
   }
   function wireUser(m) {
@@ -202,7 +202,7 @@
       const v = b.dataset.themeSet;
       try { v === "auto" ? localStorage.removeItem("lab.theme") : localStorage.setItem("lab.theme", v); } catch (x) {}
       document.documentElement.dataset.theme = v;   // CSS follows by itself; canvases (the graph) listen for lab:theme
-      m.querySelectorAll("[data-theme-set]").forEach(x => x.classList.toggle("on", x === b));
+      m.querySelectorAll("[data-theme-set]").forEach(x => x.setAttribute("aria-pressed", x === b));
       window.dispatchEvent(new Event("lab:theme"));
     }));
     m.querySelectorAll("[data-lang-set]").forEach(b => (b.onclick = () => b.dataset.langSet !== lang && I18N.setLang(b.dataset.langSet)));
@@ -220,7 +220,7 @@
   window.LabNotifText = n => t("n." + n.type, { a: actorName(n.actor) });
   function notifMenu() {
     const list = S.notifications.list().slice(0, 30);
-    return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="link-btn" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
+    return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="ui-btn text" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
       (list.map(n => `<div class="notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
         ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
@@ -247,7 +247,7 @@
   window.LabOpenNotif = openNotif;
   function updateBell() {
     const n = S.notifications.unread(), b = $("#bell");
-    if (b) b.innerHTML = `🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}`;
+    if (b) b.innerHTML = `🔔${n ? `<span class="ui-badge">${n > 99 ? "99+" : n}</span>` : ""}`;
   }
   window.LabUpdateBell = updateBell;
 
@@ -281,7 +281,7 @@
     if (needsReload) {
       const b = document.createElement("div");
       b.className = "mcp-banner";
-      b.innerHTML = `🤖 ${t("mcp.applied", { n: applied })} <button class="btn small primary">${t("mcp.reload")}</button>`;
+      b.innerHTML = `🤖 ${t("mcp.applied", { n: applied })} <button class="ui-btn small prominent">${t("mcp.reload")}</button>`;
       b.querySelector("button").onclick = () => location.reload();
       document.body.appendChild(b);
     } else LabToast("🤖 " + t("mcp.applied", { n: applied }), 3500);

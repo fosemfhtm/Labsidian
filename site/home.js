@@ -92,7 +92,7 @@
     const key = c.parent ? "h.act.reply" : `h.act.${["question", "idea"].includes(c.kind) ? c.kind : "comment"}`;
     return `<article class="feed-item act ${c.kind}" data-review="${r.id}" data-paper="${r.paper}" data-comment="${c.id}">
       <div class="feed-ctx">${UI.avatar(c.author)}<span>${t(key, { a: `<b>${name(c.author)}</b>`, b: `<b>${name(r.person)}</b>` })}</span>
-        <span class="m">· ${ago(c.at)}</span>${c.resolved ? `<span class="pill ok">${t("h.resolved")}</span>` : ""}</div>
+        <span class="m">· ${ago(c.at)}</span>${c.resolved ? `<span class="ui-pill ok">${t("h.resolved")}</span>` : ""}</div>
       <div class="act-body">${c.kind === "question" ? "❓ " : c.kind === "idea" ? "💡 " : ""}${esc(c.body)}</div>
       <div class="act-paper">${esc(p.title)}</div>
     </article>`;
@@ -125,13 +125,13 @@
             · <span class="${weekDone ? "wk-ok" : "wk-todo"}">${t(weekDone ? "h.weekDone" : "h.weekTodo")}</span></div>
           ${(() => { const rl = S.reading.list().filter(x => !x.written), a = rl.filter(x => x.status === "reading").length, b = rl.filter(x => x.status === "read").length;
             return a || b ? `<a class="rl-home" href="#/reading">📚 ${t("h.reading", { a, b })}</a>` : ""; })()}</div></div>
-        <a class="btn primary wide" href="#/write">${t("h.composeBtn")}</a>
+        <a class="ui-btn prominent large" href="#/write">${t("h.composeBtn")}</a>
       </div>
       <div class="card"><h4>${t("h.studies")}</h4>
         ${S.studies.list().filter(st => !st.closed).sort((a, b) => ((a.date && a.date >= S.today()) ? 0 : 1) - ((b.date && b.date >= S.today()) ? 0 : 1) || (a.date || "9").localeCompare(b.date || "9")).slice(0, 4).map(st => `<a class="side-st" href="#/study/${st.id}"><b>${esc(st.title.slice(0, 60))}</b>
           <span class="m">${[st.date, st.time].filter(Boolean).join(" ") || "—"} · ${st.members.length}${lang === "ko" ? "명" : ""}${st.members.includes(me.id) ? " ✓" : ""}</span></a>`).join("")
           || `<p class="muted">${t("h.noStudies")}</p>`}
-        <a class="link-btn" href="#/study/new">＋ ${t("h.openStudy")}</a></div>
+        <a class="ui-btn text" href="#/study/new">＋ ${t("h.openStudy")}</a></div>
       <div class="card"><h4>${t("h.openQ")}</h4>
         ${openQ.map(c => { const r = UI.R[c.reviewId]; return `<div class="side-q" data-review="${r.id}" data-paper="${r.paper}" data-comment="${c.id}">
           ${UI.avatar(c.author)}<div><div class="q">${esc(c.body.slice(0, 90))}</div><div class="m">→ ${name(r.person)} · ${esc(UI.PA[r.paper].title.slice(0, 50))}</div></div></div>`; }).join("")
@@ -149,10 +149,10 @@
     view.innerHTML = `
       <div class="home-grid">
         <div class="feed-col">
-          <div class="feed-tabs-row"><div class="tabs feed-tabs">${["all", "mine", "q", "shared"].map(k => `<a href="javascript:void 0" data-tab="${k}" class="${tab === k ? "on" : ""}">${t("h.tab." + k)}</a>`).join("")}</div></div>
+          <div class="feed-tabs-row"><div class="ui-seg feed-tabs">${["all", "mine", "q", "shared"].map(k => `<a href="javascript:void 0" data-tab="${k}" aria-current="${tab === k ? "page" : "false"}">${t("h.tab." + k)}</a>`).join("")}</div></div>
           <div class="feed" id="h-feed">${list.slice(0, shown).map(x => (x.kind === "review" ? reviewItem(x.r, me) : x.kind === "study" ? studyItem(x.st, me) : commentItem(x.c))).join("")
             || `<div class="empty">${t(tab === "mine" ? "h.mineEmpty" : "h.empty")}</div>`}</div>
-          ${list.length > shown ? `<button class="more" id="h-more">${t("h.more")} (${list.length - shown})</button>` : ""}
+          ${list.length > shown ? `<button class="ui-btn plain load-more" id="h-more">${t("h.more")} (${list.length - shown})</button>` : ""}
         </div>
         <aside class="home-side">${side(me)}</aside>
       </div>`;

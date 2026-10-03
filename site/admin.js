@@ -69,7 +69,7 @@
     tab = params.get("tab") || tab;
     const tabs = ["members", "tags", "terms", "data", "log"];
     view.innerHTML = `<div class="page-head"><h1>${t("ad.title")}</h1></div>
-      <div class="tabs">${tabs.map(x => `<a href="#/admin?tab=${x}" class="${x === tab ? "on" : ""}">${t("ad.tab." + x)}</a>`).join("")}</div>
+      <div class="ui-seg page-tabs">${tabs.map(x => `<a href="#/admin?tab=${x}" aria-current="${x === tab ? "page" : "false"}">${t("ad.tab." + x)}</a>`).join("")}</div>
       <div id="ad-body"></div>`;
     ({ members, tags, terms, data, log })[tab]($("#ad-body", view));
   }
@@ -95,17 +95,17 @@
         <td>${member ? `<input type="date" data-f="end" value="${full.quota.end || ""}">` : ""}</td>
         <td>${member ? `<input type="number" min="0" data-f="target" style="width:70px" placeholder="${q.exempt ? "—" : q.auto ?? q.target}" value="${full.quota.targets?.[term.id] ?? ""}">` : ""}</td>
         <td class="nowrap">${member ? (q.exempt ? `<span class="muted">${n} · ${t("ad.dutyOff")}</span>` : `<b class="${rate >= 90 ? "ok" : rate >= 70 ? "" : "warn"}">${rate}%</b> <span class="muted">${n}/${q.target}</span>`) : ""}</td>
-        <td>${u.disabled ? t("ad.disabled") : u.pending ? `<span class="pill warn">${t("ad.pending")}</span>` : t("ad.active")}</td>
-        <td class="right nowrap">${member ? `<button class="btn small" data-act="quota">${t("ad.save")}</button>` : ""}
-          <button class="btn small" data-act="reset">${t("ad.reset")}</button>
-          ${u.id !== S.auth.current().id ? `<button class="btn small" data-act="toggle">${u.disabled ? t("ad.enable") : t("ad.disable")}</button>` : ""}</td></tr>`;
+        <td>${u.disabled ? t("ad.disabled") : u.pending ? `<span class="ui-pill warn">${t("ad.pending")}</span>` : t("ad.active")}</td>
+        <td class="right nowrap">${member ? `<button class="ui-btn small" data-act="quota">${t("ad.save")}</button>` : ""}
+          <button class="ui-btn small" data-act="reset">${t("ad.reset")}</button>
+          ${u.id !== S.auth.current().id ? `<button class="ui-btn small" data-act="toggle">${u.disabled ? t("ad.enable") : t("ad.disable")}</button>` : ""}</td></tr>`;
       }).join("")}
       </tbody></table></div>
       <form class="inline-form" id="ad-add"><b>${t("ad.add")}</b>
         <input name="name" placeholder="${t("ad.name")}" required><label class="muted">${t("ad.color")} <input name="color" type="color" value="#ff9cac"></label>
         <label class="muted">${t("ad.start")} <input name="start" type="date"></label>
         <label class="check"><input name="exempt" type="checkbox"> ${t("ad.dutyOff")}</label>
-        <button class="btn primary small">${t("ad.add")}</button></form></div>`;
+        <button class="ui-btn prominent small">${t("ad.add")}</button></form></div>`;
     $("#ad-mterm", el).onchange = e => { memberTerm = e.target.value; members(el); };
     el.querySelectorAll("[data-act]").forEach(b => {
       const tr = b.closest("tr"), id = tr?.dataset.id, f = k => tr.querySelector(`[data-f="${k}"]`)?.value;
@@ -129,8 +129,8 @@
   }
   function showTemp(name, pw, reload) {
     const m = LabModal(`<h2>${t("ad.tempTitle")}</h2><p class="sub">${t("ad.tempSub", { name: esc(name) })}</p>
-      <div class="temp-pw"><code>${esc(pw)}</code><button class="btn small" id="cp">${t("ad.copy")}</button></div>
-      <div class="modal-foot"><button class="btn primary" data-close>${t("ad.close")}</button></div>`);
+      <div class="temp-pw"><code>${esc(pw)}</code><button class="ui-btn small" id="cp">${t("ad.copy")}</button></div>
+      <div class="modal-foot"><button class="ui-btn prominent" data-close>${t("ad.close")}</button></div>`);
     m.querySelector("#cp").onclick = () => navigator.clipboard?.writeText(pw).then(() => LabToast("✓"));
     // a new member changes the dataset (people list) → rebuild after closing
     if (reload) m.addEventListener("click", e => { if (e.target.closest("[data-close]")) LabReload("#/admin?tab=members"); });
@@ -166,22 +166,22 @@
         <td>${colorSelect(x.color, 'data-f="color"')}</td>
         <td><input data-f="label" value="${esc(x.label)}"></td><td><input data-f="labelEn" value="${esc(x.labelEn || "")}"></td>
         <td>${usage[x.id] || 0}</td>
-        <td class="nowrap"><button class="btn small" data-act="save">${t("ad.save")}</button>
-          <select data-f="into"><option value="">—</option>${opts(x)}</select><button class="btn small" data-act="merge">${t("ad.merge")}</button></td></tr>`).join("")}
+        <td class="nowrap"><button class="ui-btn small" data-act="save">${t("ad.save")}</button>
+          <select data-f="into"><option value="">—</option>${opts(x)}</select><button class="ui-btn small" data-act="merge">${t("ad.merge")}</button></td></tr>`).join("")}
       </tbody></table>
       <form class="inline-form" id="ad-newtag"><b>${t("ad.newTag")}</b>
         <select name="axis"><option value="domain">${t("ad.domain")}</option><option value="method">${t("ad.method")}</option></select>
         <input name="label" placeholder="${t("ad.ko")}" required><input name="labelEn" placeholder="${t("ad.en")}">${colorSelect("gray2", 'name="color"')}
-        <button class="btn primary small">${t("ad.newTag")}</button></form></div>
+        <button class="ui-btn prominent small">${t("ad.newTag")}</button></form></div>
       <p class="hint">🤖 ${t("ad.mcpTip")}</p>
       <div class="me-grid">
         <div class="card"><h3>${t("ad.similar")}</h3>${pairs.map(([a, b]) => `<div class="pair">
-          <span class="tag"><span class="dot" style="background:${a.color}"></span>${esc(UI.tl(a))} · ${usage[a.id] || 0}</span> ↔
-          <span class="tag"><span class="dot" style="background:${b.color}"></span>${esc(UI.tl(b))} · ${usage[b.id] || 0}</span>
-          <button class="link-btn" data-pmerge="${esc(a.id)}|${esc(b.id)}">${(usage[a.id] || 0) < (usage[b.id] || 0) ? "→" : "←"} ${t("ad.merge")}</button></div>`).join("") || `<p class="muted">${t("ad.noSimilar")}</p>`}</div>
+          <span class="ui-tag"><span class="dot" style="background:${a.color}"></span>${esc(UI.tl(a))} · ${usage[a.id] || 0}</span> ↔
+          <span class="ui-tag"><span class="dot" style="background:${b.color}"></span>${esc(UI.tl(b))} · ${usage[b.id] || 0}</span>
+          <button class="ui-btn text" data-pmerge="${esc(a.id)}|${esc(b.id)}">${(usage[a.id] || 0) < (usage[b.id] || 0) ? "→" : "←"} ${t("ad.merge")}</button></div>`).join("") || `<p class="muted">${t("ad.noSimilar")}</p>`}</div>
       </div>
       <div class="card"><h3>${t("ad.ops")}</h3>${S.tags.ops().map((op, i) => `<div class="op"><code>${esc(op.op)}</code> ${esc(op.from || op.id)} ${op.into ? "→ " + esc(op.into) : op.label ? "“" + esc(op.label) + "”" : ""}
-        <span class="muted">${op.at ? LabAgo(op.at) : ""}</span><button class="link-btn" data-undo="${i}">${t("ad.undo")}</button></div>`).reverse().join("") || `<p class="muted">—</p>`}</div>`;
+        <span class="muted">${op.at ? LabAgo(op.at) : ""}</span><button class="ui-btn text" data-undo="${i}">${t("ad.undo")}</button></div>`).reverse().join("") || `<p class="muted">—</p>`}</div>`;
 
     el.querySelectorAll("tbody tr").forEach(tr => {
       const id = tr.dataset.id, f = k => tr.querySelector(`[data-f="${k}"]`).value;
@@ -213,17 +213,17 @@
     el.innerHTML = `<div class="card"><table class="tbl"><thead><tr><th>ID</th><th>${t("ad.termLabel")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th></th></tr></thead><tbody>
       ${list.map(x => `<tr data-id="${esc(x.id)}"><td>${esc(x.id)}</td><td><input data-f="label" value="${esc(x.label)}"></td><td><input type="date" data-f="start" value="${x.start}"></td>
         <td><input type="date" data-f="end" value="${x.end}"></td><td><input type="number" min="1" data-f="target" value="${x.target ?? ""}" placeholder="${t("ad.targetAuto")}" style="width:120px"></td>
-        <td><button class="btn small" data-act="save">${t("ad.save")}</button></td></tr>`).join("")}</tbody></table>
+        <td><button class="ui-btn small" data-act="save">${t("ad.save")}</button></td></tr>`).join("")}</tbody></table>
       <form class="inline-form" id="ad-term"><b>${t("ad.addTerm")}</b><input name="id" placeholder="2027H1" required><input name="label" placeholder="2027 상반기" required>
         <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" placeholder="${t("ad.targetAuto")}" style="width:120px">
-        <button class="btn primary small">${t("ad.addTerm")}</button></form></div>
+        <button class="ui-btn prominent small">${t("ad.addTerm")}</button></form></div>
       <div class="card ad-sec"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
         ${S.calendar.list().length ? `<table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
         ${S.calendar.list().map(o => `<tr data-off="${esc(o.id)}"><td>${o.start}</td><td>${o.end}</td><td>${esc(o.label)}</td><td>${t("ad.kind." + o.kind)}</td>
-          <td><button class="btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">${t("ad.noOff")}</p>`}
+          <td><button class="ui-btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">${t("ad.noOff")}</p>`}
         <form class="inline-form" id="ad-off"><b>${t("ad.addOff")}</b><input type="date" name="start" required><input type="date" name="end">
           <input name="label" placeholder="${t("ad.offLabel")}" required><select name="kind">${["shutdown", "event", "holiday"].map(k => `<option value="${k}">${t("ad.kind." + k)}</option>`).join("")}</select>
-          <button class="btn primary small">${t("ad.addOff")}</button></form>
+          <button class="ui-btn prominent small">${t("ad.addOff")}</button></form>
         <p class="hint ad-holidays"><b>${t("ad.autoHolidays", { y: S.today().slice(0, 4) })}</b> · ${S.calendar.holidays(S.today().slice(0, 4))
           .filter(h => !S.calendar.isWeekend(h.date)).map(h => `${+h.date.slice(5, 7)}/${+h.date.slice(8)} ${esc(h.label)}`).join(", ")}</p></div>`;
     el.querySelectorAll('[data-act="off-del"]').forEach(b => b.onclick = async () => { await S.calendar.remove(b.closest("tr").dataset.off); terms(el); });
@@ -247,9 +247,9 @@
   // ---------------- data ----------------
   function data(el) {
     el.innerHTML = `<div class="card"><p>${t("ad.dataNote")}</p><div class="btn-row">
-      <button class="btn" id="ad-exp">⬇ ${t("ad.export")}</button>
-      <label class="btn">⬆ ${t("ad.import")}<input type="file" accept=".json" id="ad-imp" hidden></label>
-      <button class="btn danger" id="ad-reset">${t("ad.resetAll")}</button></div></div>`;
+      <button class="ui-btn" id="ad-exp">⬇ ${t("ad.export")}</button>
+      <label class="ui-btn">⬆ ${t("ad.import")}<input type="file" accept=".json" id="ad-imp" hidden></label>
+      <button class="ui-btn destructive" id="ad-reset">${t("ad.resetAll")}</button></div></div>`;
     $("#ad-exp", el).onclick = () => {
       const blob = new Blob([S.admin.exportJSON()], { type: "application/json" });
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `labsidian-${S.today()}.json`; a.click();

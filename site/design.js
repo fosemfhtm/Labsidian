@@ -89,8 +89,8 @@
         <p class="t-body">긴 구간 생성에서 장면 전체를 매 프레임 다시 만드는 대신, 스트림 단위로 상태를 이어 붙여 일관성을 유지한다.</p>
         <div class="sp-memo"><span class="t-caption1">MEMO</span><p class="t-subhead">길게 굴릴수록 물리·기하 일관성이 무너지고 오차가 쌓이는 문제는 여전하다.</p></div>
         <div class="sp-row tight">${["월드모델", "생성 모델"].map((x, i) => `<span class="ui-chip"><span class="dot" style="background:rgb(var(--${["teal", "purple"][i]}))"></span>${x}</span>`).join("")}</div>
-        <div class="sp-actions"><button class="ui-btn plain small neutral">${I("thumbs-up")}3</button><button class="ui-btn plain small neutral">${I("bookmark-plus")}나도 읽어볼래요</button>
-          <button class="ui-btn plain small neutral">${I("message-circle")}2</button><button class="ui-btn plain small neutral">${I("languages")}번역</button></div>
+        <div class="sp-actions"><button class="ui-btn plain small">${I("thumbs-up")}3</button><button class="ui-btn plain small">${I("bookmark-plus")}나도 읽어볼래요</button>
+          <button class="ui-btn plain small">${I("message-circle")}2</button><button class="ui-btn plain small">${I("languages")}번역</button></div>
       </article>
     </section>
 
@@ -150,7 +150,7 @@
     view.querySelectorAll('[data-demo="chip"]').forEach(b => (b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true")));
     view.querySelectorAll('[data-demo="todo"]').forEach(b => (b.onclick = () => { b.classList.toggle("done"); b.querySelector(".sp-circle").innerHTML = b.classList.contains("done") ? I("check") : ""; window.lucide?.createIcons(); }));
     view.querySelectorAll('[data-demo="alert"]').forEach(b => (b.onclick = () => overlay(b, `<div class="ui-alert ui-glass strong"><h3>스터디를 삭제할까요?</h3><p>질문과 정리 노트도 함께 지워지고 되돌릴 수 없어요.</p>
-      <div class="acts"><button class="ui-btn neutral" data-close>취소</button><button class="ui-btn destructive" data-close>삭제</button></div></div>`)));
+      <div class="acts"><button class="ui-btn" data-close>취소</button><button class="ui-btn destructive" data-close>삭제</button></div></div>`)));
     view.querySelectorAll('[data-demo="sheet"]').forEach(b => (b.onclick = () => overlay(b, `<div class="ui-sheet"><header><button class="ui-btn plain" data-close>취소</button><span class="t">일정·장소 수정</span><span class="r"><button class="ui-btn plain" data-close><b>완료</b></button></span></header>
       <div class="body"><div><label class="ui-label">날짜</label><input class="ui-field" type="date" value="2026-10-03"></div><div><label class="ui-label">장소</label><input class="ui-field" value="세미나실"></div>
       <div><label class="ui-label">소개 · 읽을 범위</label><textarea class="ui-field" rows="3">3장까지 읽어오기</textarea></div></div></div>`, "sheet")));

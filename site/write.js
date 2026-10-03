@@ -77,15 +77,15 @@
         <p class="sub">${editing ? esc(prePaper?.title || "") : t("w.sub", { term: esc(term.label), n: mineInTerm + 1 })}</p></div>
       <div class="write-grid">
         <form class="card write-form" id="w-form" autocomplete="off">
-          ${editing ? "" : `<div class="lookup"><input id="w-lookup" placeholder="${t("w.lookup.ph")}"><button type="button" class="btn" id="w-fetch">${t("w.fetch")}</button></div>
+          ${editing ? "" : `<div class="lookup"><input id="w-lookup" placeholder="${t("w.lookup.ph")}"><button type="button" class="ui-btn" id="w-fetch">${t("w.fetch")}</button></div>
           <div class="muted" id="w-fetch-status"></div>`}
-          <p class="restored" id="w-restored" hidden>${t("w.restored")} <button type="button" class="link-btn" id="w-discard">${t("w.discard")}</button></p>
+          <p class="restored" id="w-restored" hidden>${t("w.restored")} <button type="button" class="ui-btn text" id="w-discard">${t("w.discard")}</button></p>
           ${mcpDraft ? `<p class="restored mcp">🤖 ${t("w.fromMcp")}</p>` : ""}
           ${fromReading ? `<p class="restored">📚 ${t("w.fromReading")}</p>` : ""}
-          ${myOld ? `<p class="restored">${t("w.already", { date: esc(myOld.date) })} <a class="link-btn" href="#/write?review=${myOld.id}">${t("w.editMine")}</a></p>` : ""}
+          ${myOld ? `<p class="restored">${t("w.already", { date: esc(myOld.date) })} <a class="ui-btn text" href="#/write?review=${myOld.id}">${t("w.editMine")}</a></p>` : ""}
           ${study ? `<p class="restored study">${t(pick ? "w.forPick" : "w.forStudy", { title: esc(study.title) })}</p>` : ""}
           ${!editing && !mcpDraft && S.drafts.mcp().length ? `<p class="restored mcp">🤖 ${t("w.mcpWaiting", { n: S.drafts.mcp().length })}
-            ${S.drafts.mcp().map(d => `<a class="link-btn" href="#/write?mcp=${d.id}">${esc(d.title || "(untitled)")}</a>`).join(" · ")}</p>` : ""}
+            ${S.drafts.mcp().map(d => `<a class="ui-btn text" href="#/write?mcp=${d.id}">${esc(d.title || "(untitled)")}</a>`).join(" · ")}</p>` : ""}
           ${field("w-title", t("w.title") + " *", `<input id="w-title" ${editing || study ? "readonly" : ""}>`)}
           <div class="row3">
             ${field("w-venue", t("w.venue"), `<input id="w-venue" ${editing ? "readonly" : ""}>`)}
@@ -96,7 +96,7 @@
           <details class="fld" ${editing ? "hidden" : ""}><summary>${t("w.abstract")}</summary><textarea id="w-abstract" rows="5"></textarea></details>
           <div class="row2">
             <div class="fld"><span>${t("w.date")}</span><input id="w-date" type="date">
-              <div class="date-quick">${[["-7", "w.prevWeek"], ["0", "w.today"], ["7", "w.nextWeek"]].map(([d, k]) => `<button type="button" class="chip" data-shift="${d}">${t(k)}</button>`).join("")}</div>
+              <div class="date-quick">${[["-7", "w.prevWeek"], ["0", "w.today"], ["7", "w.nextWeek"]].map(([d, k]) => `<button type="button" class="ui-btn small" data-shift="${d}">${t(k)}</button>`).join("")}</div>
               <em class="hint" id="w-date-hint" title="${t("w.dateHint")}"></em></div>
             <div class="fld"><span>${t("w.rating")} *</span><div class="star-input" id="w-stars">${[1, 2, 3, 4, 5].map(i => `<button type="button" data-v="${i}">★</button>`).join("")}</div></div>
           </div>
@@ -104,8 +104,8 @@
           ${field("w-memo", t("w.memo"), `<textarea id="w-memo" rows="5" placeholder="${t("w.memo.ph")}"></textarea><em class="hint">${t("w.memoHint")}</em>`)}
           <div class="fld"><span>${t("w.files")}</span>
             <div class="drop" id="w-drop"><div class="drop-btns">
-              <button type="button" class="btn small" data-pick="application/pdf">${t("w.addPdf")}</button>
-              <button type="button" class="btn small" data-pick="image/*">${t("w.addImg")}</button>
+              <button type="button" class="ui-btn small" data-pick="application/pdf">${t("w.addPdf")}</button>
+              <button type="button" class="ui-btn small" data-pick="image/*">${t("w.addImg")}</button>
               <span class="hint">${t("w.drop")}</span></div>
               <div class="att-list" id="w-files"></div><em class="hint">${t("w.fileLocal")}</em></div>
             <input type="file" id="w-file" hidden multiple></div>
@@ -113,8 +113,8 @@
             <div class="tag-input"><div class="chips" id="w-tags"></div><input id="w-tag-q" placeholder="${t("w.tags.ph")}"><div class="tag-pop" id="w-tag-pop" hidden></div></div></div>
           <p class="err" id="w-err"></p>
           <div class="form-foot"><span class="muted" id="w-saved"></span>
-            ${editing ? `<button type="button" class="btn danger" id="w-del">${t("w.delete")}</button>` : ""}
-            <button class="btn primary">${editing ? t("w.saveEdit") : t("w.publish")}</button></div>
+            ${editing ? `<button type="button" class="ui-btn destructive" id="w-del">${t("w.delete")}</button>` : ""}
+            <button class="ui-btn prominent">${editing ? t("w.saveEdit") : t("w.publish")}</button></div>
         </form>
         <aside class="write-side">
           <div class="card dup" id="w-dup" hidden></div>
@@ -166,7 +166,7 @@
   const topicLabel = id => { const x = UI.T[id]; return x ? UI.tl(x) : id.slice(2); };
   const topicColor = id => UI.T[id]?.color || "rgb(var(--gray2))";
   function paintTags() {
-    $("#w-tags", view).innerHTML = tags.map(id => `<span class="chip on" data-id="${esc(id)}"><span class="dot" style="background:${topicColor(id)}"></span>${esc(topicLabel(id))} ✕</span>`).join("");
+    $("#w-tags", view).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${esc(id)}"><span class="dot" style="background:${topicColor(id)}"></span>${esc(topicLabel(id))} ✕</button>`).join("");
   }
   // ---- diary date: how it will read next to the actual posting date
   function dateHint() {
@@ -228,11 +228,11 @@
     const box = $("#w-dup", view);
     box.hidden = !dup;
     if (dup) box.innerHTML = `<b>${t("w.dup")}</b><p>${t("w.dupBy", { names: dup.readers.map(r => esc(UI.P[r]?.name || r)).join(", ") })}</p>
-      <button type="button" class="btn small" data-open="paper:${dup.id}">${t("w.dupOpen")}</button>`;
+      <button type="button" class="ui-btn small" data-open="paper:${dup.id}">${t("w.dupOpen")}</button>`;
     if (!d.title && !d.content) { $("#w-suggest", view).innerHTML = ""; $("#w-similar", view).innerHTML = ""; return; }
     const sug = S.suggestTags(d);
     $("#w-suggest", view).innerHTML = sug.tags.filter(x => !tags.includes(x.id)).map(x =>
-      `<span class="chip" data-add="${esc(x.id)}"><span class="dot" style="background:${topicColor(x.id)}"></span>+ ${esc(topicLabel(x.id))}</span>`).join("") || `<span class="muted">—</span>`;
+      `<button type="button" class="ui-btn small" data-add="${esc(x.id)}"><span class="dot" style="background:${topicColor(x.id)}"></span>+ ${esc(topicLabel(x.id))}</button>`).join("") || `<span class="muted">—</span>`;
     $("#w-similar", view).innerHTML = sug.similar.map(x => UI.miniPaper(UI.PA[x.id], Math.round(x.score * 100) + "%")).join("");
   }
 
@@ -264,7 +264,7 @@
       if (imgs.length) { e.preventDefault(); addFiles(imgs); }
     }));
     $("#w-stars", view).onclick = e => { const b = e.target.closest("button"); if (!b) return; rating = +b.dataset.v; paintStars(); changed(); };
-    $("#w-tags", view).onclick = e => { const c = e.target.closest(".chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
+    $("#w-tags", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
     $("#w-suggest", view).onclick = e => { const c = e.target.closest("[data-add]"); if (c) addTag(c.dataset.add); };
     $("#w-discard", view)?.addEventListener("click", () => { files.forEach(f => S.files.remove(f.id).catch(() => {})); S.drafts.clear(); render(new URLSearchParams()); });
 
@@ -313,7 +313,7 @@
       if (!d.title) return (err.textContent = t("w.need.title"));
       if (!d.rating) return (err.textContent = t("w.need.rating"));
       if (!d.content.trim() && !d.memo.trim()) return (err.textContent = t("w.need.body"));
-      const btn = form.querySelector("button.btn.primary"); if (btn.disabled) return;
+      const btn = form.querySelector("button.ui-btn.prominent"); if (btn.disabled) return;
       btn.disabled = true; clearTimeout(saveTimer);
       if (editing) {
         await S.reviews.update(editing.id, d);

@@ -64,7 +64,7 @@
     const me = S.auth.current(), pr = me ? S.guides.progress(g, me.id) : { done: 0, total: g.items.length };
     return `<a class="card gd-card" href="#/guide/${g.id}">
       <div class="gd-card-t">${esc(g.title)}</div>
-      ${S.guides.isGroup(g) ? `<div class="gd-card-g"><span class="pill acc">${t("gd.group")}</span>${[rhythm(g), t("gd.rounds", { n: S.guides.sessions(g).length })].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
+      ${S.guides.isGroup(g) ? `<div class="gd-card-g"><span class="ui-pill accent">${t("gd.group")}</span>${[rhythm(g), t("gd.rounds", { n: S.guides.sessions(g).length })].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
       ${g.desc ? `<div class="gd-card-d">${esc(g.desc.slice(0, 120))}</div>` : ""}
       <div class="tags-row small">${tagChips(g.tags)}</div>
       <div class="gd-card-f"><span>${UI.avatar(g.owner)} ${t("gd.papers", { n: g.items.length })}</span><span class="muted">${t("gd.mine", { d: pr.done, n: pr.total })}</span></div>
@@ -74,11 +74,11 @@
   // ---------------- list + create
   function tagPicker(selected) {
     const D = window.LAB, opt = axis => D.topics.filter(x => x.axis === axis).map(x => `<option value="${x.id}">${esc(UI.tl(x))}</option>`).join("");
-    return `<div class="gd-tagpick"><div class="chips" id="gd-tags">${selected.map(id => `<span class="chip on" data-id="${id}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</span>`).join("")}</div>
+    return `<div class="gd-tagpick"><div class="chips" id="gd-tags">${selected.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${id}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</button>`).join("")}</div>
       <select id="gd-tag-add"><option value="">＋ ${t("gd.tags")}</option><optgroup label="${t("tp.fields")}">${opt("domain")}</optgroup><optgroup label="${t("tp.methods")}">${opt("method")}</optgroup></select></div>`;
   }
   function wireTagPicker(root, tags) {
-    const paint = () => { $("#gd-tags", root).innerHTML = tags.map(id => `<span class="chip on" data-id="${id}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</span>`).join(""); };
+    const paint = () => { $("#gd-tags", root).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${id}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</button>`).join(""); };
     $("#gd-tag-add", root).onchange = e => { const v = e.target.value; if (v && !tags.includes(v)) tags.push(v); e.target.value = ""; paint(); };
     $("#gd-tags", root).onclick = e => { const c = e.target.closest("[data-id]"); if (c) { tags.splice(tags.indexOf(c.dataset.id), 1); paint(); } };
   }
@@ -89,7 +89,7 @@
       <div class="fld"><span>${t("gd.tags")}</span>${tagPicker(g?.tags || (preTag ? [preTag] : []))}</div>
       <label class="fld"><span>${t("gd.sections")}</span><input name="sections" placeholder="${t("gd.sections.ph")}" value="${esc((g?.sections || []).map(x => x.title).join(", ") || (I18N.lang === "en" ? "Basics, Core, Recent" : "기초, 핵심, 최신"))}"></label>
       ${groupFields(g?.group)}
-      <div class="form-foot"><a class="btn" href="${g ? "#/guide/" + g.id : "#/guides"}">${t("gd.cancel")}</a><button class="btn primary">${g ? t("gd.save") : t("gd.create")}</button></div></form>`;
+      <div class="form-foot"><a class="ui-btn" href="${g ? "#/guide/" + g.id : "#/guides"}">${t("gd.cancel")}</a><button class="ui-btn prominent">${g ? t("gd.save") : t("gd.create")}</button></div></form>`;
   }
 
   function groupFields(gr) {
@@ -109,9 +109,9 @@
     const guides = S.guides.list();
     listView.innerHTML = `${UI.papersTabs("guides")}
       <div class="page-head row-head"><div><h1>${t("gd.title")}</h1><p class="sub">${t("gd.sub")}</p></div>
-        ${me && !creating ? `<a class="btn primary" href="#/guides?new=1">＋ ${t("gd.new")}</a>` : ""}</div>
+        ${me && !creating ? `<a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a>` : ""}</div>
       ${creating ? form(null, params.get("tag")) : ""}
-      ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="empty">${t("gd.empty")}${me ? `<p><a class="btn primary" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
+      ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="empty">${t("gd.empty")}${me ? `<p><a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
     if (creating) {
       const f = $("#gd-form", listView), tags = params.get("tag") ? [params.get("tag")] : [];
       wireTagPicker(f, tags); wireGroupFields(f);
@@ -136,11 +136,11 @@
     const canOpen = group ? !stt.next && !stt.read && !S.guides.upcoming(g) && (S.guides.member(g) || S.guides.canManage(g)) : !studies.some(st => !st.closed);
     const notesQ = st => (st.closed && st.notes ? "?tab=notes" : "");
     const badges = stt
-      ? [stt.next ? `<a class="reg next" href="#/study/${stt.next.id}">${t("gd.st.next", { n: stt.nextRound })}</a>` : "",
-         stt.round ? `<a class="reg study" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.st.read", { n: stt.round })}</a>`
-           : stt.read ? `<a class="reg study" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.studied")} · ${esc(stt.read.date || "")}</a>` : "",
-         stt.fromRound ? `<span class="reg from">${t("gd.st.from", { n: stt.fromRound })}</span>` : ""].join("")
-      : studies.map(st => `<a class="reg study" href="#/study/${st.id}${notesQ(st)}">${t("gd.studied")} · ${esc(st.date || "")}</a>`).join("");
+      ? [stt.next ? `<a class="ui-pill accent" href="#/study/${stt.next.id}">${t("gd.st.next", { n: stt.nextRound })}</a>` : "",
+         stt.round ? `<a class="ui-pill ok" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.st.read", { n: stt.round })}</a>`
+           : stt.read ? `<a class="ui-pill ok" href="#/study/${stt.read.id}${notesQ(stt.read)}">${t("gd.studied")} · ${esc(stt.read.date || "")}</a>` : "",
+         stt.fromRound ? `<span class="ui-pill outline">${t("gd.st.from", { n: stt.fromRound })}</span>` : ""].join("")
+      : studies.map(st => `<a class="ui-pill ok" href="#/study/${st.id}${notesQ(st)}">${t("gd.studied")} · ${esc(st.date || "")}</a>`).join("");
     return `<div class="gd-item ${done ? "done" : ""}" data-item="${it.id}">
       <span class="gd-check" title="${done ? "✓" : ""}">${done ? "✓" : ""}</span>
       <div class="gd-main">
@@ -152,12 +152,12 @@
           <span class="muted">${t("gd.addedBy", { name: esc(name(it.by)) })}</span></div>
       </div>
       <div class="gd-actions">
-        ${me ? `<button class="chip ${voted ? "on" : ""}" data-act="vote">👍 ${(it.votes || []).length || ""}</button>` : ""}
-        ${me && !done ? `<button class="btn small" data-act="read" title="${t("gd.toReading")}" aria-label="${t("gd.toReading")}" ${inReading ? "disabled" : ""}>📚</button>` : ""}
-        ${me && !done && canOpen ? `<a class="btn small" href="#/study/new?${studyQ}" title="${t(group ? "gd.sessionHere" : "gd.openStudy")}" aria-label="${t(group ? "gd.sessionHere" : "gd.openStudy")}">👥</a>` : ""}
-        ${me && (canManage || it.by === me.id) ? `<span class="gd-own">${canManage && sameSec > 1 ? `<button class="btn small" data-act="up" title="${t("gd.up")}" aria-label="${t("gd.up")}">↑</button><button class="btn small" data-act="down" title="${t("gd.down")}" aria-label="${t("gd.down")}">↓</button>` : ""}
+        ${me ? `<button class="ui-btn small" aria-pressed="${!!voted}" data-act="vote">👍 ${(it.votes || []).length || ""}</button>` : ""}
+        ${me && !done ? `<button class="ui-btn small" data-act="read" title="${t("gd.toReading")}" aria-label="${t("gd.toReading")}" ${inReading ? "disabled" : ""}>📚</button>` : ""}
+        ${me && !done && canOpen ? `<a class="ui-btn small" href="#/study/new?${studyQ}" title="${t(group ? "gd.sessionHere" : "gd.openStudy")}" aria-label="${t(group ? "gd.sessionHere" : "gd.openStudy")}">👥</a>` : ""}
+        ${me && (canManage || it.by === me.id) ? `<span class="gd-own">${canManage && sameSec > 1 ? `<button class="ui-btn small" data-act="up" title="${t("gd.up")}" aria-label="${t("gd.up")}">↑</button><button class="ui-btn small" data-act="down" title="${t("gd.down")}" aria-label="${t("gd.down")}">↓</button>` : ""}
           ${canManage && g.sections.length > 1 ? `<select data-act="section" title="${t("gd.sectionMove")}" aria-label="${t("gd.sectionMove")}">${g.sections.map(x => `<option value="${x.id}" ${x.id === it.section ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select>` : ""}
-          <button class="btn small" data-act="del" title="${t("gd.remove")}" aria-label="${t("gd.remove")}">🗑</button></span>` : ""}
+          <button class="ui-btn small" data-act="del" title="${t("gd.remove")}" aria-label="${t("gd.remove")}">🗑</button></span>` : ""}
       </div></div>`;
   }
 
@@ -165,14 +165,14 @@
   function groupCard(g, me) {
     const gr = g.group, sts = S.guides.sessions(g), next = S.guides.upcoming(g), member = S.guides.member(g), canRun = member || S.guides.canManage(g);
     const info = [rhythm(g), gr.place, t("gd.members", { n: gr.members.length })].filter(Boolean).map(esc).join(" · ");
-    const acts = (me && me.id !== g.owner ? `<button class="btn small" id="gd-join" data-on="${member ? "0" : "1"}">${member ? t("gd.leave") : t("gd.join")}</button>` : "")
-      + (!next && canRun ? `<a class="btn small primary" href="#/study/new?guide=${g.id}">👥 ${t("gd.newSession")}</a>` : "");
+    const acts = (me && me.id !== g.owner ? `<button class="ui-btn small" id="gd-join" data-on="${member ? "0" : "1"}">${member ? t("gd.leave") : t("gd.join")}</button>` : "")
+      + (!next && canRun ? `<a class="ui-btn small prominent" href="#/study/new?guide=${g.id}">👥 ${t("gd.newSession")}</a>` : "");
     return `<div class="card gd-group">
       <div class="row-between"><div><h3>${t("gd.group")}</h3><p class="gd-ginfo">${info} ${UI.avStack(gr.members, 6)}</p></div>
         ${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
       ${sts.length ? `<ol class="gd-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">
           <span class="r">${t("gd.round", { n: i + 1 })}</span><span class="d">${esc(shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
-          <span class="m">${st.closed ? (st.notes ? `✓ ${t("gd.notesDone")}` : "") : `<span class="pill acc">${t("gd.nextSession")}</span> ${t("gd.presenter", { name: esc(name(st.presenter)) })}`}</span></a></li>`).join("")}</ol>`
+          <span class="m">${st.closed ? (st.notes ? `✓ ${t("gd.notesDone")}` : "") : `<span class="ui-pill accent">${t("gd.nextSession")}</span> ${t("gd.presenter", { name: esc(name(st.presenter)) })}`}</span></a></li>`).join("")}</ol>`
         : `<p class="muted">${t("gd.noSessions")}</p>`}</div>`;
   }
 
@@ -185,11 +185,11 @@
       ${editing ? form(g) : `<div class="page-head row-head"><div><h1>${esc(g.title)}</h1>
           <p class="sub gd-by">${UI.avatar(g.owner)} ${t("gd.by", { name: esc(name(g.owner)) })} · ${t("gd.papers", { n: g.items.length })}</p></div>
           ${canManage ? `<details class="st-manage gd-manage"><summary>⋯ ${t("gd.manage")}</summary><div class="menu-pop">
-            <a class="link-btn" href="#/guide/${g.id}?edit=1">${t("gd.editGroup")}</a><hr><button class="link-btn danger" id="gd-del">${t("gd.delete")}</button></div></details>` : ""}</div>
+            <a class="ui-btn text" href="#/guide/${g.id}?edit=1">${t("gd.editGroup")}</a><hr><button class="ui-btn text destructive" id="gd-del">${t("gd.delete")}</button></div></details>` : ""}</div>
         ${g.desc ? `<p class="gd-desc">${esc(g.desc)}</p>` : ""}<div class="tags-row">${tagChips(g.tags)}</div>
         ${S.guides.isGroup(g) ? groupCard(g, me) : ""}`}
       ${me ? `<div class="card gd-me"><div class="row-between"><b>${t("gd.mine", { d: pr.done, n: pr.total })}</b>
-          <div class="btn-row"><button class="btn small" id="gd-all-read">📚 ${t("gd.allToReading")}</button>${S.guides.isGroup(g) ? "" : `<button class="btn small primary" id="gd-next">👥 ${t("gd.nextStudy")}</button>`}</div></div>
+          <div class="btn-row"><button class="ui-btn small" id="gd-all-read">📚 ${t("gd.allToReading")}</button>${S.guides.isGroup(g) ? "" : `<button class="ui-btn small prominent" id="gd-next">👥 ${t("gd.nextStudy")}</button>`}</div></div>
         ${progressBar(pr.done, pr.total)}</div>` : ""}
       ${g.sections.map(sec => {
         const items = g.items.filter(it => it.section === sec.id);
@@ -199,7 +199,7 @@
       ${me ? `<form class="card write-form gd-add" id="gd-add" autocomplete="off"><h3>${t("gd.add")}</h3>
         <div class="gd-add-row"><input name="q" placeholder="${t("gd.add.ph")}" required>
           <select name="section">${g.sections.map(x => `<option value="${x.id}">${esc(x.title)}</option>`).join("")}</select></div>
-        <div class="gd-add-row"><input name="note" placeholder="${t("gd.note.ph")}" maxlength="300"><button class="btn primary">${t("gd.addBtn")}</button></div>
+        <div class="gd-add-row"><input name="note" placeholder="${t("gd.note.ph")}" maxlength="300"><button class="ui-btn prominent">${t("gd.addBtn")}</button></div>
         <div class="muted" id="gd-add-msg"></div></form>` : ""}`;
     wire(g, editing);
   }

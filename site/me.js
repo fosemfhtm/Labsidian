@@ -81,9 +81,9 @@
           <div><h1>${esc(me.name)}</h1><p class="sub">${me.role === "admin" ? "admin · " : ""}${t("me.title")}</p></div></div>
         <div class="btn-row">
           <select id="me-term">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
-          <a class="btn primary" href="#/write">✎ ${t("me.write")}</a>
-          <button class="btn" id="me-export" ${n ? "" : "disabled"}>⬇ ${t("me.export")}</button>
-          ${person ? `<label class="btn color-pick" title="${t("me.color")}"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}<input type="color" id="me-color" value="${person.color}"></label>` : ""}
+          <a class="ui-btn prominent" href="#/write">✎ ${t("me.write")}</a>
+          <button class="ui-btn" id="me-export" ${n ? "" : "disabled"}>⬇ ${t("me.export")}</button>
+          ${person ? `<label class="ui-btn color-pick" title="${t("me.color")}"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}<input type="color" id="me-color" value="${person.color}"></label>` : ""}
         </div>
       </div>
       ${!person ? `<div class="card">${t("me.adminNote")}</div>` : ""}
@@ -107,16 +107,16 @@
         <div class="card"><h3>${t("me.inbox")}</h3><div id="me-inbox"></div></div>
       </div>
       <div class="card"><div class="row-between drift-head"><h3>${t("me.drift").replace(/ \(.*\)$/, "")}</h3>
-        <div class="drift-ctl"><div class="seg small" id="me-span">${["term", "all"].map(a => `<button data-v="${a}" class="${span === a ? "on" : ""}">${t("me.span." + a)}</button>`).join("")}</div>
-        <div class="seg small" id="me-axis">${["domain", "method"].map(a => `<button data-v="${a}" class="${axis === a ? "on" : ""}">${t("me.axis." + a)}</button>`).join("")}</div></div></div>
+        <div class="drift-ctl"><div class="ui-seg small" id="me-span">${["term", "all"].map(a => `<button data-v="${a}" aria-pressed="${span === a}">${t("me.span." + a)}</button>`).join("")}</div>
+        <div class="ui-seg small" id="me-axis">${["domain", "method"].map(a => `<button data-v="${a}" aria-pressed="${axis === a}">${t("me.axis." + a)}</button>`).join("")}</div></div></div>
         <p class="hint" id="me-drift-hint"></p><div id="me-drift"></div></div>
       <div class="card me-reviews" id="me-reviews"><h3>${t("me.reviews")} · <span id="me-rv-count">${n}</span></h3>
-        ${draft ? `<div class="draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="link-btn" href="#/write">${t("me.continue")}</a></div>` : ""}
-        ${mcpDrafts.map(d => `<div class="draft-row mcp">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="link-btn" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
+        ${draft ? `<div class="draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
+        ${mcpDrafts.map(d => `<div class="draft-row mcp">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
         <div class="rv-filters">
           <input id="rf-q" type="search" placeholder="${t("me.search")}" value="${esc(rf.q)}">
           <select id="rf-dom"></select><select id="rf-met"></select>
-          <button type="button" class="chip ${rf.commented ? "on" : ""}" id="rf-com">${t("me.commented")}</button>
+          <button type="button" class="ui-chip" aria-pressed="${!!rf.commented}" id="rf-com">${t("me.commented")}</button>
           <select id="rf-sort"><option value="new">${t("me.sortNew")}</option><option value="rating" ${rf.sort === "rating" ? "selected" : ""}>${t("me.sortRating")}</option></select>
         </div>
         <div class="rv-active" id="rf-active"></div>
@@ -166,7 +166,7 @@
     $("#rf-q", view).oninput = e => { clearTimeout(qt); qt = setTimeout(() => { rf.q = e.target.value; reviewList(); }, 200); };
     $("#rf-dom", view).onchange = e => { rf.domain = e.target.value; reviewList(); drift(); };
     $("#rf-met", view).onchange = e => { rf.method = e.target.value; reviewList(); drift(); };
-    $("#rf-com", view).onclick = e => { rf.commented = !rf.commented; e.currentTarget.classList.toggle("on", rf.commented); reviewList(); };
+    $("#rf-com", view).onclick = e => { rf.commented = !rf.commented; e.currentTarget.setAttribute("aria-pressed", rf.commented); reviewList(); };
     $("#rf-sort", view).onchange = e => { rf.sort = e.target.value; reviewList(); };
     reviewList();
   }
@@ -179,12 +179,12 @@
       rf.domain && [tagName("domain", rf.domain), "domain"], rf.method && [tagName("method", rf.method), "method"],
     ].filter(Boolean);
     $("#rf-active", view).innerHTML = (any ? `<span class="muted">${t("me.shown", { n: list.length, all: base.length })}</span>` : `<span class="muted">${t("me.termScope", { term: esc(ctx.term.label) })}</span>`)
-      + chips.map(([label, k]) => `<span class="chip on" data-clear="${k}">${esc(label)} ✕</span>`).join("")
-      + (any ? `<button class="link-btn" data-clear="all">${t("me.clear")}</button>` : "");
+      + chips.map(([label, k]) => `<button type="button" class="ui-chip" aria-pressed="true" data-clear="${k}">${esc(label)} ✕</button>`).join("")
+      + (any ? `<button class="ui-btn text" data-clear="all">${t("me.clear")}</button>` : "");
     $("#rf-active", view).querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
       const k = b.dataset.clear;
       if (k === "all") Object.assign(rf, { q: "", domain: "", method: "", commented: false, month: "" }); else rf[k] = "";
-      if (k === "all") { $("#rf-q", view).value = ""; $("#rf-com", view).classList.remove("on"); }
+      if (k === "all") { $("#rf-q", view).value = ""; $("#rf-com", view).setAttribute("aria-pressed", "false"); }
       reviewFilters(); drift();
     });
     if (!list.length) { $("#me-rv-list", view).innerHTML = `<div class="empty">${t(ctx.mine.length ? "me.noMatch" : "me.noReviews")}</div>`; return; }
@@ -198,7 +198,7 @@
         return `<div class="mini rv-row" data-open="paper:${r.paper}"><span class="t">${esc(p?.title)}
           <span class="rv-tags">${[...(p?.domains || []).slice(0, 2).map(d => UI.tag("d:" + d)), ...(p?.methods || []).slice(0, 1).map(m => UI.tag("m:" + m))].join("")}</span></span>
           <span class="m">${c ? "💬 " + c : ""}</span><span class="m">${UI.stars(r.rating)}</span><span class="m">${r.date.slice(5)}</span>
-          <a class="m link-btn" href="#/write?review=${r.id}" onclick="event.stopPropagation()">✎</a></div>`;
+          <a class="m ui-btn text" href="#/write?review=${r.id}" onclick="event.stopPropagation()">✎</a></div>`;
       }).join("");
       if (!g.m) return `<div class="mini-list">${rows}</div>`;
       const open = rf.open[g.m] ?? (openAll || i === 0);
@@ -218,7 +218,7 @@
       const head = `<b>${d.getMonth() + 1}/${d.getDate()} (${t("me.dow")[d.getDay()]})</b>${off ? ` · <span class="cal-off">${esc(off.label)}</span>` : ""}`;
       const list = rs.length ? rs.map(r => `<a class="cal-rv" data-paper="${r.paper}" data-review="${r.id}">${esc(UI.PA[r.paper]?.title || "")}</a>`).join("")
         : `<span class="muted">${t("me.calNone")}</span>`;
-      return head + `<div class="cal-list">${list}</div>` + (full && person && !rs.length ? `<a class="btn small primary" href="#/write?date=${day}">✎ ${t("me.calWrite")}</a>` : "");
+      return head + `<div class="cal-list">${list}</div>` + (full && person && !rs.length ? `<a class="ui-btn small prominent" href="#/write?date=${day}">✎ ${t("me.calWrite")}</a>` : "");
     };
     const place = el => {
       const a = el.getBoundingClientRect(), b = cal.getBoundingClientRect();
@@ -274,7 +274,7 @@
     const box = $("#me-drift", view);
     [["#me-axis", v => { axis = v; setPref("axis", v); }], ["#me-span", v => { span = v; setPref("span", v); if (v === "all") rf.month = ""; }]].forEach(([sel, set]) =>
       $(sel, view).querySelectorAll("button").forEach(b => b.onclick = () => {
-        set(b.dataset.v); $(sel, view).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); drift(); reviewList();
+        set(b.dataset.v); $(sel, view).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); drift(); reviewList();
       }));
     $("#me-drift-hint", view).textContent = t(span === "all" ? "me.driftHintAll" : "me.driftHint");
     // rows: the months of the term shown on this page (≤ 6), or one row per term — never an endless list
@@ -305,11 +305,11 @@
       const row = byMonth[m], sum = Object.values(row).reduce((a, b) => a + b, 0);
       const other = Object.entries(row).filter(([k]) => !top.includes(k)).reduce((a, [, v]) => a + v, 0);
       const cur = span === "all" ? m === ctx.term.id : rf.month === m;
-      return `<div class="drift-row"><button class="link-btn drift-m ${cur ? "on" : ""}" data-month="${m}">${esc(rowLabel(m))}</button><div class="drift-bar">
+      return `<div class="drift-row"><button class="ui-btn text drift-m ${cur ? "on" : ""}" data-month="${m}">${esc(rowLabel(m))}</button><div class="drift-bar">
         ${top.map(k => (row[k] ? seg(m, k, row[k]) : "")).join("")}${other ? `<i data-m="${m}" data-k="_other" data-n="${other}" style="flex:${other};background:var(--fill)"></i>` : ""}</div>
         <span class="muted">${sum}</span></div>`;
     }).join("")}</div>
-    <div class="chips drift-legend">${top.map(k => `<span class="tag ${sel === k ? "on" : ""}" data-k="${esc(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(tagName(axis, k))}</span>`).join("")}</div>
+    <div class="chips drift-legend">${top.map(k => `<button type="button" class="ui-tag" aria-pressed="${sel === k}" data-k="${esc(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(tagName(axis, k))}</button>`).join("")}</div>
     <div class="drift-tip" hidden></div>`;
     const tip = $(".drift-tip", box);
     box.querySelectorAll(".drift-bar i").forEach(el => {
@@ -334,7 +334,7 @@
       if (span === "all") return pickTerm(b.dataset.month);
       rf.month = rf.month === b.dataset.month ? "" : b.dataset.month; afterDriftPick();
     });
-    box.querySelectorAll(".chips .tag[data-k]").forEach(c => c.onclick = () => { rf[axis] = rf[axis] === c.dataset.k ? "" : c.dataset.k; afterDriftPick(); });
+    box.querySelectorAll(".chips .ui-tag[data-k]").forEach(c => c.onclick = () => { rf[axis] = rf[axis] === c.dataset.k ? "" : c.dataset.k; afterDriftPick(); });
   }
   function pickTerm(id) {  // a term row → the whole page switches to that term (progress, calendar, reviews)
     termId = id; rf.month = ""; rf.open = {};
@@ -353,7 +353,7 @@
     $("#me-inbox", view).innerHTML = list.map(nf => `<div class="notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-type="${nf.type}">
       ${UI.avatar(nf.actor)}<div><div>${esc(LabNotifText(nf))}</div>${nf.excerpt ? `<div class="excerpt">“${esc(nf.excerpt)}”</div>` : ""}<div class="muted">${LabAgo(nf.at)}</div></div></div>`).join("")
       || `<div class="muted">${t("me.noInbox")}</div>`;
-    if (all.length > inboxN) $("#me-inbox", view).insertAdjacentHTML("beforeend", `<button class="link-btn" id="me-inbox-more">${t("me.more")} (${all.length - inboxN})</button>`);
+    if (all.length > inboxN) $("#me-inbox", view).insertAdjacentHTML("beforeend", `<button class="ui-btn text" id="me-inbox-more">${t("me.more")} (${all.length - inboxN})</button>`);
     $("#me-inbox-more", view)?.addEventListener("click", () => { inboxN += 10; inbox(); });
     view.querySelectorAll("#me-inbox .notif").forEach(el => el.onclick = async () => {
       await S.notifications.markRead(el.dataset.nid); el.classList.remove("unread"); LabUpdateBell();
@@ -367,7 +367,7 @@
     $("#me-reading", view).innerHTML = `<div class="rl-counts">${["reading", "todo", "read"].map(s => `<a href="#/reading"><b>${by(s).length}</b>${t("rl.s." + s)}</a>`).join("")}</div>`
       + (active.map(x => `<div class="mini" ${x.paperId ? `data-open="paper:${esc(x.paperId)}"` : `onclick="location.hash='#/reading'"`}><span class="t">${esc(x.title)}</span>
         <span class="m rl-dot rl-st-${st(x)}">${t("rl.s." + st(x))}</span></div>`).join("") || `<div class="muted">${t("me.noReading")}</div>`)
-      + `<a class="link-btn rl-all" href="#/reading">${t("me.readingAll")} →</a>`;
+      + `<a class="ui-btn text rl-all" href="#/reading">${t("me.readingAll")} →</a>`;
   }
 
   // same layout as the lab's Word diary: date header, then 논문/Link/저널/저자/Rating/내용/Memo

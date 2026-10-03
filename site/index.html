@@ -38,8 +38,8 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
     <a href="#/papers" data-view="papers"><i data-lucide="file-text" class="ic"></i><span data-i18n="nav.papers"></span></a>
     <a href="#/study" data-view="study"><i data-lucide="book-open" class="ic"></i><span data-i18n="nav.study"></span></a>
   </nav>
-  <button class="icon-btn search-btn" id="search-btn" type="button" data-i18n-title="sp.btn"><i data-lucide="search" class="ic"></i></button>
-  <div class="lang seg" id="lang"><button data-v="ko">KO</button><button data-v="en">EN</button></div>
+  <button class="top-icon search-btn" id="search-btn" type="button" data-i18n-title="sp.btn"><i data-lucide="search" class="ic"></i></button>
+  <div class="lang ui-seg small" id="lang"><button data-v="ko">KO</button><button data-v="en">EN</button></div>
 </header>
 
 <main>
@@ -54,11 +54,11 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
         <input id="g-find" type="search" data-i18n-ph="g.find.ph" autocomplete="off">
         <div id="g-find-results" class="find-results" hidden></div>
       </div>
-      <button class="tb-btn" id="tb-field" data-pop="pop-field"><span data-i18n="g.tags"></span><span class="n"></span><span class="caret">▾</span></button>
-      <button class="tb-btn" id="tb-venue" data-pop="pop-venue"><span data-i18n="g.venues"></span><span class="n"></span><span class="caret">▾</span></button>
-      <button class="tb-btn" id="tb-year" data-pop="pop-year"><span data-i18n="g.year"></span><span class="n"></span><span class="caret">▾</span></button>
-      <button class="tb-btn" id="tb-more" data-pop="pop-more"><span data-i18n="g.more"></span><span class="n"></span><span class="caret">▾</span></button>
-      <button class="link-btn" id="tb-reset" hidden data-i18n="g.reset"></button>
+      <button class="ui-btn glass g-filter" id="tb-field" data-pop="pop-field"><span data-i18n="g.tags"></span><span class="n"></span><span class="caret">▾</span></button>
+      <button class="ui-btn glass g-filter" id="tb-venue" data-pop="pop-venue"><span data-i18n="g.venues"></span><span class="n"></span><span class="caret">▾</span></button>
+      <button class="ui-btn glass g-filter" id="tb-year" data-pop="pop-year"><span data-i18n="g.year"></span><span class="n"></span><span class="caret">▾</span></button>
+      <button class="ui-btn glass g-filter" id="tb-more" data-pop="pop-more"><span data-i18n="g.more"></span><span class="n"></span><span class="caret">▾</span></button>
+      <button class="ui-btn text" id="tb-reset" hidden data-i18n="g.reset"></button>
       <span class="tb-count muted" id="g-count"></span>
     </div>
 
@@ -79,10 +79,10 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
     </div>
     <div class="pop" id="pop-more" hidden>
       <div class="pop-row"><span data-i18n="g.rating"></span>
-        <div class="seg small" id="f-rating"><button data-v="0" class="on">-</button><button data-v="3">★3</button><button data-v="4">★4</button></div></div>
+        <div class="ui-seg small" id="f-rating"><button data-v="0" aria-pressed="true">-</button><button data-v="3">★3</button><button data-v="4">★4</button></div></div>
       <label class="check"><input type="checkbox" id="f-shared"> <span data-i18n="g.sharedOnly"></span></label>
       <div class="pop-row"><span data-i18n="g.filterMode"></span>
-        <div class="seg small" id="f-mode"><button data-v="dim" class="on" data-i18n="g.mode.dim"></button><button data-v="hide" data-i18n="g.mode.hide"></button></div></div>
+        <div class="ui-seg small" id="f-mode"><button data-v="dim" aria-pressed="true" data-i18n="g.mode.dim"></button><button data-v="hide" data-i18n="g.mode.hide"></button></div></div>
     </div>
 
     <!-- bottom-left: people legend (= colour key + person filter) -->
@@ -90,20 +90,20 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
 
     <!-- bottom-right: zoom + settings -->
     <div class="g-corner">
-      <button class="icon-btn" id="z-in" title="+">+</button>
-      <button class="icon-btn" id="z-out" title="-">−</button>
-      <button class="icon-btn" id="z-fit" data-i18n-title="g.fit">⤢</button>
-      <button class="icon-btn" id="tb-settings" data-pop="pop-settings" data-i18n-title="g.settings">⚙</button>
+      <button class="ui-btn glass icon" id="z-in" title="+">+</button>
+      <button class="ui-btn glass icon" id="z-out" title="-">−</button>
+      <button class="ui-btn glass icon" id="z-fit" data-i18n-title="g.fit">⤢</button>
+      <button class="ui-btn glass icon" id="tb-settings" data-pop="pop-settings" data-i18n-title="g.settings">⚙</button>
     </div>
     <div class="pop pop-settings" id="pop-settings" hidden>
       <div class="pop-h" data-i18n="g.colorBy"></div>
-      <div class="seg small" id="g-colorby"><button data-v="person" class="on" data-i18n="g.color.first"></button><button data-v="year" data-i18n="g.color.year"></button><button data-v="venue" data-i18n="g.color.venue"></button></div>
+      <div class="ui-seg small" id="g-colorby"><button data-v="person" aria-pressed="true" data-i18n="g.color.first"></button><button data-v="year" data-i18n="g.color.year"></button><button data-v="venue" data-i18n="g.color.venue"></button></div>
       <div class="pop-h" data-i18n="g.layers"></div>
       <label class="check"><input type="checkbox" id="l-links"> <span data-i18n="g.l.readLinks"></span></label>
       <label class="check"><input type="checkbox" id="l-regions"> <span data-i18n="g.l.regions"></span></label>
       <label class="check"><input type="checkbox" id="l-labels"> <span data-i18n="g.l.labels"></span></label>
       <label class="check"><input type="checkbox" id="l-timeline"> <span data-i18n="g.l.timeline"></span></label>
-      <div class="pop-h"><span data-i18n="g.physics"></span><button class="link-btn" id="ph-reset" data-i18n="g.reset"></button></div>
+      <div class="pop-h"><span data-i18n="g.physics"></span><button class="ui-btn text" id="ph-reset" data-i18n="g.reset"></button></div>
       <label class="slider"><span data-i18n="g.ph.repel"></span><input type="range" id="ph-repel"></label>
       <label class="slider"><span data-i18n="g.ph.link"></span><input type="range" id="ph-link"></label>
       <label class="slider"><span data-i18n="g.ph.anchor"></span><input type="range" id="ph-anchor"></label>
@@ -114,12 +114,12 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
       <span class="muted" data-i18n="g.focus"></span>
       <b id="focus-name"></b>
       <span class="muted" data-i18n="g.depth"></span>
-      <div class="seg small" id="focus-depth"><button data-v="1" class="on">1</button><button data-v="2">2</button></div>
-      <button class="link-btn" id="focus-clear" data-i18n="g.clear"></button>
+      <div class="ui-seg small" id="focus-depth"><button data-v="1" aria-pressed="true">1</button><button data-v="2">2</button></div>
+      <button class="ui-btn text" id="focus-clear" data-i18n="g.clear"></button>
     </div>
 
     <div class="timeline" hidden>
-      <button id="t-play" class="play" aria-label="play">▶</button>
+      <button id="t-play" class="ui-btn icon small" aria-label="play">▶</button>
       <input type="range" id="t-range">
       <span id="t-label" class="muted"></span>
     </div>
@@ -135,7 +135,7 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
   </section>
 
   <section id="view-papers" class="view page">
-    <div class="tabs papers-tabs"><a href="#/papers" class="on" data-i18n="pt.list"></a><a href="#/topics" data-i18n="pt.topics"></a><a href="#/guides" data-i18n="pt.guides"></a></div>
+    <div class="ui-seg page-tabs papers-tabs"><a href="#/papers" aria-current="page" data-i18n="pt.list"></a><a href="#/topics" aria-current="false" data-i18n="pt.topics"></a><a href="#/guides" aria-current="false" data-i18n="pt.guides"></a></div>
     <div class="page-head">
       <h1 data-i18n="papers.title"></h1>
       <p class="sub" id="papers-sub"></p>
@@ -153,7 +153,7 @@ try { const t = localStorage.getItem("lab.theme"); if (t === "light" || t === "d
 </main>
 
 <aside id="drawer" class="drawer" aria-hidden="true">
-  <div class="drawer-tools"><a class="drawer-btn" id="drawer-expand" hidden data-i18n-title="d.fullPage">⤢</a><button class="drawer-btn" id="drawer-close" data-i18n-title="close">✕</button></div>
+  <div class="drawer-tools"><a class="ui-btn icon plain" id="drawer-expand" hidden data-i18n-title="d.fullPage">⤢</a><button class="ui-btn icon plain" id="drawer-close" data-i18n-title="close">✕</button></div>
   <div id="drawer-body"></div>
 </aside>
 <div id="tooltip" class="tooltip"></div>

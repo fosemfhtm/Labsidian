@@ -46,7 +46,7 @@
   };
   const tag = tid => {
     const x = T[tid];
-    return x ? `<span class="tag ${esc(x.axis)}" data-open="topic:${esc(tid)}"><span class="dot" style="background:${safeColor(x.color)}"></span>${esc(tl(x))}</span>` : "";
+    return x ? `<span class="ui-tag ${esc(x.axis)}" data-open="topic:${esc(tid)}"><span class="dot" style="background:${safeColor(x.color)}"></span>${esc(tl(x))}</span>` : "";
   };
   const bars = (items, max) => `<div class="bars">${items.map(([label, n, color, open]) => `
     <div class="bar-row ${open ? "click" : ""}" ${open ? `data-open="${open}"` : ""}>
@@ -64,7 +64,7 @@
     const n = Math.round((Date.parse(localDay(r.createdAt)) - Date.parse(r.date)) / 864e5);
     if (!n) return "";
     const at = new Date(r.createdAt).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    return `<span class="reg ${n > 0 ? "late" : "early"}" title="${esc(t("rv.regAt", { at }))}">${t(n > 0 ? "rv.late" : "rv.early", { n: Math.abs(n) })}</span>`;
+    return `<span class="ui-pill ${n > 0 ? "warn" : "info"}" title="${esc(t("rv.regAt", { at }))}">${t(n > 0 ? "rv.late" : "rv.early", { n: Math.abs(n) })}</span>`;
   };
   // attachments: <img>/<a> carry data-fid; hydrateFiles() swaps in the stored blob URL
   const kb = n => (n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
@@ -89,7 +89,7 @@
     "💬": "message-circle", "🌐": "languages", "🔗": "link", "◎": "locate-fixed", "🙈": "eye-off", "🤖": "bot", "❓": "circle-help", "💡": "lightbulb",
     "🖼": "image", "👀": "eye", "⬇": "download", "📥": "download", "🗑": "trash-2", "⚙": "settings", "🔍": "search", "⋯": "ellipsis", "＋": "plus", "▾": "chevron-down" };
   const ICON_RE = new RegExp("(" + Object.keys(ICONS).join("|") + ")\\uFE0F?\\s?", "g");
-  const ICON_SCOPE = "button, .btn, a.btn, .link-btn, .tabs a, .pill, .reg, .restored, .menu a, .menu > button, .tb-btn, .icon-btn, .term-btn, .chip, .drawer-btn, .side-st b, .act-body, h3, h4, label, .rf, .cm-kind button, summary";
+  const ICON_SCOPE = "button, .ui-btn, .ui-seg a, .ui-pill, .restored, .menu a, .menu > button, .term-btn, .ui-chip, .side-st b, .act-body, h3, h4, label, .rf, .cm-kind button, summary";
   function iconize(root) {
     root.querySelectorAll?.(ICON_SCOPE).forEach(el => {
       if (el.closest(".rv-body, .rv-memo, .cm-body, .act-body .q, textarea, [contenteditable]")) return;
@@ -119,8 +119,8 @@
   // my own diary on a paper → its pages offer "edit my diary" instead of writing a second one
   const myReviewOn = p => { const me = window.Store?.auth.current(); return me ? p.reviews.map(id => R[id]).find(r => r && r.person === me.id) || null : null; };
   const writeBtn = p => { const mine = myReviewOn(p);
-    return mine ? `<a class="btn primary" href="#/write?review=${mine.id}">✎ ${t("s.myDiary")}</a>` : `<a class="btn primary" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>`; };
-  const readingBtn = p => (myReviewOn(p) ? "" : `<button class="btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>`);
+    return mine ? `<a class="ui-btn prominent" href="#/write?review=${mine.id}">✎ ${t("s.myDiary")}</a>` : `<a class="ui-btn prominent" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>`; };
+  const readingBtn = p => (myReviewOn(p) ? "" : `<button class="ui-btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>`);
   const reviewHtml = (r, opts = {}) => {
     const p = P[r.person] || { name: t("unknownPerson"), color: "rgb(var(--gray))" };
     const mine = window.Store?.auth.current()?.id === r.person;
@@ -128,14 +128,14 @@
     if (window.Store?.studies.hidden(r)) return `<div class="review blind" id="rv-${r.id}" data-review="${r.id}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b><span class="date">${esc(r.date)}</span></div>
-      <p class="blind-msg">🙈 ${t("st.blindMsg")} <a class="link-btn" href="#/write?study=${r.studyId}">${t("st.writeMine")}</a></p></div>`;
+      <p class="blind-msg">🙈 ${t("st.blindMsg")} <a class="ui-btn text" href="#/write?study=${r.studyId}">${t("st.writeMine")}</a></p></div>`;
     const long = !opts.full && r.content.length > 380;
     return `<div class="review ${opts.full ? "full" : ""} ${mine ? "mine" : ""}" id="rv-${r.id}" data-review="${r.id}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b>${stars(r.rating)}
         <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>${regBadge(r)}
-        ${mine ? `<span class="reg mine">${t("rv.mine")}</span>` : ""}
-        ${r.studyId && window.Store?.studies.get(r.studyId) ? `<a class="reg study" href="#/study/${r.studyId}">${t("st.reviewBadge")}</a>` : ""}</div>
+        ${mine ? `<span class="ui-pill accent">${t("rv.mine")}</span>` : ""}
+        ${r.studyId && window.Store?.studies.get(r.studyId) ? `<a class="ui-pill ok" href="#/study/${r.studyId}">${t("st.reviewBadge")}</a>` : ""}</div>
       ${r.content ? `<div class="rv-body ${long ? "" : "open"}">${esc(r.content)}</div>
         ${long ? `<button class="rv-toggle">${t("rv.expand")}</button>` : ""}` : ""}
       ${r.memo ? `<div class="rv-memo" data-label="${t("rv.memo")}">${esc(r.memo)}</div>` : ""}
@@ -212,8 +212,8 @@
         <div><b>${pr.shared}</b><span>${t("pf.shared")}</span></div>
         <div><b>${pr.studies}</b><span>${t("pf.studies")}</span></div>
       </div>
-      <div class="btn-row"><button class="btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
-        ${other ? `<a class="btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
+      <div class="btn-row"><button class="ui-btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
+        ${other ? `<a class="ui-btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
       <h4>${t("pf.terrain")}</h4>
       ${V.terrain(id)}
       ${pr.fields.length ? `<h4>${t("pf.fields")}</h4>
@@ -306,10 +306,10 @@
       <div class="kv near">${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</div>
       ${p.link ? `<div class="kv near">${linkHtml(p.link)}</div>` : ""}
       <div class="tags-row">${topicIds(p).map(tag).join("")}</div>
-      ${cc ? `<div class="tags-row"><span class="tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
-        ${c ? `<span class="tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
+      ${cc ? `<div class="tags-row"><span class="ui-tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
+        ${c ? `<span class="ui-tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
       <div class="btn-row">
-        ${p.x != null ? `<button class="btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
+        ${p.x != null ? `<button class="ui-btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
         ${window.Store ? `${readingBtn(p)}
         ${writeBtn(p)}` : ""}
       </div>
@@ -376,7 +376,7 @@
         <div class="pr-meta"><span>${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</span><span>${esc(p._last)}</span>${topicIds(p).map(tag).join("")}</div>
       </div>`).join("") || `<div class="empty">${t("papers.empty")}</div>`;
     if (list.length > paperLimit) {
-      $("#paper-list").insertAdjacentHTML("beforeend", `<button class="more" id="more">${t("papers.more", { n: list.length - paperLimit })}</button>`);
+      $("#paper-list").insertAdjacentHTML("beforeend", `<button class="ui-btn plain load-more" id="more">${t("papers.more", { n: list.length - paperLimit })}</button>`);
       $("#more").onclick = e => { e.stopPropagation(); paperLimit += 60; renderPapers(); };
     }
   }
@@ -400,7 +400,7 @@
     return v;
   };
   // "back" stays inside the app: go back only if we navigated here from another in-app page
-  const back = `<button class="link-btn back" onclick="window.LabBack()">← ${t("d.back")}</button>`;
+  const back = `<button class="ui-btn text back" onclick="window.LabBack()">← ${t("d.back")}</button>`;
   // studies this paper took part in: as the common paper (with the papers people brought) or as someone's pick
   function studiesCard(pid) {
     const L = window.Store?.studies.forPaper(pid) || [];
@@ -421,16 +421,16 @@
     const cc = CL[p.c], c = CL[p.f];
     v.innerHTML = `${back}
       <div class="dp-head">
-        ${cc ? `<div class="tags-row"><span class="tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
-          ${c ? `<span class="tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
+        ${cc ? `<div class="tags-row"><span class="ui-tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
+          ${c ? `<span class="ui-tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
         <h1>${esc(p.title)}</h1>
         <div class="kv">${esc(p.authors)}</div>
         <div class="kv">${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}${p.citations != null ? ` · ${t("d.cites")} ${p.citations}` : ""}</div>
         ${p.link ? `<div class="kv">${linkHtml(p.link)}</div>` : ""}
         <div class="tags-row">${topicIds(p).map(tag).join("")}${(p.free || []).map(tag).join("")}</div>
         <div class="btn-row">
-          ${(() => { const f = p.reviews.filter(x => !window.Store?.studies.hidden(R[x])).flatMap(x => R[x].files || []).find(f => f.kind === "pdf"); return f ? `<a class="btn" data-fid="${esc(f.id)}" target="_blank" rel="noopener">${t("d.pdf")}</a>` : ""; })()}
-          ${p.x != null ? `<button class="btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
+          ${(() => { const f = p.reviews.filter(x => !window.Store?.studies.hidden(R[x])).flatMap(x => R[x].files || []).find(f => f.kind === "pdf"); return f ? `<a class="ui-btn" data-fid="${esc(f.id)}" target="_blank" rel="noopener">${t("d.pdf")}</a>` : ""; })()}
+          ${p.x != null ? `<button class="ui-btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
           ${window.Store ? `${readingBtn(p)}
           ${writeBtn(p)}` : ""}
         </div>
@@ -461,10 +461,10 @@
       <div class="dp-main">
         <div class="pc-head">${avatar(id, true)}<div><h1>${esc(p.name)}</h1>
           <div class="pc-meta">${t("pc.metaN", { n: mine.length })}</div></div></div>
-        <div class="btn-row"><button class="btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
+        <div class="btn-row"><button class="ui-btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
           <select id="pp-term"><option value="">${t("tm.all")}</option>${terms.map(x => `<option value="${x}">${esc((Store.terms.list().find(y => y.id === x) || { label: x }).label)}</option>`).join("")}</select></div>
         <div class="dp-reviews" id="pp-list"></div>
-        <button class="more" id="pp-more" hidden></button>
+        <button class="ui-btn plain load-more" id="pp-more" hidden></button>
       </div>
       <aside class="dp-side card">${personDetail(id)}</aside>
     </div>`;
@@ -516,15 +516,15 @@
 
   window.I18N.apply();
   document.querySelectorAll("#lang button").forEach(b => {
-    b.classList.toggle("on", b.dataset.v === lang);
+    b.setAttribute("aria-pressed", b.dataset.v === lang);
     b.onclick = () => b.dataset.v !== lang && window.I18N.setLang(b.dataset.v);
   });
   initPaperFilters();
   window.addEventListener("hashchange", route);
 
   // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
-  const papersTabs = on => `<div class="tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
-    .map(([k, href, key]) => `<a href="${href}" class="${on === k ? "on" : ""}">${t(key)}</a>`).join("")}</div>`;
+  const papersTabs = on => `<div class="ui-seg page-tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
+    .map(([k, href, key]) => `<a href="${href}" aria-current="${on === k ? "page" : "false"}">${t(key)}</a>`).join("")}</div>`;
   window.LabUI = { openDrawer, closeDrawer, esc, stars, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
     buzz, papersTabs, paperTopicCount, topicDetail,
     rerender, P, T, PA, R, CL, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };

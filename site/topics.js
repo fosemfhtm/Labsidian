@@ -41,7 +41,7 @@
     pageView.innerHTML = `${UI.papersTabs("topics")}
       <div class="tp-page"><div class="card">${UI.topicDetail(tid)}</div>
       <div class="card"><div class="row-between"><h3>${t("tp.guides")}</h3>
-        <a class="btn small primary" href="#/guides?new=1&tag=${encodeURIComponent(tid)}">＋ ${t("tp.newGuide")}</a></div>
+        <a class="ui-btn small prominent" href="#/guides?new=1&tag=${encodeURIComponent(tid)}">＋ ${t("tp.newGuide")}</a></div>
         ${guides.length ? `<div class="gd-cards">${guides.map(g => window.LabGuides.card(g)).join("")}</div>` : `<p class="muted">${t("tp.noGuide")}</p>`}</div></div>`;
     // the drawer's own "topic page" link points here — drop it on the page itself
     pageView.querySelector(`a[href="#/topic/${encodeURIComponent(tid)}"]`)?.remove();

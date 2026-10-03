@@ -54,8 +54,8 @@
       <div class="page-head"><h1>${t("rl.title")}</h1><p class="sub">${t("rl.sub")}</p></div>
       <div class="card rl-add">
         <form id="rl-form" class="rl-add-row" autocomplete="off"><input id="rl-input" placeholder="${t("rl.ph")}">
-          <button class="btn primary">${t("rl.add")}</button>
-          <label class="btn">📄 ${t("rl.pdf")}<input type="file" id="rl-file" accept="application/pdf" multiple hidden></label></form>
+          <button class="ui-btn prominent">${t("rl.add")}</button>
+          <label class="ui-btn">📄 ${t("rl.pdf")}<input type="file" id="rl-file" accept="application/pdf" multiple hidden></label></form>
         <div class="muted" id="rl-status"></div><p class="hint">${t("rl.dropHint")}</p>
       </div>
       ${g.read.length || stale ? `<div class="rl-nudge">⏰ ${[g.read.length && t("rl.nudgeRead", { n: g.read.length }), stale && t("rl.nudgeStale", { n: stale })].filter(Boolean).join(" · ")}</div>` : ""}
@@ -75,25 +75,25 @@
     return `<div class="rl-item rl-st-${st}" data-id="${esc(x.id)}">
       <div class="rl-main">
         <div class="rl-title">${x.paperId ? `<a data-open="paper:${esc(x.paperId)}">${esc(x.title)}</a>` : `<span>${esc(x.title)}</span>
-          <button class="link-btn" data-act="title" title="${t("rl.editTitle")}">✎</button>`}</div>
+          <button class="ui-btn text" data-act="title" title="${t("rl.editTitle")}">✎</button>`}</div>
         ${meta ? `<div class="muted rl-meta">${esc(meta)}</div>` : ""}
         <div class="rl-badges">${x.readers.length ? `<span class="rl-lab">${UI.avStack(x.readers, 4)} ${t("rl.labRead", { n: x.readers.length })}</span>` : ""}
           <span class="muted">${when}</span></div>
         ${x.note ? `<div class="rl-note">${esc(x.note)}</div>` : ""}
         <div class="rl-note-edit" hidden><textarea rows="3" placeholder="${t("rl.notePh")}">${esc(x.note)}</textarea>
-          <button class="btn small" data-act="note-save">${t("rl.save")}</button></div>
+          <button class="ui-btn small" data-act="note-save">${t("rl.save")}</button></div>
       </div>
       <div class="rl-actions">
-        ${pdf ? `<a class="btn small" data-fid="${esc(pdf.id)}" target="_blank" rel="noopener" title="${t("rl.openPdf")}">📄 PDF</a>`
-          : st !== "written" ? `<label class="btn small ghost" title="${t("rl.attach")}">📎<input type="file" accept="application/pdf" data-act="attach" hidden></label>` : ""}
-        ${x.link ? `<a class="btn small ghost" href="${esc(x.link)}" target="_blank" rel="noopener" title="${t("rl.openLink")}: ${esc(x.link)}">🔗</a>` : ""}
-        ${st === "todo" ? `<button class="btn small" data-act="reading">${t("rl.start")}</button>` : ""}
-        ${st === "reading" ? `<button class="btn small" data-act="read">${t("rl.done")}</button>` : ""}
-        ${st === "written" ? `<a class="btn small" href="#/write?review=${esc(x.written)}">✎ ${t("rl.myDiary")}</a>`
-          : `<a class="btn small ${st === "read" ? "primary" : ""}" href="#/write?reading=${encodeURIComponent(x.id)}">✎ ${t("rl.write")}</a>`}
-        <button class="btn small ghost" data-act="note" title="${t("rl.note")}">💬</button>
-        ${st === "reading" || st === "read" ? `<button class="btn small ghost" data-act="todo" title="${t("rl.back")}">↺</button>` : ""}
-        <button class="btn small ghost" data-act="del" title="${t("rl.remove")}">🗑</button>
+        ${pdf ? `<a class="ui-btn small" data-fid="${esc(pdf.id)}" target="_blank" rel="noopener" title="${t("rl.openPdf")}">📄 PDF</a>`
+          : st !== "written" ? `<label class="ui-btn small plain" title="${t("rl.attach")}">📎<input type="file" accept="application/pdf" data-act="attach" hidden></label>` : ""}
+        ${x.link ? `<a class="ui-btn small plain" href="${esc(x.link)}" target="_blank" rel="noopener" title="${t("rl.openLink")}: ${esc(x.link)}">🔗</a>` : ""}
+        ${st === "todo" ? `<button class="ui-btn small" data-act="reading">${t("rl.start")}</button>` : ""}
+        ${st === "reading" ? `<button class="ui-btn small" data-act="read">${t("rl.done")}</button>` : ""}
+        ${st === "written" ? `<a class="ui-btn small" href="#/write?review=${esc(x.written)}">✎ ${t("rl.myDiary")}</a>`
+          : `<a class="ui-btn small ${st === "read" ? "primary" : ""}" href="#/write?reading=${encodeURIComponent(x.id)}">✎ ${t("rl.write")}</a>`}
+        <button class="ui-btn small plain" data-act="note" title="${t("rl.note")}">💬</button>
+        ${st === "reading" || st === "read" ? `<button class="ui-btn small plain" data-act="todo" title="${t("rl.back")}">↺</button>` : ""}
+        <button class="ui-btn small plain" data-act="del" title="${t("rl.remove")}">🗑</button>
       </div></div>`;
   }
 
@@ -145,7 +145,7 @@
           if (act === "title") {   // a small sheet instead of the browser's own dialog (components §16)
             const x = S.reading.get(id);
             const m = LabModal(`<h2>${t("rl.editTitle")}</h2><input class="ui-field rl-title-in" value="${esc(x.title)}">
-              <div class="btn-row"><button class="btn" data-close>${t("c.cancel")}</button><button class="btn primary" data-save>${t("rl.save")}</button></div>`);
+              <div class="btn-row"><button class="ui-btn" data-close>${t("c.cancel")}</button><button class="ui-btn prominent" data-save>${t("rl.save")}</button></div>`);
             const inp = $(".rl-title-in", m), save = async () => { const v = inp.value.trim(); if (v) { m.remove(); await S.reading.update(id, { title: v }); render(); } };
             $("[data-save]", m).onclick = save;
             inp.onkeydown = e => { if (e.key === "Enter") save(); if (e.key === "Escape") m.remove(); };

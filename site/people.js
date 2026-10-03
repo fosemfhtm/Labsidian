@@ -29,7 +29,7 @@
     const pa = UI.P[a], pb = UI.P[b], A = V.profile(a), B = V.profile(b);
     const both = Object.values(UI.PA).filter(p => p.readers.includes(a) && p.readers.includes(b)).sort((x, y) => y._last.localeCompare(x._last));
     const pick = (k, cur) => `<select data-pick="${k}" aria-label="${t("cmp.pick")}">${people.map(p => `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
-    view.innerHTML = `<button class="link-btn back" onclick="window.LabBack()">← ${t("d.back")}</button>
+    view.innerHTML = `<button class="ui-btn text back" onclick="window.LabBack()">← ${t("d.back")}</button>
       <div class="page-head row-head"><div><h1>${t("cmp.title")}</h1></div><div class="btn-row">${pick("a", a)}<span class="muted">vs</span>${pick("b", b)}</div></div>
       <div class="cmp-grid">${head(a, "left")}${head(b, "right")}</div>
       <div class="card cmp-terrain" data-vz-axis="${V.kind}"><div class="row-between"><h3>${t("pf.terrain")}</h3>${V.axisSwitch()}</div>

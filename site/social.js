@@ -31,11 +31,11 @@
     const re = S.reactions.get(r.id), u = me(), n = S.comments.count(r.id);
     const mine = u && (u.id === r.person || u.role === "admin");
     return `<div class="rv-foot" data-rid="${r.id}">
-      <button class="rf ${u && re.like.includes(u.id) ? "on" : ""}" data-act="like" title="${t("s.like")}">👍 <span>${re.like.length || ""}</span></button>
-      <button class="rf ${u && re.want.includes(u.id) ? "on" : ""}" data-act="want" title="${t("s.want")}">📚 <span class="hide-sm">${t("s.want")}</span> <span>${re.want.length || ""}</span></button>
-      <button class="rf" data-act="thread">💬 <span>${n || ""}</span> <span class="hide-sm">${t("s.comments")}</span></button>
-      <button class="rf" data-act="translate">🌐 <span class="hide-sm">${t("s.translate")}</span></button>
-      ${mine ? `<a class="rf" href="#/write?review=${r.id}">✎ <span class="hide-sm">${t("s.edit")}</span></a>` : ""}
+      <button class="ui-btn plain small" aria-pressed="${!!(u && re.like.includes(u.id))}" data-act="like" title="${t("s.like")}">👍 <span>${re.like.length || ""}</span></button>
+      <button class="ui-btn plain small" aria-pressed="${!!(u && re.want.includes(u.id))}" data-act="want" title="${t("s.want")}">📚 <span class="hide-sm">${t("s.want")}</span> <span>${re.want.length || ""}</span></button>
+      <button class="ui-btn plain small" data-act="thread">💬 <span>${n || ""}</span> <span class="hide-sm">${t("s.comments")}</span></button>
+      <button class="ui-btn plain small" data-act="translate">🌐 <span class="hide-sm">${t("s.translate")}</span></button>
+      ${mine ? `<a class="ui-btn plain small" href="#/write?review=${r.id}">✎ <span class="hide-sm">${t("s.edit")}</span></a>` : ""}
     </div>
     <div class="translation" hidden></div>
     <div class="thread" hidden></div>`;
@@ -63,9 +63,9 @@
             <span class="muted">${window.LabAgo(c.at)}</span></div>
           <div class="cm-body">${renderBody(c.body)}</div>
           <div class="cm-acts">
-            ${!c.parent ? `<button class="link-btn" data-cact="reply">${t("s.reply")}</button>` : ""}
-            ${canResolve ? `<button class="link-btn" data-cact="resolve">${c.resolved ? t("s.reopen") : t("s.resolve")}</button>` : ""}
-            ${canDel ? `<button class="link-btn danger" data-cact="delete">${t("s.delete")}</button>` : ""}
+            ${!c.parent ? `<button class="ui-btn text" data-cact="reply">${t("s.reply")}</button>` : ""}
+            ${canResolve ? `<button class="ui-btn text" data-cact="resolve">${c.resolved ? t("s.reopen") : t("s.resolve")}</button>` : ""}
+            ${canDel ? `<button class="ui-btn text destructive" data-cact="delete">${t("s.delete")}</button>` : ""}
           </div>
           ${!c.parent ? `<div class="cm-kids">${kids(c.id).map(item).join("")}</div>` : ""}
         </div></div>`;
@@ -75,9 +75,9 @@
   }
   function composer(parent) {
     return `<form class="cm-form" ${parent ? `data-parent="${parent}"` : ""}>
-      ${parent ? "" : `<div class="seg small cm-kind">${["comment", "question", "idea"].map((k, i) => `<button type="button" data-k="${k}" class="${i ? "" : "on"}">${KIND_ICON[k]} ${t("s.kind." + k)}</button>`).join("")}</div>`}
+      ${parent ? "" : `<div class="ui-seg small cm-kind">${["comment", "question", "idea"].map((k, i) => `<button type="button" data-k="${k}" aria-pressed="${!i}">${KIND_ICON[k]} ${t("s.kind." + k)}</button>`).join("")}</div>`}
       <div class="cm-input"><textarea rows="2" placeholder="${t("s.ph")}"></textarea><div class="mention-pop" hidden></div></div>
-      <button class="btn primary small">${t("s.post")}</button></form>`;
+      <button class="ui-btn prominent small">${t("s.post")}</button></form>`;
   }
   function wireComposer(scope, rid) {
     scope.querySelectorAll(".cm-form").forEach(f => {
@@ -85,7 +85,7 @@
       let kind = "comment";
       f.querySelector(".cm-kind")?.addEventListener("click", e => {
         const b = e.target.closest("button"); if (!b) return;
-        kind = b.dataset.k; f.querySelectorAll(".cm-kind button").forEach(x => x.classList.toggle("on", x === b));
+        kind = b.dataset.k; f.querySelectorAll(".cm-kind button").forEach(x => x.setAttribute("aria-pressed", x === b));
       });
       const ta = f.querySelector("textarea"), pop = f.querySelector(".mention-pop");
       ta.addEventListener("input", () => {
@@ -149,14 +149,14 @@
 
   // ---------- event delegation ----------
   document.addEventListener("click", async e => {
-    const btn = e.target.closest(".rv-foot .rf[data-act]");
+    const btn = e.target.closest(".rv-foot .ui-btn[data-act]");
     if (btn) {
       e.stopPropagation();
       const foot = btn.closest(".rv-foot"), rid = foot.dataset.rid, card = foot.parentElement;
       const act = btn.dataset.act;
       if (act === "like" || act === "want") {
         const re = await S.reactions.toggle(rid, act);
-        btn.classList.toggle("on", re[act].includes(me().id));
+        btn.setAttribute("aria-pressed", re[act].includes(me().id));
         btn.querySelector("span:last-child").textContent = re[act].length || "";
         if (act === "want") LabToast(re.want.includes(me().id) ? t("s.added") : t("s.removed"));
       }
