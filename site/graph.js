@@ -414,7 +414,7 @@ function renderPopovers() {
   $("#pop-venue .chips").innerHTML = ["journal", "conference", "preprint"].map(k => chip(k, t("g.vt." + k), null, s.vtypes.has(k))).join("");
   const q = ($("#venue-q").value || "").toLowerCase();
   $("#pop-venue .checklist").innerHTML = venuesSorted.filter(([v]) => !q || v.toLowerCase().includes(q)).map(([v, n]) =>
-    `<label class="check"><input type="checkbox" data-id="${esc(v)}" ${s.venues.has(v) ? "checked" : ""}> <span class="vn">${esc(v)}</span><span class="muted">${n}</span></label>`).join("");
+    `<label class="ui-check"><input type="checkbox" data-id="${esc(v)}" ${s.venues.has(v) ? "checked" : ""}> <span class="vn">${esc(v)}</span><span class="muted">${n}</span></label>`).join("");
 }
 function renderPeopleLegend() {
   const s = state, el = $("#g-people");

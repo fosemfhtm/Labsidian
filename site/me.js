@@ -111,8 +111,8 @@
         <div class="ui-seg small" id="me-axis">${["domain", "method"].map(a => `<button data-v="${a}" aria-pressed="${axis === a}">${t("me.axis." + a)}</button>`).join("")}</div></div></div>
         <p class="hint" id="me-drift-hint"></p><div id="me-drift"></div></div>
       <div class="ui-card me-reviews" id="me-reviews"><h3>${t("me.reviews")} · <span id="me-rv-count">${n}</span></h3>
-        ${draft ? `<div class="draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
-        ${mcpDrafts.map(d => `<div class="draft-row mcp">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
+        ${draft ? `<div class="ui-notice draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
+        ${mcpDrafts.map(d => `<div class="ui-notice info draft-row">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
         <div class="rv-filters">
           <input id="rf-q" type="search" placeholder="${t("me.search")}" value="${esc(rf.q)}">
           <select id="rf-dom"></select><select id="rf-met"></select>

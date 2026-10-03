@@ -131,8 +131,6 @@ body:has(#drawer.open) .legend { right: 548px; }
 .feed-item.act.question { border-left: 0; box-shadow: inset 3px 0 0 rgb(var(--yellow)), var(--shadow-1); }
 .feed-item.act.idea { border-left: 0; box-shadow: inset 3px 0 0 rgb(var(--mint)), var(--shadow-1); }
 .feed-item.act.study { border-left: 0; box-shadow: inset 3px 0 0 rgb(var(--accent-rgb)), var(--shadow-1); }
-.todo .box { border-radius: 50%; border-color: var(--label-3); }
-.todo.done .box { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .todo.done .lbl { color: var(--label-3); text-decoration-color: var(--label-4); }
 .st-todo-done { color: rgb(var(--green)); }
 .pk-n { background: var(--accent); }

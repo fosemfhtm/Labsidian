@@ -114,7 +114,7 @@
   const when = st => [st.date, st.time, st.place].filter(Boolean).map(esc).join(" · ");
   const pdfOf = st => (st.files || []).find(f => f.kind === "pdf") || S.studies.reviews(st).filter(r => !S.studies.hidden(r)).flatMap(r => r.files || []).find(f => f.kind === "pdf");
   const httpUrl = u => (/^https?:\/\//i.test(u || "") ? u : "");
-  const back = `<button class="ui-btn text back" onclick="history.length > 1 ? history.back() : (location.hash = '#/study')">← ${t("d.back")}</button>`;
+  const back = `<button class="ui-btn text back" onclick="window.LabBack('#/study')">← ${t("d.back")}</button>`;
 
   // ---------------------------------------------------------------- list
   let tab = "open";
@@ -219,8 +219,8 @@
           ${[UI.P[me.id] || { id: me.id, name: me.name }, ...others].map(p => `<option value="${p.id}" ${p.id === presenter ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
         <label class="fld"><span>${t("st.desc")}</span><textarea id="st-desc" rows="4" placeholder="${t("st.desc.ph")}"></textarea></label>
         <div class="st-opts">
-          <label class="check"><input type="checkbox" id="st-blind" checked><span><b>${t("st.opt.blind")}</b><em class="hint">${t("st.opt.blindHint")}</em></span></label>
-          <label class="check"><input type="checkbox" id="st-bring"><span><b>${t("st.opt.bring")}</b><em class="hint">${t("st.opt.bringHint")}</em></span></label>
+          <label class="ui-check"><input type="checkbox" id="st-blind" checked><span><b>${t("st.opt.blind")}</b><em class="hint">${t("st.opt.blindHint")}</em></span></label>
+          <label class="ui-check"><input type="checkbox" id="st-bring"><span><b>${t("st.opt.bring")}</b><em class="hint">${t("st.opt.bringHint")}</em></span></label>
         </div>
         <div class="fld"><span>${t("st.invite")}</span><div class="chips" id="st-invite">
           ${others.map(p => `<button type="button" class="ui-chip" aria-pressed="${invited.has(p.id)}" data-u="${p.id}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`).join("")}</div></div>
@@ -318,7 +318,7 @@
       : !joined
       ? `<div class="ui-card st-todo join"><span>${t("st.todo.joinFirst")}</span><button class="ui-btn prominent" data-act="join">${t("st.join")}</button></div>`
       : `<div class="ui-card st-todo"><b>${t("st.todo")}</b>${todo.map(x => `<div class="ui-row todo ${x.done ? "done" : ""} ${x.optional ? "opt" : ""}">
-          <span class="box">${x.done ? "✓" : ""}</span><span class="lbl">${x.label}</span>${x.go}</div>`).join("")}</div>`;
+          <span class="ui-done ${x.done ? "checked" : ""}">${x.done ? "✓" : ""}</span><span class="lbl">${x.label}</span>${x.go}</div>`).join("")}</div>`;
 
     // ---- tab bodies
     const reviewCard = u => byPerson[u] ? UI.reviewHtml(byPerson[u])
@@ -340,7 +340,7 @@
           ${p?.abstract ? `<details class="ui-card st-abs"><summary><h3>${t("st.abstract")}</h3></summary><p class="abstract-full">${esc(p.abstract)}</p></details>` : ""}
         </div></div>`;
     const diaryTab = `
-      ${st.blind && !st.closed && !mine ? `<p class="restored blind-on">${t("st.blindOn")}</p>` : ""}
+      ${st.blind && !st.closed && !mine ? `<p class="ui-notice warn">${t("st.blindOn")}</p>` : ""}
       ${shownRevs.length > 1 ? `<div class="st-rates">${t("st.ratings")} ${shownRevs.map(r => `<span class="st-rate" title="${name(r.person)}">${UI.avatar(r.person)}${r.rating}</span>`).join("")}</div>` : ""}
       <div class="rev-cols st-cols">${people.map(reviewCard).join("")}</div>`;
     const pickForm = st.closed || (myPick && !editPick) || !joined ? "" : `<form class="ui-card st-pick-form" id="st-pick-form" autocomplete="off">
@@ -369,7 +369,7 @@
         </div>`; }).join("") || `<div class="ui-empty">${t("st.pick.none")}</div>`}</div>`;
     const canWriteNotes = joined || me.role === "admin";
     const draftBanner = S.studies.notesDraft(st.id)
-      ? `<p class="restored mcp">${t("st.n.draft", { name: name(st.notesDraft.by) })} <button class="ui-btn text" data-act="draft">${t("st.n.loadDraft")}</button></p>` : "";
+      ? `<p class="ui-notice info">${t("st.n.draft", { name: name(st.notesDraft.by) })} <button class="ui-btn text" data-act="draft">${t("st.n.loadDraft")}</button></p>` : "";
     const discussed = qs.filter(q => q.done), leftover = qs.filter(q => !q.done);
     const notesTab = editNotes ? `
       <div class="ui-card st-notes">${draftBanner}
@@ -390,8 +390,8 @@
       <div class="st-hero">${series(st)}
         <div class="st-top">${dday(st)}<span>${longDate(st)}</span><span class="m">${t("st.presenter")} <b>${name(st.presenter)}</b></span>
           ${canManage ? `<details class="st-manage"><summary>⋯ ${t("st.manage")}</summary><div class="menu-pop ui-popover">
-            ${st.closed ? "" : `<label class="check"><input type="checkbox" data-opt="blind" ${st.blind ? "checked" : ""}><span>${t("st.opt.blind")}</span></label>
-            <label class="check"><input type="checkbox" data-opt="bring" ${st.bring ? "checked" : ""}><span>${t("st.opt.bring")}</span></label><hr>`}
+            ${st.closed ? "" : `<label class="ui-check"><input type="checkbox" data-opt="blind" ${st.blind ? "checked" : ""}><span>${t("st.opt.blind")}</span></label>
+            <label class="ui-check"><input type="checkbox" data-opt="bring" ${st.bring ? "checked" : ""}><span>${t("st.opt.bring")}</span></label><hr>`}
             <button class="ui-btn text" data-act="editinfo">${t("st.editInfo")}</button>
             <button class="ui-btn text" data-act="close">${st.closed ? t("st.reopen") : t("st.close")}</button>
             <button class="ui-btn text destructive" data-act="delete">${t("st.delete")}</button></div></details>` : ""}</div>

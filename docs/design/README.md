@@ -104,14 +104,15 @@ hex가 꼭 필요한 JS 데이터 표(사람 색 팔레트 등)는 `// design-li
 
 ## 코드 구조
 
+불러오는 순서 (`index.html`):
 ```
-site/tokens.css     토큰(글자·색·간격·모서리·머티리얼·모션) + ui-* 컴포넌트   ← 규칙의 원본
-site/apple.css      옛 클래스를 HIG 모양으로 덮어쓰는 층                   ← 점차 없앤다
-site/style.css      옛 기본 스타일                                        ← 점차 없앤다
-site/features.css   기능별 스타일 (615줄 이후는 토큰 사용)                ← 페이지별 배치만 남긴다
+site/tokens.css     토큰 + ui-* 컴포넌트 (선택자는 :where([data-ui]) .ui-x — 우선순위가 클래스 하나)   ← 규칙의 원본
+site/style.css      기본·페이지 스타일
+site/features.css   기능별 페이지 스타일
+site/apple.css      페이지별 HIG 덮어쓰기                                                          ← 점차 없앤다
 site/layout.css     상단 바 / 레거시 사이드바 배치
 site/design.js      #/design 견본 페이지
 ```
 
-목표 구조는 `tokens.css → components(ui-*) → 페이지별 배치`이고, 페이지 CSS는 **배치(그리드·폭·순서)만** 담당한다.
-각 컴포넌트 절의 "지금 → 옮기기"에 옛 클래스와 목표 컴포넌트의 대응을 적어 두었다.
+컴포넌트가 먼저, 우선순위 낮게 불리므로 페이지 CSS는 **배치(그리드·폭·순서·간격)만** 한 줄로 덧붙인다.
+옛 클래스와 컴포넌트의 대응은 [components.md](components.md) 각 절의 "옛 클래스" 표에 있다.

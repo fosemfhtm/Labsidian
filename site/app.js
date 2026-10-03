@@ -87,9 +87,9 @@
   // emoji used as control icons → Lucide (ISC). Only inside controls/labels, never in review or comment text.
   const ICONS = { "✎": "pen-line", "📅": "calendar", "🔔": "bell", "📄": "file-text", "📎": "paperclip", "📚": "book-open", "👍": "thumbs-up",
     "💬": "message-circle", "🌐": "languages", "🔗": "link", "◎": "locate-fixed", "🙈": "eye-off", "🤖": "bot", "❓": "circle-help", "💡": "lightbulb",
-    "🖼": "image", "👀": "eye", "⬇": "download", "📥": "download", "🗑": "trash-2", "⚙": "settings", "🔍": "search", "⋯": "ellipsis", "＋": "plus", "▾": "chevron-down" };
+    "🖼": "image", "👀": "eye", "⬇": "download", "📥": "download", "🗑": "trash-2", "⚙": "settings", "🔍": "search", "⋯": "ellipsis", "＋": "plus", "▾": "chevron-down", "⏰": "alarm-clock", "📝": "notebook-pen" };
   const ICON_RE = new RegExp("(" + Object.keys(ICONS).join("|") + ")\\uFE0F?\\s?", "g");
-  const ICON_SCOPE = "button, .ui-btn, .ui-seg a, .ui-pill, .restored, .menu a, .menu > button, .term-btn, .ui-chip, .side-st b, .act-body, h3, h4, label, .rf, .cm-kind button, summary";
+  const ICON_SCOPE = "button, .ui-btn, .ui-seg a, .ui-pill, .ui-notice, .menu a, .menu > button, .term-btn, .ui-chip, .side-st b, .act-body, h3, h4, label, .rf, .cm-kind button, summary";
   function iconize(root) {
     root.querySelectorAll?.(ICON_SCOPE).forEach(el => {
       if (el.closest(".rv-body, .rv-memo, .cm-body, .act-body .q, textarea, [contenteditable]")) return;

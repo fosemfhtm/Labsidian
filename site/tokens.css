@@ -281,8 +281,8 @@
 :where([data-ui]) .ui-search .ui-field { padding-left: 34px; border-radius: var(--r-control); background: var(--fill-3); }
 
 /* ---------- checkbox & switch ---------- */
-:where([data-ui]) .ui-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: var(--t-body); }
-:where([data-ui]) .ui-check input { appearance: none; width: 18px; height: 18px; margin: 0; border-radius: var(--r-xs); background: var(--fill-3); box-shadow: inset 0 0 0 1px var(--separator); display: grid; place-items: center; cursor: pointer; }
+:where([data-ui]) .ui-check { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font: var(--t-body); }
+:where([data-ui]) .ui-check input { appearance: none; flex: none; width: 18px; height: 18px; margin: -1px 0 0; border-radius: var(--r-xs); background: var(--fill-3); box-shadow: inset 0 0 0 1px var(--separator); display: grid; place-items: center; cursor: pointer; }
 :where([data-ui]) .ui-check input:checked { background: var(--accent); box-shadow: none; }
 :where([data-ui]) .ui-check input:checked::after { content: ""; width: 5px; height: 9px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
 :where([data-ui]) .ui-switch { appearance: none; width: 51px; height: 31px; margin: 0; border-radius: var(--r-full); background: var(--fill); position: relative; cursor: pointer; transition: background var(--dur) var(--ease); flex: none; }
@@ -384,6 +384,23 @@
   :where([data-ui]) .ui-sheet::before { content: ""; display: block; width: 36px; height: 5px; border-radius: var(--r-xs); background: var(--label-3); margin: 6px auto 0; }
 }
 
+/* ---------- table (admin): 28px rows, subhead column heads; .num right-aligned tabular ---------- */
+:where([data-ui]) .ui-table { width: 100%; border-collapse: collapse; font: var(--t-body); }
+:where([data-ui]) .ui-table th { text-align: left; font: var(--t-subhead); font-weight: 600; color: var(--label-2); padding: 4px 8px; border-bottom: .5px solid var(--separator); }
+:where([data-ui]) .ui-table td { height: 28px; padding: 3px 8px; border-bottom: .5px solid var(--separator); vertical-align: middle; }
+:where([data-ui]) .ui-table :is(th, td).num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- done check (Reminders-style circle; .checked = done) ---------- */
+:where([data-ui]) .ui-done { width: 20px; height: 20px; flex: none; display: inline-grid; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--label-3); color: transparent; font: var(--t-caption2); font-weight: 700; line-height: 1; }
+:where([data-ui]) .ui-done.checked { background: var(--accent); box-shadow: none; color: var(--on-accent); }
+
+/* ---------- notice: a line that stays on the page (restored draft, AI requests, a nudge) — tones info / ok / warn ---------- */
+:where([data-ui]) .ui-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--s-2); margin: 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-control); background: var(--fill-4); color: var(--label); font: var(--t-body); }
+:where([data-ui]) .ui-notice.info { background: rgb(var(--blue) / .1); }
+:where([data-ui]) .ui-notice.ok { background: rgb(var(--green) / .12); }
+:where([data-ui]) .ui-notice.warn { background: rgb(var(--orange) / .14); }
+:where([data-ui]) .ui-notice > .ic:first-child { color: var(--label-2); }
+
 /* ---------- progress, empty state, toast ---------- */
 :where([data-ui]) .ui-progress { height: 4px; border-radius: var(--r-xs); background: var(--fill-3); overflow: hidden; }
 :where([data-ui]) .ui-progress > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--dur) var(--ease); }
@@ -425,16 +442,11 @@
 .sp-badge-demo { position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; color: var(--label); }
 .sp-badge-demo .ui-badge { position: absolute; top: 0; right: -2px; }
 .sp-todo { width: 100%; border: 0; background: none; text-align: left; cursor: pointer; }
-.sp-circle { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--label-3); display: grid; place-items: center; flex: none; transition: background var(--dur-fast) var(--ease); }
-.sp-todo.done .sp-circle { background: var(--accent); box-shadow: none; color: var(--on-accent); }
-.sp-todo.done .sp-circle .ic { width: 14px; height: 14px; stroke-width: 3; }
 .sp-todo.done .grow { color: var(--label-3); }
 .sp-review { display: grid; gap: 10px; max-width: var(--readable); }
 .sp-rv-head { display: flex; align-items: center; gap: 10px; }
 .sp-rv-head .grow { flex: 1; min-width: 0; }
 .sp-stars { color: var(--star); letter-spacing: .05em; } .sp-stars span { color: var(--label-4); }
-.sp-pill { padding: 1px 7px; border-radius: var(--r-full); font: var(--t-subhead); white-space: nowrap; display: inline-block; }
-.sp-pill.warn { background: rgb(var(--orange) / .16); color: rgb(var(--orange)); }
 .sp-paper { color: var(--label); text-decoration: none; }
 .sp-paper:hover { color: var(--accent); }
 .sp-memo { background: var(--fill-4); border-radius: var(--r-control); padding: 10px 12px; }

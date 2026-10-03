@@ -12,16 +12,16 @@
   const GRAYS = ["gray", "gray2", "gray3", "gray4", "gray5", "gray6"];
   const SEM = [["label", "글자"], ["label-2", "보조 글자"], ["label-3", "3차 글자"], ["label-4", "비활성"], ["sys-bg", "바탕"], ["sys-bg-2", "카드"], ["sys-bg-3", "떠 있는 면"],
     ["separator", "구분선"], ["fill", "채우기 1"], ["fill-2", "채우기 2"], ["fill-3", "채우기 3"], ["fill-4", "채우기 4"], ["accent", "강조(Indigo)"], ["link", "링크"]];
-  const TYPE = [["large-title", "Large Title", "34/41 Bold", "논문 스터디"], ["title1", "Title 1", "28/34 Bold", "Drive Like a Human"], ["title2", "Title 2", "22/28 Bold", "다이어리 비교"],
-    ["title3", "Title 3", "20/25 Semibold", "질문 보드"], ["headline", "Headline", "17/22 Semibold", "예시 멤버 · ★★★★"], ["body", "Body", "17/22", "긴 구간을 굴릴수록 물리·기하 일관성이 무너지고 오차가 쌓인다."],
-    ["callout", "Callout", "16/21", "입력창 · 버튼 글자"], ["subhead", "Subhead", "15/20", "목록 보조 정보 · 탭"], ["footnote", "Footnote", "13/18", "2026-10-02 · 7일 늦게 등록"],
-    ["caption1", "Caption 1", "12/16", "배지 · 칩"], ["caption2", "Caption 2", "11/13", "그래프 라벨 (최소 크기)"]];
+  const TYPE = [["large-title", "Large Title", "26/32 Bold", "논문 스터디"], ["title1", "Title 1", "22/26 Bold", "Drive Like a Human"], ["title2", "Title 2", "17/22 Bold", "섹션 제목"],
+    ["title3", "Title 3", "15/20 Semibold", "카드 제목"], ["headline", "Headline", "13/16 Bold", "목록 항목 제목 · 작성자"], ["body", "Body", "13/16", "긴 구간을 굴릴수록 물리·기하 일관성이 무너지고 오차가 쌓인다."],
+    ["callout", "Callout", "12/15", "메타 · 날짜 · 도움말"], ["subhead", "Subheadline", "11/14", "태그 · 필 · 표 머리"], ["footnote", "Footnote", "10/13", "그래프 라벨 · 축 눈금"],
+    ["caption1", "Caption 1", "10/13", "아바타 이니셜"], ["caption2", "Caption 2", "10/13 Medium", "MEMO (최소 크기)"]];
   const av = (n, c, size = 28) => `<span class="sp-av" style="width:${size}px;height:${size}px;background:rgb(var(--${c}))">${n.slice(-2)}</span>`;
 
   function gallery() {
     return `
     <section><h2 class="t-title2">글자 · Typography</h2>
-      <p class="t-footnote c-2">iOS 텍스트 스타일(기본 크기). 글꼴: Apple 기기는 SF + Apple SD Gothic Neo, 그 외 Pretendard.</p>
+      <p class="t-callout c-2">데스크톱은 macOS 텍스트 스타일, 폰(760px 이하)은 같은 이름이 iOS 크기로 바뀌어요. 글꼴: Apple 기기는 SF + Apple SD Gothic Neo, 그 외 Pretendard.</p>
       <div class="ui-list">${TYPE.map(([k, n, spec, ex]) => `<div class="ui-row sp-type"><span class="sp-k t-caption1 c-2">${n}<br>${spec}</span><span class="t-${k} grow">${ex}</span></div>`).join("")}</div>
     </section>
 
@@ -57,6 +57,13 @@
         <span class="sp-badge-demo">${I("bell")}<span class="ui-badge">3</span></span><span class="ui-badge">12</span></div>
     </section>
 
+    <section><h2 class="t-title2">태그 · 필 · 글자 버튼</h2>
+      <div class="sp-row">${["교통 예측", "자율주행"].map((x, i) => `<span class="ui-tag"><span class="dot" style="background:rgb(var(--${["orange", "cyan"][i]}))"></span>${x}</span>`).join("")}<span class="ui-tag method"><span class="dot" style="background:rgb(var(--purple))"></span>강화학습</span></div>
+      <div class="sp-row"><span class="ui-pill">기본</span><span class="ui-pill warn">7일 늦게</span><span class="ui-pill ok">완료</span><span class="ui-pill info">2일 미리</span><span class="ui-pill accent">내 다이어리</span><span class="ui-pill outline">3회차에서</span></div>
+      <p class="t-body">문장 안의 동작은 글자 버튼으로 — 이전에 쓰던 글을 불러왔어요. <button class="ui-btn text">버리기</button></p>
+      <div class="sp-row"><button class="ui-btn small" aria-pressed="true">${I("thumbs-up")}3</button><button class="ui-btn small" aria-pressed="false">${I("thumbs-up")}</button></div>
+    </section>
+
     <section><h2 class="t-title2">입력 · Fields</h2>
       <div class="sp-grid2">
         <div><label class="ui-label">논문 제목</label><input class="ui-field" placeholder="DOI · 링크 · 제목으로 찾기"></div>
@@ -76,19 +83,30 @@
       <p class="ui-list-f">스위치는 목록 행 안에서만 (HIG).</p>
     </section>
 
+    <section><h2 class="t-title2">행 · 표</h2>
+      <div class="ui-card">
+        <a class="ui-row" href="javascript:void 0">${av("도윤", "cyan", 20)}<span class="grow">한 줄 행 — 28px</span><span class="m">12편</span></a>
+        <a class="ui-row two" href="javascript:void 0">${av("하늘", "yellow", 28)}<span class="grow">두 줄 행 — 제목<div class="m">메타 · 4일 전</div></span></a>
+        <div class="ui-row ruled"><span class="grow">구분선 행 (좌우 여백 0)</span><span class="m">읽을 예정</span></div>
+        <div class="ui-row ruled"><span class="grow">구분선 행</span><span class="m">읽는 중</span></div>
+      </div>
+      <table class="ui-table"><thead><tr><th>이름</th><th>역할</th><th class="num">작성률</th></tr></thead>
+        <tbody><tr><td>예시 멤버</td><td>member</td><td class="num">13%</td></tr><tr><td>관리자</td><td>admin</td><td class="num">—</td></tr></tbody></table>
+    </section>
+
     <section><h2 class="t-title2">내 준비 (체크리스트)</h2>
       <div class="ui-list">${[["같이 읽는 논문 다이어리 쓰기", 1], ["가져올 논문 올리기", 1], ["가져온 논문 다이어리 쓰기", 0], ["궁금한 점 올리기 (선택)", 0]].map(([x, d]) =>
-        `<button class="ui-row sp-todo ${d ? "done" : ""}" data-demo="todo"><span class="sp-circle">${d ? I("check") : ""}</span><span class="grow">${x}</span>${d ? "" : I("chevron-right", "chev")}</button>`).join("")}</div>
+        `<button class="ui-row sp-todo ${d ? "done" : ""}" data-demo="todo"><span class="ui-done ${d ? "checked" : ""}">${d ? "✓" : ""}</span><span class="grow">${x}</span>${d ? "" : I("chevron-right", "chev")}</button>`).join("")}</div>
     </section>
 
     <section><h2 class="t-title2">리뷰 카드 (콘텐츠 층 — 유리 없음)</h2>
       <article class="ui-card sp-review">
-        <div class="sp-rv-head">${av("예시", "red", 36)}<div class="grow"><div class="t-headline">예시 멤버</div><div class="t-footnote c-2"><span class="sp-stars">★★★★<span>★</span></span> · 2026-09-25 · <span class="sp-pill warn">7일 늦게 등록</span></div></div>
+        <div class="sp-rv-head">${av("예시", "red", 36)}<div class="grow"><div class="t-headline">예시 멤버</div><div class="t-footnote c-2"><span class="sp-stars">★★★★<span>★</span></span> · 2026-09-25 · <span class="ui-pill warn">7일 늦게 등록</span></div></div>
           <button class="ui-btn plain icon" aria-label="더 보기">${I("ellipsis")}</button></div>
         <a class="t-headline sp-paper" href="javascript:void 0">STAGE: A Stream-Centric Generative World Model for Long-Horizon Driving-Scene Simulation</a>
         <p class="t-body">긴 구간 생성에서 장면 전체를 매 프레임 다시 만드는 대신, 스트림 단위로 상태를 이어 붙여 일관성을 유지한다.</p>
         <div class="sp-memo"><span class="t-caption1">MEMO</span><p class="t-subhead">길게 굴릴수록 물리·기하 일관성이 무너지고 오차가 쌓이는 문제는 여전하다.</p></div>
-        <div class="sp-row tight">${["월드모델", "생성 모델"].map((x, i) => `<span class="ui-chip"><span class="dot" style="background:rgb(var(--${["teal", "purple"][i]}))"></span>${x}</span>`).join("")}</div>
+        <div class="sp-row tight">${["월드모델", "생성 모델"].map((x, i) => `<span class="ui-tag${i ? " method" : ""}"><span class="dot" style="background:rgb(var(--${["teal", "purple"][i]}))"></span>${x}</span>`).join("")}</div>
         <div class="sp-actions"><button class="ui-btn plain small">${I("thumbs-up")}3</button><button class="ui-btn plain small">${I("bookmark-plus")}나도 읽어볼래요</button>
           <button class="ui-btn plain small">${I("message-circle")}2</button><button class="ui-btn plain small">${I("languages")}번역</button></div>
       </article>
@@ -115,6 +133,15 @@
     <section><h2 class="t-title2">알림 · 시트</h2>
       <p class="t-footnote c-2">확인창은 버튼 최대 3개, "취소"는 왼쪽·실행은 오른쪽. 폰에서 시트는 아래에서 올라옴.</p>
       <div class="sp-row"><button class="ui-btn" data-demo="alert">${I("triangle-alert")}알림 열기</button><button class="ui-btn" data-demo="sheet">${I("panel-bottom-open")}시트 열기</button></div>
+    </section>
+
+    <section><h2 class="t-title2">안내줄 · 팝오버 · 툴팁</h2>
+      <p class="ui-notice info">${I("bot")}AI(MCP) 요청 2건이 반영됐어요. <button class="ui-btn text">보기</button></p>
+      <p class="ui-notice warn">${I("alarm-clock")}다 읽은 논문 1편 — 다이어리를 써 볼까요?</p>
+      <div class="sp-row" style="align-items:flex-start">
+        <div class="ui-popover list" style="width:220px"><div>${I("hash")}교통 예측</div><div>${I("hash")}교통 안전</div><div>${I("hash")}교통류·상태추정</div></div>
+        <div class="ui-tooltip"><b>10월 2일 (목)</b><br>다이어리 2편</div>
+      </div>
     </section>
 
     <section><h2 class="t-title2">진행 · 빈 상태 · 토스트</h2>
@@ -148,7 +175,7 @@
     view.querySelectorAll(".sp-controls .ui-seg button").forEach(b => (b.onclick = () => { mode[b.closest(".ui-seg").dataset.k] = b.dataset.v; render(); }));
     view.querySelectorAll('[data-demo="seg"] button').forEach(b => (b.onclick = () => b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b))));
     view.querySelectorAll('[data-demo="chip"]').forEach(b => (b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true")));
-    view.querySelectorAll('[data-demo="todo"]').forEach(b => (b.onclick = () => { b.classList.toggle("done"); b.querySelector(".sp-circle").innerHTML = b.classList.contains("done") ? I("check") : ""; window.lucide?.createIcons(); }));
+    view.querySelectorAll('[data-demo="todo"]').forEach(b => (b.onclick = () => { b.classList.toggle("done"); const c = b.querySelector(".ui-done"); c.classList.toggle("checked", b.classList.contains("done")); c.textContent = b.classList.contains("done") ? "✓" : ""; }));
     view.querySelectorAll('[data-demo="alert"]').forEach(b => (b.onclick = () => overlay(b, `<div class="ui-alert ui-glass strong"><h3>스터디를 삭제할까요?</h3><p>질문과 정리 노트도 함께 지워지고 되돌릴 수 없어요.</p>
       <div class="acts"><button class="ui-btn" data-close>취소</button><button class="ui-btn destructive" data-close>삭제</button></div></div>`)));
     view.querySelectorAll('[data-demo="sheet"]').forEach(b => (b.onclick = () => overlay(b, `<div class="ui-sheet"><header><button class="ui-btn plain" data-close>취소</button><span class="t">일정·장소 수정</span><span class="r"><button class="ui-btn plain" data-close><b>완료</b></button></span></header>

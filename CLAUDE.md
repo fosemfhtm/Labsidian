@@ -20,9 +20,11 @@ Rules that apply to every change:
 - Only tokens from `site/tokens.css`: `--t-*` for type, semantic colours (`--label`, `--fill-*`, `--accent`…),
   `--s-*` spacing, `--r-*` radii. No px font sizes, hex/rgb colours or ad-hoc radii in page CSS or inline styles.
   Inline `style=` only for data colours (via a `--c` variable) and dynamic sizes (bar widths).
-- New code uses the `ui-*` components. Old classes (`.btn`, `.chip`, `.tabs`, …) are being migrated — don't spread
-  them; components.md maps each old class to its target. A component that isn't in components.md gets added to the
-  `#/design` specimen (`site/design.js`) and to the doc first.
+- Use the `ui-*` components (buttons, segmented controls, chips/tags/pills, cards, rows, menus, popovers, sheets…).
+  Old class names that remain (e.g. `.tp-row`) are layout hooks only — never style a component through them.
+  Component selectors are `:where([data-ui]) .ui-x` and tokens.css loads first, so a page rule may set layout on a
+  component with a single class. States use `aria-pressed` / `aria-current`, not an `.on` class. A component that
+  isn't in components.md gets added to the `#/design` specimen (`site/design.js`) and to the doc first.
 - Copy: 해요체 sentences, noun labels, the UI term is 다이어리 (never 리뷰), Apple-Korean action words
   (저장·편집·삭제·제거·추가·완료·취소), all strings through `t()` in KO and EN.
 - Confirmations use `LabConfirm`, never `confirm()`/`prompt()`.

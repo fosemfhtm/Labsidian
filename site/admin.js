@@ -83,7 +83,7 @@
     el.innerHTML = `<div class="ui-card">
       <div class="row-between"><p class="hint">${t("ad.dutyHint")}</p>
         <label class="muted">${t("ad.term")} <select id="ad-mterm">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label></div>
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${t("ad.name")}</th><th>${t("ad.role")}</th><th>${t("ad.duty")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th>${t("ad.rate")}</th><th>${t("ad.status")}</th><th></th></tr></thead><tbody>
+      <div class="ui-table-wrap"><table class="ui-table"><thead><tr><th>${t("ad.name")}</th><th>${t("ad.role")}</th><th>${t("ad.duty")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th>${t("ad.rate")}</th><th>${t("ad.status")}</th><th></th></tr></thead><tbody>
       ${users.map(u => {
         const member = !!UI.P[u.id], full = S.users.get(u.id), q = member ? S.quota(u.id, term) : null, n = member ? written(u.id) : 0;
         const rate = q && !q.exempt && q.target ? Math.round(100 * n / q.target) : null;
@@ -104,7 +104,7 @@
       <form class="inline-form" id="ad-add"><b>${t("ad.add")}</b>
         <input name="name" placeholder="${t("ad.name")}" required><label class="muted">${t("ad.color")} <input name="color" type="color" value="#ff9cac"></label>
         <label class="muted">${t("ad.start")} <input name="start" type="date"></label>
-        <label class="check"><input name="exempt" type="checkbox"> ${t("ad.dutyOff")}</label>
+        <label class="ui-check"><input name="exempt" type="checkbox"> ${t("ad.dutyOff")}</label>
         <button class="ui-btn prominent small">${t("ad.add")}</button></form></div>`;
     $("#ad-mterm", el).onchange = e => { memberTerm = e.target.value; members(el); };
     el.querySelectorAll("[data-act]").forEach(b => {
@@ -161,7 +161,7 @@
     const list = Object.values(UI.T).sort((a, b) => a.axis.localeCompare(b.axis) || (usage[b.id] || 0) - (usage[a.id] || 0));
     const opts = (x) => list.filter(y => y.axis === x.axis && y.id !== x.id).map(y => `<option value="${esc(y.id)}">${esc(UI.tl(y))}</option>`).join("");
     const pairs = similarPairs(list);
-    el.innerHTML = `<div class="ui-card"><table class="tbl tags-tbl"><thead><tr><th>${t("ad.axis")}</th><th></th><th>${t("ad.ko")}</th><th>${t("ad.en")}</th><th>${t("ad.uses")}</th><th>${t("ad.mergeInto")}</th></tr></thead><tbody>
+    el.innerHTML = `<div class="ui-card"><table class="ui-table tags-tbl"><thead><tr><th>${t("ad.axis")}</th><th></th><th>${t("ad.ko")}</th><th>${t("ad.en")}</th><th>${t("ad.uses")}</th><th>${t("ad.mergeInto")}</th></tr></thead><tbody>
       ${list.map(x => `<tr data-id="${esc(x.id)}"><td class="muted">${axisName(x.axis)}</td>
         <td>${colorSelect(x.color, 'data-f="color"')}</td>
         <td><input data-f="label" value="${esc(x.label)}"></td><td><input data-f="labelEn" value="${esc(x.labelEn || "")}"></td>
@@ -210,7 +210,7 @@
   // ---------------- terms ----------------
   function terms(el) {
     const list = S.terms.list();
-    el.innerHTML = `<div class="ui-card"><table class="tbl"><thead><tr><th>ID</th><th>${t("ad.termLabel")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th></th></tr></thead><tbody>
+    el.innerHTML = `<div class="ui-card"><table class="ui-table"><thead><tr><th>ID</th><th>${t("ad.termLabel")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th></th></tr></thead><tbody>
       ${list.map(x => `<tr data-id="${esc(x.id)}"><td>${esc(x.id)}</td><td><input data-f="label" value="${esc(x.label)}"></td><td><input type="date" data-f="start" value="${x.start}"></td>
         <td><input type="date" data-f="end" value="${x.end}"></td><td><input type="number" min="1" data-f="target" value="${x.target ?? ""}" placeholder="${t("ad.targetAuto")}" style="width:120px"></td>
         <td><button class="ui-btn small" data-act="save">${t("ad.save")}</button></td></tr>`).join("")}</tbody></table>
@@ -218,7 +218,7 @@
         <input type="date" name="start" required><input type="date" name="end" required><input type="number" name="target" placeholder="${t("ad.targetAuto")}" style="width:120px">
         <button class="ui-btn prominent small">${t("ad.addTerm")}</button></form></div>
       <div class="ui-card ad-sec"><h3>${t("ad.offDays")}</h3><p class="hint">${t("ad.offHint")}</p>
-        ${S.calendar.list().length ? `<table class="tbl"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
+        ${S.calendar.list().length ? `<table class="ui-table"><thead><tr><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.offLabel")}</th><th>${t("ad.kind")}</th><th></th></tr></thead><tbody>
         ${S.calendar.list().map(o => `<tr data-off="${esc(o.id)}"><td>${o.start}</td><td>${o.end}</td><td>${esc(o.label)}</td><td>${t("ad.kind." + o.kind)}</td>
           <td><button class="ui-btn small" data-act="off-del">${t("ad.remove")}</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">${t("ad.noOff")}</p>`}
         <form class="inline-form" id="ad-off"><b>${t("ad.addOff")}</b><input type="date" name="start" required><input type="date" name="end">
@@ -260,7 +260,7 @@
 
   // ---------------- log ----------------
   function log(el) {
-    el.innerHTML = `<div class="ui-card"><table class="tbl"><thead><tr><th>${t("ad.when")}</th><th>${t("ad.who")}</th><th>${t("ad.what")}</th><th></th></tr></thead><tbody>
+    el.innerHTML = `<div class="ui-card"><table class="ui-table"><thead><tr><th>${t("ad.when")}</th><th>${t("ad.who")}</th><th>${t("ad.what")}</th><th></th></tr></thead><tbody>
       ${S.admin.log().map(l => `<tr><td class="muted nowrap">${new Date(l.at).toLocaleString(lang === "ko" ? "ko-KR" : "en-US")}</td><td>${esc(UI.P[l.actor]?.name || l.actor || "")}</td>
         <td><code>${esc(l.action)}</code></td><td>${esc(l.detail || "")}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">—</td></tr>`}</tbody></table></div>`;
   }

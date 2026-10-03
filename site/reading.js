@@ -58,7 +58,7 @@
           <label class="ui-btn">📄 ${t("rl.pdf")}<input type="file" id="rl-file" accept="application/pdf" multiple hidden></label></form>
         <div class="muted" id="rl-status"></div><p class="hint">${t("rl.dropHint")}</p>
       </div>
-      ${g.read.length || stale ? `<div class="rl-nudge">⏰ ${[g.read.length && t("rl.nudgeRead", { n: g.read.length }), stale && t("rl.nudgeStale", { n: stale })].filter(Boolean).join(" · ")}</div>` : ""}
+      ${g.read.length || stale ? `<div class="ui-notice warn rl-nudge">⏰ ${[g.read.length && t("rl.nudgeRead", { n: g.read.length }), stale && t("rl.nudgeStale", { n: stale })].filter(Boolean).join(" · ")}</div>` : ""}
       ${["reading", "todo", "read"].map(s => `<div class="ui-card rl-sec"><h3>${t("rl.s." + s)} <span class="muted">${g[s].length}</span></h3>
         ${g[s].length ? `<div class="rl-list">${g[s].map(item).join("")}</div>` : `<div class="ui-empty">${t("rl.empty." + s)}</div>`}</div>`).join("")}
       ${g.written.length ? `<details class="ui-card rl-sec"><summary><h3>${t("rl.s.written")} <span class="muted">${g.written.length}</span></h3></summary>

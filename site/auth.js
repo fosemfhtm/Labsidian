@@ -176,8 +176,8 @@
   function termMenu() {
     const vt = S.view.terms();
     return `<div class="menu-h"><b>${t("tm.title")}</b></div><p class="hint menu-hint">${t("tm.hint")}</p>
-      <label class="check menu-check"><input type="checkbox" data-all ${vt.length ? "" : "checked"}> ${t("tm.all")}</label>
-      ${S.view.allTerms().reverse().map(x => `<label class="check menu-check"><input type="checkbox" data-term="${esc(x.id)}" ${vt.includes(x.id) ? "checked" : ""}> ${esc(x.label)}</label>`).join("")}
+      <label class="ui-check menu-check"><input type="checkbox" data-all ${vt.length ? "" : "checked"}> ${t("tm.all")}</label>
+      ${S.view.allTerms().reverse().map(x => `<label class="ui-check menu-check"><input type="checkbox" data-term="${esc(x.id)}" ${vt.includes(x.id) ? "checked" : ""}> ${esc(x.label)}</label>`).join("")}
       <div class="menu-foot"><button class="ui-btn prominent small" data-act="apply">${t("tm.apply")}</button></div>`;
   }
   function wireTerms(m) {

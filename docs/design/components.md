@@ -2,7 +2,10 @@
 
 각 컴포넌트는 **언제 쓰나 · 규칙 · 코드 · 지금 → 옮기기** 순서로 적는다.
 코드의 `ui-*` 클래스는 `site/tokens.css`에 있고, 모양은 `#/design` 견본 페이지에서 볼 수 있다.
-"지금 → 옮기기"는 아직 남아 있는 옛 클래스를 어느 컴포넌트로 바꿀지 적은 대응표다. **새 코드는 오른쪽(목표)만 쓴다.**
+각 절의 "옛 클래스" 표는 2026-10-03에 옮긴 기록이다. 옛 이름이 배치용 고리로 남아 있는 곳(예: `.tp-row`)은 칸 배치만 맡는다.
+
+**우선순위 규칙**: 컴포넌트 선택자는 `:where([data-ui]) .ui-x`라서 우선순위가 클래스 하나와 같고, `tokens.css`가 다른 CSS보다 먼저 불린다.
+그래서 페이지 CSS의 `.내-행 { display: grid; … }` 한 줄로 컴포넌트의 배치를 바꿀 수 있다. `!important`나 선택자 늘리기를 쓰지 않는다.
 
 > 크기는 데스크톱(macOS) 기준으로 적었다. 폰에서는 [foundations.md §8](foundations.md#8-컨트롤-크기와-누르기-영역)에 따라 44로 커진다.
 
@@ -18,11 +21,12 @@
 
 | 역할 | 클래스 | 모양 | 쓰는 곳 |
 |---|---|---|---|
-| 기본 | `.ui-btn` | 회색 채움(fill-3) + 강조색 글자 | 대부분의 동작 |
-| 기본(중립) | `.ui-btn.neutral` | 회색 채움 + 검정 글자 | 취소, 줄 단위 보조 동작 |
+| 기본 | `.ui-btn` | 회색 채움(fill-3) + 검정 글자 (macOS 푸시 버튼) | 대부분의 동작, 취소 |
 | 주요 | `.ui-btn.prominent` | 강조색 채움 + 흰 글자 | 화면의 **가장 중요한 동작 하나** (게시, 저장, 참가) |
 | 파괴 | `.ui-btn.destructive` | 회색 채움 + 빨간 글자 | 삭제. **주요(prominent)로 만들지 않는다** |
-| 테두리 없음 | `.ui-btn.plain` | 바탕 없음 | 카드 꼬리의 반응 버튼, "더 보기", 툴바 안 |
+| 테두리 없음 | `.ui-btn.plain` | 바탕 없음 | 카드 꼬리의 반응 버튼, "더 불러오기", 툴바 안 |
+| 글자 | `.ui-btn.text` | 링크 색 글자, 여백 없음, 문장 안에 들어감 | "펼치기", "모두 읽음", 문장 끝의 "편집" |
+| 켜짐 | `[aria-pressed="true"]` | 강조색 글자 + 강조색 12% 바탕 | 좋아요·투표처럼 켜고 끄는 버튼 |
 | 유리 | `.ui-btn.glass` | 유리 캡슐 | 상단 바·그래프 위 컨트롤에만 |
 
 **크기**: `.small` 22 · 보통 28 · `.large` 34. 아이콘만: `.icon` (정사각형).
@@ -38,23 +42,24 @@
 
 ```html
 <button class="ui-btn prominent"><i data-lucide="pen-line" class="ic"></i>다이어리 쓰기</button>
-<button class="ui-btn neutral">취소</button>
+<button class="ui-btn">취소</button>
 <button class="ui-btn destructive"><i data-lucide="trash-2" class="ic"></i>삭제</button>
 <button class="ui-btn plain icon" aria-label="더 보기" title="더 보기"><i data-lucide="ellipsis" class="ic"></i></button>
 ```
 
-**지금 → 옮기기**
+**옛 클래스 (2026-10-03 옮김)**
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | `.btn` | `.ui-btn` (style.css의 `margin-top:12px`과 이를 지우는 20여 개 규칙도 함께 삭제) |
 | `.btn.primary` | `.ui-btn.prominent` |
 | `.btn.danger` | `.ui-btn.destructive` |
 | `.btn.small` / `.btn.wide` | `.ui-btn.small` / `.ui-btn.large` |
 | `.btn.ghost` (reading.js, **CSS 정의 없음**) | `.ui-btn.plain` |
-| `.rf` (다이어리 꼬리 버튼) | `.ui-btn.plain.small.neutral` |
+| `.rf` (다이어리 꼬리 버튼) | `.ui-btn.plain.small` |
 | `.icon-btn`, `.drawer-btn`, `.drawer-close`, `.play`, `.search-btn` | `.ui-btn.icon` (+ `.plain`) |
-| `.tb-btn`, `.term-btn`, `.user-btn` | `.ui-btn.glass` / 상단 바 안에서는 `.ui-glass-group .ui-btn` |
+| `.tb-btn` (그래프 툴바) · 그래프 모서리 `.icon-btn` | `.ui-btn.glass` (+ `.g-filter` 배치 고리) · `.ui-btn.glass.icon` |
+| `.term-btn`, `.user-btn`, 알림·검색 버튼 | 상단 바 컴포넌트의 일부로 둠 (`.top-icon` 등, patterns §1) |
 | `.more` ("더 불러오기") | `.ui-btn.plain` 가운데 정렬 |
 | `.st-q .vote` | `.ui-btn.small` + `aria-pressed` |
 | 버튼으로 쓰는 `.chip` | 토글이면 `.ui-chip[aria-pressed]`, 동작이면 `.ui-btn.small` |
@@ -65,8 +70,8 @@
 
 - **문장 안 링크**: `a.link` — `--link-text` 색, 호버에 밑줄.
 - **목록·카드 전체가 링크**: 카드나 행을 `<a>`로 감싸고 호버에 바탕색만 바꾼다. 글자를 파랗게 칠하지 않는다.
-- **글자 버튼처럼 보이는 동작**(접기·펼치기, "모두 보기"): `.ui-btn.plain`. `.link-btn`은 옮긴다.
-- **뒤로**: 상세 페이지 왼쪽 위에 하나. `‹ 논문`처럼 **돌아갈 화면 이름**을 쓴다. 구현은 `LabBack`(app.js) 하나로 통일한다 (지금 study.js에 다른 방식 두 개가 더 있음).
+- **글자 버튼처럼 보이는 동작**(접기·펼치기, "모두 보기"): `.ui-btn.text`.
+- **뒤로**: 상세 페이지 왼쪽 위에 하나, `.ui-btn.text.back`. 이전 화면으로 돌아가면 "← 뒤로"(`LabBack(대신 갈 주소)`), 정해진 상위 화면으로 가면 그 이름("← 논문 스터디").
 
 ---
 
@@ -84,7 +89,7 @@
 <div class="ui-seg"><button aria-pressed="true">준비</button><button>다이어리</button><button>정리</button></div>
 ```
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | `.tabs` + `a.on` (features 밑줄 탭 → apple에서 세그먼트로 덮어씀) | `.ui-seg` + `<a aria-current>` |
 | `.feed-tabs` | `.ui-seg` (상단 바 아래 고정은 페이지 배치에서) |
@@ -102,19 +107,19 @@
 - 도움말은 입력창 아래 Callout · `--label-meta`. 오류는 같은 자리에 `--danger` + 무엇을 고칠지.
 - 높이: 데스크톱 28 · 폰 44. 글자: `--t-body`.
 - 바탕 `--fill-4`, 테두리 없음, 포커스에 강조색 링.
-- 입력창 크기를 문맥마다 따로 정하지 않는다. 넓이만 배치에서 정한다.
+- **모든 기본 입력창(`input`·`textarea`·`select`)이 자동으로 이 모양이다** (`tokens.css`의 우선순위 0 규칙). 클래스를 붙이지 않아도 되고, 문맥에서는 폭과 간격만 정한다.
 
 ```html
 <label class="ui-label" for="st-place">장소</label>
 <input class="ui-field" id="st-place" placeholder="예: 세미나실, Zoom">
 ```
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | 전역 `input/textarea/select` 규칙 + 문맥별 규칙 ~15개 (`.modal input`, `.write-form input`, `.tbl input`, `.pop input`, `.cm-form textarea`, `.rv-filters`, `.p-search`…) | `.ui-field` 하나. 문맥별 규칙은 폭만 남긴다 |
 | `.fld > span` 라벨 | `.ui-label` |
 | `.p-search`, `#search` | `.ui-search` |
-| `.tag-input`, `.drop`, `.star-input` | 컴포넌트로 견본에 추가 예정 (모양은 `.ui-field`와 같은 바탕·둥글기) |
+| `.tag-input`, `.drop`, `.star-input` | 그대로 둠 — 입력창과 같은 바탕·둥글기 (태그 입력은 `.ui-chip` + 입력창) |
 
 ---
 
@@ -124,12 +129,12 @@
 |---|---|---|
 | 체크박스 | `.ui-check` | 데스크톱의 켜고 끄는 옵션, 여러 개 고르기 **[HIG macOS]** |
 | 스위치 | `.ui-switch` | 목록 행 안에서 기능 하나를 켜고 끌 때 (폰 설정 화면 같은 곳) |
-| 할 일 체크 | `.ui-done` **(추가 예정)** — 원형, 누르면 강조색 채움 + 체크 | 스터디 준비 목록, 가이드 읽음 표시 (미리 알림 앱처럼) |
+| 할 일 체크 | `.ui-done` — 원형, 누르면 강조색 채움 + 체크 | 스터디 준비 목록, 가이드 읽음 표시 (미리 알림 앱처럼) |
 | 라디오 | 쓰지 않는다 → 2–5개면 세그먼트, 그 이상이면 선택(select) |
 
 - 상태를 색만으로 보여주지 않는다 (체크 표시가 있어야 한다).
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | `.check` (style.css와 features.css에 서로 다르게 두 번) | `.ui-check` |
 | `.todo .box`, `.gd-check` | `.ui-done` |
@@ -142,15 +147,15 @@
 
 | 컴포넌트 | 클래스 | 역할 | 모양 |
 |---|---|---|---|
-| 태그 | `.ui-tag` **(추가 예정)** | 논문의 분야·방법론·지역 표시. 누르면 그 주제 페이지로 | 색 점 + 이름, Subheadline. 분야 = fill-3 채움, 방법론 = 테두리(inset 1px separator) |
+| 태그 | `.ui-tag` | 논문의 분야·방법론·지역 표시. 누르면 그 주제 페이지로 | 색 점 + 이름, Subheadline. 분야 = fill-3 채움, 방법론 = 테두리(inset 1px separator) |
 | 필터 칩 | `.ui-chip` | 켜고 끄는 필터 | fill-3, 켜지면 강조색 18% 바탕 + 강조색 글자, `aria-pressed` |
-| 상태 필 | `.ui-pill` **(추가 예정)** + `.warn` `.ok` `.accent` | 상태 하나를 짧게 — "7일 늦게", "완료", "진행 중" | 색 16% 바탕 + 같은 색 글자, Subheadline |
+| 상태 필 | `.ui-pill` + `.warn` `.ok` `.accent` | 상태 하나를 짧게 — "7일 늦게", "완료", "진행 중" | 색 16% 바탕 + 같은 색 글자, Subheadline |
 | 숫자 배지 | `.ui-badge` | **안 읽은 알림 개수에만** | 빨간 타원 + 흰 숫자 |
 
 - 개수(질문 3, 다이어리 12편)는 배지가 아니라 회색 글자로 쓴다.
 - 칩·태그 안 글자는 한 줄. 넘치면 줄임표.
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | `.tag`, `.tag.method`, `.rv-tags .tag` (10.5px) | `.ui-tag`, `.ui-tag.method` |
 | `.chip`, `.chip.on` | `.ui-chip[aria-pressed]` |
@@ -197,7 +202,7 @@
 <section class="ui-card"><h3 class="t-title3">함께 읽은 논문</h3> … </section>
 ```
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | `.card`, `.person-card`, `.st-card`, `.gd-card`, `.feed-item.act`, `.paper-row`, `.stat`, `.pf-stats > div`, `.compose`, `.gd-group`, `.pp-lab`, `.cmp-head`… | `.ui-card` + 내용별 클래스(배치만) |
 | `.feed-item.act.question/.idea/.study`의 왼쪽 색 줄 | 색 줄 없이 머리에 아이콘 + 필 |
@@ -210,9 +215,13 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 
 | 행 | 클래스 | 높이 (데스크톱) | 내용 | 예 |
 |---|---|---|---|---|
-| 한 줄 | `.ui-row` | 28 | 아이콘·아바타 + 글(Body) + 오른쪽 값/꺾쇠 | 사이드 카드 목록, 분야 목록, 메뉴형 목록 |
-| 두 줄 | `.ui-row.two` **(추가 예정)** | ~44 | 제목(Headline) + 메타(Callout · label-meta) | 알림, 읽을 목록, 스터디 후보, 내 다이어리 |
-| 풍부한 행 | `.ui-row.rich` **(추가 예정)** | 내용만큼 | 제목 + 메타 + 태그·아바타 묶음 | 논문 목록, 가이드 항목 |
+| 한 줄 | `.ui-row` | 28 | 아이콘·아바타 + 글(Body) + 오른쪽 값/꺾쇠 | 사이드 카드 목록, 분야 목록, 그래프 범례 |
+| 두 줄 | `.ui-row.two` | ~40 | 제목 + 메타(`.m` · Callout · label-meta) | 알림, 읽을 목록, 사이드의 질문·스터디 |
+| 풍부한 행 | `.ui-row.rich` | 내용만큼 | 제목 + 메타 + 태그·아바타 묶음 | 가이드 항목 |
+| 구분선 행 | `+ .ruled` | — | 위쪽 0.5px 구분선, 좌우 여백 0 (글자 시작선이 카드 제목과 같음) | 스터디 후보, 읽을 목록, 가이드 항목 |
+
+- 행은 기본이 flex다. 칸이 여러 개면 페이지 CSS의 배치 고리(`.tp-row { display: grid; grid-template-columns: … }`)가 배치만 정한다.
+- 링크·버튼·`data-open` 행은 마우스를 올리면 바탕이 바뀐다.
 
 - 묶음: `.ui-list` (카드 모양), 머리말 `.ui-list-h`, 꼬리말 `.ui-list-f`.
 - 구분선은 글자 시작 위치부터 (아이콘이 있으면 아이콘 뒤부터).
@@ -220,11 +229,12 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 - 선택된 행: 강조색 바탕 + 흰 글자 (스포트라이트·메뉴의 키보드 선택처럼).
 - 마우스를 올렸을 때만 보이는 동작은 키보드 포커스 때도 보여야 한다.
 
-| 지금 (25개 이상) | 목표 |
+| 옛 클래스 (25개 이상) | 지금 |
 |---|---|
 | `.mini`, `.sim-row`, `.fr`, `.pl`, `.st-with`, `.prep-row`, `.dq`, `.tp-row`, `.gd-rounds a`, `.pp-axes` 줄 | `.ui-row` |
 | `.notif`, `.side-q`, `.side-st`, `.cand-row`, `.rl-item`, `.spot-row`, `.todo` | `.ui-row.two` |
-| `.paper-row`, `.gd-item`, `.st-q` | `.ui-row.rich` (논문 목록은 카드 대신 목록 묶음으로) |
+| `.gd-item` | `.ui-row.rich.ruled` |
+| `.paper-row` (논문 목록 카드), `.st-q` (질문 카드) | 카드 모양 그대로 둠 — 목록 묶음으로 바꿀지는 열린 문제 |
 
 ---
 
@@ -235,7 +245,7 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 - 머리: Subheadline · label-2 · 600, 아래 구분선. 정렬 가능하면 머리를 누르고 화살표 표시.
 - 행: 높이 28, 구분선. 숫자 열은 오른쪽 정렬 + `tabular-nums`.
 - 표 안의 입력·버튼은 `.small`.
-- `.tbl` → `.ui-table` **(추가 예정)**.
+- `.tbl` → `.ui-table`.
 
 ---
 
@@ -255,7 +265,7 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 │ └─────────────────────────────────────────┘    │
 │ [PDF] [이미지]                                 │  첨부
 │ (분야 태그) (방법론 태그)                      │  태그
-│ [좋아요 3] [나도 읽어볼래요] [댓글 2] [번역]   │  꼬리: .ui-btn.plain.small.neutral (아이콘 + 글자)
+│ [좋아요 3] [나도 읽어볼래요] [댓글 2] [번역]   │  꼬리: .ui-btn.plain.small (아이콘 + 글자)
 └───────────────────────────────────────────────┘
 ```
 
@@ -291,7 +301,7 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 </div>
 ```
 
-| 지금 | 목표 |
+| 옛 클래스 | 지금 |
 |---|---|
 | `.menu` (둥글기 16), `.st-manage .menu-pop` (`<details>`, 둥글기 10) | `.ui-menu` (둥글기 14) |
 
@@ -303,11 +313,11 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 - 한 번에 하나만. 팝오버 안에서 또 팝오버를 열지 않는다. 경고에 쓰지 않는다 **[HIG]**.
 - 바깥을 누르거나 Esc로 닫는다. 진한 유리, 둥글기 14.
 - 폰에서는 시트로 바꾼다.
-- `.pop` (18) · `.tag-pop` · `.mention-pop` (14) → `.ui-popover` **(추가 예정)**.
+- `.pop` (18) · `.tag-pop` · `.mention-pop` (14) → `.ui-popover`.
 
 **툴팁**: 두 가지만.
 - 아이콘 버튼 설명 → 브라우저 `title` 속성.
-- 차트 값 설명 → `.ui-tooltip` **(추가 예정)** 하나 (지금 `.cal-tip`, `.drift-tip`, 그래프 캔버스 박스, SVG `<title>` 네 가지가 섞임). [data-viz.md §5](data-viz.md#5-공통-규칙).
+- 차트 값 설명 → `.ui-tooltip` 하나 (지금 `.cal-tip`, `.drift-tip`, 그래프 캔버스 박스, SVG `<title>` 네 가지가 섞임). [data-viz.md §5](data-viz.md#5-공통-규칙).
 
 ---
 
@@ -331,10 +341,10 @@ LabConfirm(t("st.delQ"), { message: t("st.delMsg"), ok: t("act.delete"), destruc
 
 **언제**: 입력이 필요한 짧은 작업에 집중시킬 때 — 비밀번호 변경, 일정 수정, 임시 비밀번호 발급.
 
-- 머리: **취소(왼쪽) · 제목(가운데) · 완료/저장(오른쪽, 주요)** **[HIG]**.
-- 폭 560 (넓은 것 640), 둥글기 20, 진한 유리. 폰에서는 아래에서 올라오는 시트 + 손잡이.
+- 데스크톱(macOS): 제목은 위, 버튼은 **아래 오른쪽에 [취소] [주요]** **[HIG macOS]**. 폰(iOS) 시트는 머리에 취소 · 제목 · 완료를 둘 수 있다.
+- 폭 420 (넓은 것 640), 둥글기 20, 진한 유리. 폰에서는 아래에서 올라오는 시트 + 손잡이.
 - 시트 위에 시트를 띄우지 않는다. 열리면 첫 입력에 포커스, Esc = 취소.
-- `LabModal` (`.modal-back`/`.modal`, 둥글기 24) → `.ui-scrim.sheet` + `.ui-sheet`.
+- 구현: `LabModal(html, { wide, forced })` → `.ui-scrim.sheet` + `.ui-sheet.modal`. 버튼 줄은 `.modal-foot`.
 
 ---
 
@@ -361,7 +371,7 @@ LabConfirm(t("st.delQ"), { message: t("st.delMsg"), ok: t("act.delete"), destruc
 ## 19. 안내줄
 
 페이지 안에 머무는 알림 — "AI 요청 3건이 반영됐어요", "이전에 쓰던 글을 불러왔어요", 읽을 목록 권유.
-- `.ui-notice` **(추가 예정)** + `.info` / `.warn`: 아이콘 + 한두 문장 + (선택) 동작 버튼 + 닫기.
+- `.ui-notice` + `.info` / `.warn`: 아이콘 + 한두 문장 + (선택) 동작 버튼 + 닫기.
 - 바탕은 상태 색 10%, 둥글기 `--r-card`.
 - `.restored`, `.rl-nudge`, `.mcp-banner`, `.draft-row` → `.ui-notice`.
 
@@ -374,7 +384,7 @@ LabConfirm(t("st.delQ"), { message: t("st.delMsg"), ok: t("act.delete"), destruc
 | 크기 | 클래스 | 모양 | 쓰는 곳 |
 |---|---|---|---|
 | 큰 | `.ui-empty` | 아이콘 40 + 제목(Title 3) + 설명(Body · label-2) + 다음 행동 버튼 | 페이지·탭 전체가 비었을 때 |
-| 작은 | `.ui-empty.compact` **(추가 예정)** | 한 줄 Callout · label-meta + (선택) 링크 | 사이드 카드, 목록 묶음 |
+| 작은 | `.ui-empty.compact` | 한 줄 Callout · label-meta + (선택) 링크 | 사이드 카드, 목록 묶음 |
 
 - 문구 틀: [writing.md §4](writing.md#4-문구-틀).
 - `.empty`, `.cm-empty`, `.spot-empty`, `.st-notes-empty`, `.graph-empty`, `<p class="muted">` → `.ui-empty` / `.ui-empty.compact`.
@@ -407,20 +417,19 @@ LabConfirm(t("st.delQ"), { message: t("st.delMsg"), ok: t("act.delete"), destruc
 
 ---
 
-## 옛 클래스 → 목표 컴포넌트 요약
+## 옮긴 결과 (2026-10-03)
 
-`tokens.css`의 `ui-*` 중 지금 실제 화면에서 쓰는 것은 `ui-scrim`, `ui-alert`, `ui-glass`, `ui-btn`(확인창 안)과 `ui-seg`(차트 한 곳)뿐이다.
-나머지는 견본에만 있으므로, CSS 정리 단계에서 위 표들을 따라 화면 하나씩 옮긴다.
-
-| 목표 | 대체하는 옛 클래스 수 |
+| 컴포넌트 | 대체한 옛 클래스 |
 |---|---|
-| `.ui-btn` | ~12 (`.btn` 계열, `.rf`, `.icon-btn`, `.tb-btn`, `.term-btn`, `.user-btn`, `.drawer-btn`, `.play`, `.more`, `.link-btn`…) |
-| `.ui-seg` | 3 (`.tabs`, `.seg`, `.feed-tabs`) |
-| `.ui-field` | ~15 문맥별 입력 규칙 |
-| `.ui-tag` / `.ui-chip` / `.ui-pill` / `.ui-badge` | ~10 |
-| `.ui-row` (세 변형) | 25+ |
-| `.ui-menu` / `.ui-popover` | 5 |
-| `.ui-empty` | 6 |
+| `.ui-btn` | `.btn` 계열, `.link-btn`, `.rf`, `.icon-btn`(그래프), `.tb-btn`, `.drawer-btn`, `.play`, `.more` |
+| `.ui-seg` | `.tabs`, `.seg`, `.feed-tabs` (선택 상태 `.on` → `aria-current` / `aria-pressed`) |
+| 기본 입력창 | 문맥별 입력 규칙 ~15개 |
+| `.ui-tag` / `.ui-chip` / `.ui-pill` / `.ui-badge` | `.tag`, `.chip`, `.pill`, `.reg`, `.badge` |
+| `.ui-card` · `.ui-empty` | `.card` · `.empty` |
+| `.ui-row` (+ `.two` `.rich` `.ruled`) | 행 16종 (배치 고리로 남음) |
+| `.ui-menu` · `.ui-popover` · `.ui-tooltip` | `.menu`, `.pop`, `.tag-pop`, `.mention-pop`, `.menu-pop`, `.tooltip`, `.cal-tip`, `.drift-tip` |
+| `.ui-sheet` · `.ui-toast` | `.modal`, `.toast` |
+| `.ui-table` · `.ui-check` · `.ui-done` · `.ui-notice` | `.tbl`, `.check`, `.todo .box`/`.gd-check`, `.restored`/`.rl-nudge`/`.draft-row` |
 | 아바타 4크기 | 18가지 크기 덮어쓰기 |
 
-"(추가 예정)"으로 표시한 컴포넌트(`.ui-tag`, `.ui-pill`, `.ui-done`, `.ui-row.two/.rich`, `.ui-table`, `.ui-popover`, `.ui-tooltip`, `.ui-notice`, `.ui-empty.compact`, `--r-control-sm`)는 옮기기 전에 `tokens.css`와 견본에 먼저 만든다.
+남은 것: 상단 바 내부 컨트롤(상단 바 컴포넌트로 둠), 논문 목록 카드(`.paper-row`)와 질문 카드(`.st-q`), `apple.css`에 남은 페이지별 덮어쓰기.

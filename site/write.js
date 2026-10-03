@@ -79,12 +79,12 @@
         <form class="ui-card write-form" id="w-form" autocomplete="off">
           ${editing ? "" : `<div class="lookup"><input id="w-lookup" placeholder="${t("w.lookup.ph")}"><button type="button" class="ui-btn" id="w-fetch">${t("w.fetch")}</button></div>
           <div class="muted" id="w-fetch-status"></div>`}
-          <p class="restored" id="w-restored" hidden>${t("w.restored")} <button type="button" class="ui-btn text" id="w-discard">${t("w.discard")}</button></p>
-          ${mcpDraft ? `<p class="restored mcp">🤖 ${t("w.fromMcp")}</p>` : ""}
-          ${fromReading ? `<p class="restored">📚 ${t("w.fromReading")}</p>` : ""}
-          ${myOld ? `<p class="restored">${t("w.already", { date: esc(myOld.date) })} <a class="ui-btn text" href="#/write?review=${myOld.id}">${t("w.editMine")}</a></p>` : ""}
-          ${study ? `<p class="restored study">${t(pick ? "w.forPick" : "w.forStudy", { title: esc(study.title) })}</p>` : ""}
-          ${!editing && !mcpDraft && S.drafts.mcp().length ? `<p class="restored mcp">🤖 ${t("w.mcpWaiting", { n: S.drafts.mcp().length })}
+          <p class="ui-notice info" id="w-restored" hidden>${t("w.restored")} <button type="button" class="ui-btn text" id="w-discard">${t("w.discard")}</button></p>
+          ${mcpDraft ? `<p class="ui-notice info">🤖 ${t("w.fromMcp")}</p>` : ""}
+          ${fromReading ? `<p class="ui-notice">📚 ${t("w.fromReading")}</p>` : ""}
+          ${myOld ? `<p class="ui-notice">${t("w.already", { date: esc(myOld.date) })} <a class="ui-btn text" href="#/write?review=${myOld.id}">${t("w.editMine")}</a></p>` : ""}
+          ${study ? `<p class="ui-notice ok">${t(pick ? "w.forPick" : "w.forStudy", { title: esc(study.title) })}</p>` : ""}
+          ${!editing && !mcpDraft && S.drafts.mcp().length ? `<p class="ui-notice info">🤖 ${t("w.mcpWaiting", { n: S.drafts.mcp().length })}
             ${S.drafts.mcp().map(d => `<a class="ui-btn text" href="#/write?mcp=${d.id}">${esc(d.title || "(untitled)")}</a>`).join(" · ")}</p>` : ""}
           ${field("w-title", t("w.title") + " *", `<input id="w-title" ${editing || study ? "readonly" : ""}>`)}
           <div class="row3">

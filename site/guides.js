@@ -94,7 +94,7 @@
 
   function groupFields(gr) {
     const c = gr?.cadence;
-    return `<div class="fld gd-groupset"><label class="check"><input type="checkbox" name="groupOn" ${gr?.on ? "checked" : ""}><span><b>${t("gd.groupOn")}</b><em class="hint">${t("gd.groupHint")}</em></span></label>
+    return `<div class="fld gd-groupset"><label class="ui-check"><input type="checkbox" name="groupOn" ${gr?.on ? "checked" : ""}><span><b>${t("gd.groupOn")}</b><em class="hint">${t("gd.groupHint")}</em></span></label>
       <div class="gd-cad" ${gr?.on ? "" : "hidden"}>
         <label class="fld"><span>${t("gd.cadence")}</span><select name="every"><option value="1">${t("gd.every1")}</option><option value="2" ${c?.every === 2 ? "selected" : ""}>${t("gd.every2")}</option></select></label>
         <label class="fld"><span>${t("gd.weekday")}</span><select name="weekday"><option value="">${t("gd.noWeekday")}</option>${[1, 2, 3, 4, 5, 6, 0].map(i => `<option value="${i}" ${c && c.weekday === i ? "selected" : ""}>${wdName(i)}</option>`).join("")}</select></label>
@@ -142,7 +142,7 @@
          stt.fromRound ? `<span class="ui-pill outline">${t("gd.st.from", { n: stt.fromRound })}</span>` : ""].join("")
       : studies.map(st => `<a class="ui-pill ok" href="#/study/${st.id}${notesQ(st)}">${t("gd.studied")} · ${esc(st.date || "")}</a>`).join("");
     return `<div class="ui-row rich ruled gd-item ${done ? "done" : ""}" data-item="${it.id}">
-      <span class="gd-check" title="${done ? "✓" : ""}">${done ? "✓" : ""}</span>
+      <span class="ui-done ${done ? "checked" : ""}">${done ? "✓" : ""}</span>
       <div class="gd-main">
         <div class="gd-t">${p ? `<a data-open="paper:${p.id}">${esc(title)}</a>` : link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(title)}</a>` : esc(title)}</div>
         ${meta ? `<div class="muted gd-meta">${esc(meta)}</div>` : ""}

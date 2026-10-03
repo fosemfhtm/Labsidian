@@ -53,6 +53,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 
 /* ---------- pages ---------- */
 .page { max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+.page-head { margin-bottom: var(--s-4); }
 .page-head h1 { margin: 0; font-size: var(--fs-large-title); letter-spacing: -.02em; }
 .sub { color: var(--text-2); margin: 4px 0 20px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 14px; }
@@ -205,11 +206,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .collapsible { max-height: 54px; overflow: hidden; }
 .collapsible.open { max-height: none; }
 .checklist.collapsible { max-height: 112px; }
-.checklist .check { display: flex; gap: 6px; align-items: center; padding: 1px 0; }
+.checklist .ui-check { display: flex; gap: 6px; align-items: center; padding: 1px 0; }
 .checklist .vn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .more-btn { margin-top: 3px; }
-.check { font-size: var(--fs-body); color: var(--text-2); cursor: pointer; display: flex; gap: 6px; align-items: center; margin-top: 6px; }
-.check input { accent-color: var(--accent); margin: 0; }
 .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
 .dual { position: relative; height: 22px; }
 .dual input[type=range] { position: absolute; inset: 0; pointer-events: none; background: none; -webkit-appearance: none; appearance: none; height: 22px; margin: 0; }
