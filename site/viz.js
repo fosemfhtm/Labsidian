@@ -133,11 +133,9 @@
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-vz-kind]"); if (!b) return;
     axisKind = b.dataset.vzKind;
-    pick = null;
     try { localStorage.setItem("lab.vzAxis", axisKind); } catch (err) {}
     document.querySelectorAll("[data-vz-axis]").forEach(el => (el.dataset.vzAxis = axisKind));
     document.querySelectorAll("[data-vz-kind]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.vzKind === axisKind)));
-    applyPick();
   });
   // both versions rendered once; CSS shows the one picked ([data-vz-axis] on the wrapper)
   const both = fn => `<div class="vz-kind" data-k="area">${fn("area")}</div><div class="vz-kind" data-k="method">${fn("method")}</div>`;
@@ -159,42 +157,49 @@
     return `<svg class="vz-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,${h} ${pts.join(" ")} ${w},${h}" style="fill:${color}"/></svg>`;
   }
 
-  // ---- people page: every member's rose on their card (same axes, same colours, one scale each) + one legend above
-  // ---- people page: the whole lab on top (its rose + every axis with share and papers — the legend, the switch and
-  // a picker in one), everyone's rose below. Picking an axis dims the other petals and orders the cards by that share.
+  // ---- people page: the whole lab on top — map areas on the left, methods on the right (rose + every axis with its
+  // share and papers: the legend and a picker in one) — and a card per member below with the same two roses over the
+  // lab's average. Picking an axis dims the other petals on that side and orders the cards by that share.
   let pick = null;   // { kind, id }
   const axisCount = (kind, axis, papers) => papers.filter(p => kind === "area" ? p.a === axis.id
     : axis.other ? p.methods.some(m => !methodAxes().some(a => a.id === "m:" + m)) : p.methods.includes(axis.id.slice(2))).length;
-  const labCard = () => `<div class="card pp-lab" data-vz-axis="${axisKind}">
-      <div class="row-between"><div><h3>${t("pp.lab")}</h3><p class="hint">${t("pp.labSub", { p: D().papers.length, n: D().people.filter(x => x.count).length })}</p></div>${axisSwitch()}</div>
-      ${both(k => { const axes = axesOf(k), sh = sharesOf(k, D().papers, axes), xs = axes.map((a, i) => ({ ...a, share: sh[i], lab: 0 }));
-        return `<div class="pp-lab-body">${rose(xs, { size: 220 })}<ul class="pp-axes">${xs.map(a => `<li><button type="button" data-pick-axis="${k}|${a.id}" data-ax="${a.id}" aria-pressed="false" title="${esc(a.full || a.name)}">
-            <i style="background:${a.color}"></i><span class="nm">${esc(a.name)}</span><b>${Math.round(a.share * 100)}%</b><span class="n">${t("pp.papersN", { n: axisCount(k, a, D().papers) })}</span></button></li>`).join("")}</ul></div>`; })}
+  const labSide = k => {
+    const axes = axesOf(k), sh = sharesOf(k, D().papers, axes), xs = axes.map((a, i) => ({ ...a, share: sh[i], lab: 0 }));
+    return `<div class="pp-lab-side" data-k="${k}"><h4>${t("pf.axis." + k)}</h4><div class="pp-lab-body">${rose(xs, { size: 180 })}
+      <ul class="pp-axes">${xs.map(a => `<li><button type="button" data-pick-axis="${k}|${a.id}" data-ax="${a.id}" aria-pressed="false" title="${esc(a.full || a.name)}">
+        <i style="background:${a.color}"></i><span class="nm">${esc(a.name)}</span><b>${Math.round(a.share * 100)}%</b><span class="n">${t("pp.papersN", { n: axisCount(k, a, D().papers) })}</span></button></li>`).join("")}</ul></div></div>`;
+  };
+  const labCard = () => `<div class="card pp-lab">
+      <div><h3>${t("pp.lab")}</h3><p class="hint">${t("pp.labSub", { p: D().papers.length, n: D().people.filter(x => x.count).length })}</p></div>
+      <div class="pp-lab-sides">${labSide("area")}${labSide("method")}</div>
       <p class="hint pp-hint">${t("pp.hint")}</p></div>`;
-  const cardRose = id => { const pr = profile(id); return both(k => rose(pr.by[k].map(x => ({ ...x, lab: 0 })), { size: 120 })); };
-  const peopleCards = people => people.map((p, i) => `<div class="card person-card" data-open="person:${p.id}" data-person="${p.id}" data-order="${i}">
-      ${cardRose(p.id)}<div class="pc-name">${esc(p.name)}</div><div class="pc-pick"></div></div>`).join("");
+  const peopleCards = people => people.map((p, i) => { const pr = profile(p.id);
+    return `<div class="card person-card" data-open="person:${p.id}" data-person="${p.id}" data-order="${i}">
+      <div class="pc-head">${UI.avatar(p.id)}<span class="pc-name">${esc(p.name)}</span></div>
+      <div class="pc-roses">${["area", "method"].map(k => `<div class="pc-rose" data-k="${k}" title="${t("pf.axis." + k)}">${rose(pr.by[k], { size: 104 })}</div>`).join("")}</div>
+      <div class="pc-pick"></div></div>`; }).join("");
   function applyPick() {
     document.querySelectorAll("[data-pick-axis]").forEach(b => b.setAttribute("aria-pressed", String(!!pick && b.dataset.pickAxis === `${pick.kind}|${pick.id}`)));
-    document.querySelectorAll(".pp-lab .vz-petal").forEach(el => el.classList.toggle("dim", !!pick && el.dataset.ax !== pick.id));
+    const dimIn = sel => document.querySelectorAll(sel).forEach(el => el.classList.toggle("dim", !!pick && el.closest("[data-k]")?.dataset.k === pick.kind && el.dataset.ax !== pick.id));
+    dimIn(".pp-lab .vz-petal");
+    dimIn(".pp-grid .vz-petal");
     document.querySelectorAll(".pp-grid").forEach(grid => {
       const cards = [...grid.querySelectorAll("[data-person]")], axis = pick && axesOf(pick.kind).find(a => a.id === pick.id);
       cards.forEach(c => {
-        c.querySelectorAll(".vz-petal").forEach(el => el.classList.toggle("dim", !!pick && el.dataset.ax !== pick.id));
         const cap = c.querySelector(".pc-pick");
         if (!axis) { cap.textContent = ""; c._v = -c.dataset.order; return; }
         const share = profile(c.dataset.person).by[pick.kind].find(x => x.id === pick.id)?.share || 0;
         const n = axisCount(pick.kind, axis, D().papers.filter(p => p.readers.includes(c.dataset.person)));
-        cap.textContent = t("pp.pick", { v: Math.round(share * 100), n });
+        cap.textContent = `${axis.name} · ${t("pp.pick", { v: Math.round(share * 100), n })}`;
         c._v = share + n * 1e-6;
       });
       cards.sort((x, y) => y._v - x._v).forEach(c => grid.appendChild(c));
     });
   }
   document.addEventListener("click", e => {
-    // a petal of the lab's rose picks like its row in the list
+    // a petal of the lab's roses picks like its row in the list
     const petal = e.target.closest(".pp-lab .vz-petal");
-    const b = petal ? petal.closest(".vz-kind").querySelector(`[data-pick-axis$="|${petal.dataset.ax}"]`) : e.target.closest("[data-pick-axis]"); if (!b) return;
+    const b = petal ? petal.closest(".pp-lab-side").querySelector(`[data-pick-axis$="|${petal.dataset.ax}"]`) : e.target.closest("[data-pick-axis]"); if (!b) return;
     const [kind, id] = b.dataset.pickAxis.split("|");
     pick = pick && pick.kind === kind && pick.id === id ? null : { kind, id };
     applyPick();
@@ -206,7 +211,7 @@
 
   // ---- a petal and its row light up together (hover; a tap on touch screens): the person page's legend, the lab
   // card's list, and on the comparison the same axis in both roses and its bar row
-  const HOVER = ".vz-rose-wrap, .pp-lab-body, .cmp-terrain .vz-kind";
+  const HOVER = ".vz-rose-wrap, .pp-lab-side, .cmp-terrain .vz-kind";
   const canHover = matchMedia("(hover: hover)");
   function hover(root, ax) {
     root.classList.toggle("hovering", !!ax);
@@ -223,7 +228,7 @@
     if (!to || to.closest(HOVER) !== root) hover(root, null);
   });
   document.addEventListener("click", e => {   // touch: tap a petal to light it up, tap again to clear
-    const el = e.target.closest(".vz-petal"), root = el?.closest(HOVER); if (!root || root.matches(".pp-lab-body")) return;
+    const el = e.target.closest(".vz-petal"), root = el?.closest(HOVER); if (!root || root.matches(".pp-lab-side")) return;
     if (!canHover.matches) hover(root, el.classList.contains("hl") ? null : el.dataset.ax);
   });
 

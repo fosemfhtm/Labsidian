@@ -337,9 +337,8 @@
   }
   function renderPeople() {
     $("#people-sub").textContent = t("people.sub", { n: D.people.length, r: D.reviews.length, p: D.papers.length });
-    // the whole lab on top (legend, areas ↔ methods, picker), everyone's rose below
+    // the whole lab on top (areas | methods, legend, picker), everyone's two roses below
     const V = window.LabViz;
-    $("#view-people").dataset.vzAxis = V.kind;
     $("#lab-bars").innerHTML = V.labCard();
     $("#people-grid").innerHTML = V.peopleCards([...D.people].filter(p => p.count).sort((a, b) => b.count - a.count));
   }

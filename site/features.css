@@ -750,21 +750,22 @@ details.fld summary { cursor: pointer; }
 .sim-chip em { font-style: normal; color: var(--label-meta); font-variant-numeric: tabular-nums; }
 
 /* ---------- people page: the cards are the lab's terrain (a rose each) ---------- */
-.pp-lab { margin-bottom: var(--s-4); }
-.pp-lab .row-between { align-items: flex-start; gap: var(--s-3); flex-wrap: wrap; margin-bottom: var(--s-3); }
+.pp-lab { margin-bottom: var(--s-4); display: grid; gap: var(--s-4); }
 .pp-lab h3 { margin: 0; }
-.pp-lab .row-between .hint { margin: 2px 0 0; }
-.pp-lab .vz-switch { margin: 0; }
-.pp-lab-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--s-6); align-items: center; }
+.pp-lab .hint { margin: 2px 0 0; }
+.pp-lab-sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-6); }
+.pp-lab-side h4 { margin: 0 0 var(--s-2); font: var(--t-subhead); font-weight: 600; letter-spacing: var(--tr-subhead); color: var(--label-2); }
+.pp-lab-body { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: var(--s-4); align-items: center; }
+.pp-lab-body .vz-rose { width: 100%; max-width: 150px; }
 .pp-axes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-width: 460px; }
-.pp-axes button { width: 100%; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 56px; align-items: center; gap: var(--s-2); min-height: var(--hit); padding: var(--s-1) var(--s-2); border: 0; border-radius: 8px; background: none; color: var(--label); font: var(--t-footnote); letter-spacing: var(--tr-footnote); text-align: left; cursor: pointer; transition: background var(--dur-fast) var(--ease); }
+.pp-axes button { width: 100%; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 48px; align-items: center; gap: var(--s-2); min-height: var(--hit); padding: var(--s-1) var(--s-2); border: 0; border-radius: 8px; background: none; color: var(--label); font: var(--t-footnote); letter-spacing: var(--tr-footnote); text-align: left; cursor: pointer; transition: background var(--dur-fast) var(--ease); }
 .pp-axes button:hover { background: var(--fill-4); }
 .pp-axes button[aria-pressed="true"] { background: rgb(var(--accent-rgb) / .14); }
 .pp-axes i { width: 8px; height: 8px; border-radius: var(--r-full); }
 .pp-axes .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-axes b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .pp-axes .n { font: var(--t-caption1); color: var(--label-meta); text-align: right; font-variant-numeric: tabular-nums; }
-.pp-hint { margin: var(--s-3) 0 0; }
+.pp-hint { margin: 0; }
 .vz-petal { transition: fill-opacity var(--dur-fast) var(--ease); }
 .vz-petal.dim { fill-opacity: .14; }
 .hovering .vz-petal:not(.hl):not(.dim) { fill-opacity: .35; }
@@ -772,11 +773,14 @@ details.fld summary { cursor: pointer; }
 .vz-rlegend li { padding: 0 var(--s-2); margin: 0 calc(-1 * var(--s-2)); border-radius: 8px; transition: background var(--dur-fast) var(--ease); }
 .vz-rlegend li.hl, .pp-axes button.hl, .cmp-row.hl { background: var(--fill-4); }
 .cmp-row { border-radius: 8px; padding: 2px 0; transition: background var(--dur-fast) var(--ease); }
-.pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--s-3); }
-.pp-grid .person-card { margin: 0; display: grid; justify-items: center; gap: var(--s-2); padding: var(--s-4) var(--s-3); }
-.pp-grid .vz-rose { width: 120px; }
-.pp-grid .pc-name { font: var(--t-subhead); font-weight: 600; letter-spacing: var(--tr-subhead); color: var(--label); text-align: center; }
-.pp-grid .pc-pick { font: var(--t-footnote); color: var(--label-2); font-variant-numeric: tabular-nums; margin-top: -4px; }
+.pp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.pp-grid .person-card { margin: 0; display: grid; gap: var(--s-3); padding: var(--s-4); }
+.pp-grid .pc-head { display: flex; align-items: center; gap: var(--s-2); }
+.pp-grid .pc-head .avatar { width: 28px; height: 28px; font-size: 11px; }
+.pp-grid .pc-name { font: var(--t-subhead); font-weight: 600; letter-spacing: var(--tr-subhead); color: var(--label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-roses { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); justify-items: center; }
+.pc-rose .vz-rose { width: 100%; max-width: 136px; }
+.pp-grid .pc-pick { font: var(--t-footnote); color: var(--label-2); font-variant-numeric: tabular-nums; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-grid .pc-pick:empty { display: none; }
 
 /* ---------- reading groups: a guide run as regular studies (guides.js · study.js) ---------- */
@@ -808,14 +812,17 @@ details.fld summary { cursor: pointer; }
 .st-series { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-2); font: var(--t-footnote); letter-spacing: var(--tr-footnote); }
 .st-series > a:first-child { color: var(--link-text); text-decoration: none; font-weight: 600; }
 
+@media (max-width: 900px) and (min-width: 761px) { .pp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1100px) and (min-width: 761px) {   /* two sides get narrow: each side's rose above its list */
+  .pp-lab-body { grid-template-columns: 1fr; justify-items: center; }
+  .pp-lab-body .pp-axes { width: 100%; }
+}
 @media (max-width: 760px) {
   .pf-stats b { font: var(--t-headline); }
   .vz-rose-wrap { grid-template-columns: minmax(120px, 160px) minmax(0, 1fr); gap: var(--s-3); }
-  .pp-lab-body { grid-template-columns: 1fr; justify-items: center; gap: var(--s-3); }
-  .pp-lab-body .vz-rose { width: 150px; }
-  .pp-axes { width: 100%; grid-template-columns: 1fr; }
-  .pp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pp-grid .vz-rose { width: 104px; }
+  .pp-lab-sides { grid-template-columns: 1fr; gap: var(--s-5); }
+  .pp-lab-body { grid-template-columns: 120px minmax(0, 1fr); gap: var(--s-3); }
+  .pp-grid { grid-template-columns: 1fr; }
   .vz-rlegend .lab { display: none; }
   .cmp-grid, .tp-grid { grid-template-columns: 1fr; }
   .cmp-row { grid-template-columns: 34px 1fr minmax(72px, 110px) 1fr 34px; gap: var(--s-2); }
