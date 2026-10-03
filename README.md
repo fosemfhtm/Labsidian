@@ -203,7 +203,7 @@ scripts/                  다이어리 파싱 → 메타데이터 보강 → 의
 mcp/labsidian_mcp.py      Claude · Codex용 MCP 서버
 data/demo/                가상 연구실 원본
 video/                    데모 영상 — record.py(Playwright 촬영) · remotion/(편집·렌더)
-docs/                     기획안(PLAN.md · PEOPLE_TOPICS_GUIDES.md) · 디자인(DESIGN.md) · 스크린샷 · 데모 GIF
+docs/                     기획안(PLAN.md · PEOPLE_TOPICS_GUIDES.md) · 디자인 규칙집(design/) · 스크린샷 · 데모 GIF
 ```
 
 `main`에 push하면 [GitHub Actions](.github/workflows/pages.yml)가 `site/`를 GitHub Pages에 배포해요. 이때 `data.demo.js`가 `data.js` 자리에 들어가요.

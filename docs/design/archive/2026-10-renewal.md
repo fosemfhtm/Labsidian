@@ -1,4 +1,7 @@
-# Labsidian 디자인 리뉴얼 계획 — Apple HIG 적용
+# Labsidian 디자인 리뉴얼 계획 — Apple HIG 적용 (보관)
+
+> **보관 문서.** 2026-10 리뉴얼의 계획·조사·진행 기록이다. 지금 따르는 규칙은 [docs/design/](../README.md)에 있다.
+> 이 문서의 글자 크기(iOS 기준)는 2026-10-03에 데스크톱 macOS 기준으로 바뀌었다 → [decisions.md](../decisions.md).
 
 > 조사일 2026-10-02. 수치는 Apple Human Interface Guidelines 원문(developer.apple.com/design/human-interface-guidelines, JSON 데이터)에서 확인한 값이고, Apple이 공개하지 않아 다른 출처를 쓴 값은 **[외부]**, 우리가 정한 값은 **[결정]**으로 표시했다.
 
