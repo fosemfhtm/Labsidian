@@ -1,35 +1,41 @@
-/* timeline.json (written by video/record.py) → frame layout. The output is the kept scenes back to back, in `order`. */
-export type Spot = { t0: number; t1: number; x: number; y: number; w: number; h: number; label?: string };
-export type Scene = {
-  id: string; order: number; t0: number; t1: number;
-  chip: string; ko: string; en: string;
-  act: [string, string] | null;          // act card shown over the first seconds of this scene
-  overlay: "opening" | "ending" | null;
-  hero: number;                           // seconds of this scene to use in the short hero cut (0 = not in it)
-  spots: Spot[];
+/* timeline.json (written by video/record.py) → output timing.
+ * Raw time = seconds since the recording started. Only `keep` segments reach the film, back to back, each at its speed. */
+export type Keep = { t0: number; t1: number; speed: number };
+export type Span = { t0: number; t1: number; text: string };
+export type Cam = { t: number; reset?: boolean; x?: number; y?: number; w?: number; h?: number; zoom?: number | null };
+export type Timeline = {
+  fps: number; width: number; height: number; css: { w: number; h: number }; video: string; offset: number;
+  keep: Keep[]; caps: Span[]; chips: Span[]; chapters: { t: number; n: number }[]; cam: Cam[];
+  mouse: [number, number, number][]; clicks: [number, number, number][]; overlays: { kind: string; t0: number; t1: number }[];
 };
-export type Timeline = { fps: number; width: number; height: number; video: string; scenes: Scene[] };
+export type Seg = Keep & { o0: number; o1: number };
+export type Laid = { tl: Timeline; segs: Seg[]; total: number };
 
-export type Laid = Scene & { from: number; dur: number; startFrom: number; speed: number; spotFrames: { from: number; dur: number; x: number; y: number; w: number; h: number; label?: string }[] };
-export type Layout = { fps: number; total: number; scenes: Laid[] };
+export function lay(tl: Timeline): Laid {
+  let o = 0;
+  const segs = [...tl.keep].sort((a, b) => a.t0 - b.t0).map(k => {
+    const d = (k.t1 - k.t0) / k.speed, s = { ...k, o0: o, o1: o + d };
+    o += d; return s;
+  });
+  return { tl, segs, total: o };
+}
 
-export const ACT_HOLD = 1.7;   // seconds the act card stays (the page holds still under it)
-export const SPEED = 1.5;      // the screen recording is played back this much faster (the opening/ending stay at 1×)
-
-export function layout(tl: Timeline, hero = false): Layout {
-  const fps = tl.fps;
-  let from = 0;
-  const scenes: Laid[] = [];
-  for (const s of [...tl.scenes].sort((a, b) => a.order - b.order)) {
-    if (hero && !s.hero) continue;
-    const speed = s.overlay ? 1 : SPEED;
-    const len = (hero ? Math.min(s.t1 - s.t0, s.hero) : s.t1 - s.t0) / speed;   // seconds of output
-    const dur = Math.round(len * fps);
-    const spotFrames = s.spots
-      .map(sp => ({ from: Math.round((sp.t0 - s.t0) / speed * fps), dur: Math.round((Math.min(sp.t1, s.t0 + len * speed) - sp.t0) / speed * fps), x: sp.x, y: sp.y, w: sp.w, h: sp.h, label: sp.label }))
-      .filter(sp => sp.dur > 6 && sp.from < dur);
-    scenes.push({ ...s, from, dur, startFrom: Math.round(s.t0 * fps), speed, spotFrames });
-    from += dur;
+/** raw → output seconds (a cut moment snaps to the start of the next kept segment) */
+export function toOut(l: Laid, t: number): number {
+  for (const s of l.segs) {
+    if (t < s.t0) return s.o0;
+    if (t <= s.t1) return s.o0 + (t - s.t0) / s.speed;
   }
-  return { fps, total: Math.max(1, from), scenes };
+  return l.total;
+}
+
+/** output → raw seconds */
+export function toRaw(l: Laid, o: number): number {
+  for (const s of l.segs) if (o < s.o1) return s.t0 + Math.max(0, o - s.o0) * s.speed;
+  const last = l.segs[l.segs.length - 1];
+  return last ? last.t1 : 0;
+}
+
+export function segAt(l: Laid, o: number): Seg | null {
+  return l.segs.find(s => o >= s.o0 && o < s.o1) || null;
 }

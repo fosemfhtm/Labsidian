@@ -5,10 +5,8 @@
   "scripts": {
     "studio": "remotion studio",
     "render": "node render.mjs",
-    "render:all": "node render.mjs --all",
-    "render:readme": "ffmpeg -y -loglevel error -i out/labsidian_demo.mp4 -vf scale=1280:720 -c:v libx264 -preset slow -crf 25 -movflags +faststart -an out/labsidian_demo_720p.mp4",
-    "hero": "remotion render Hero out/hero.mp4 --crf 18",
-    "gif": "npm run hero && ffmpeg -y -loglevel error -i out/hero.mp4 -vf \"fps=12,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=bayer:bayer_scale=5\" ../../docs/labsidian_demo.gif"
+    "render:loop": "node render.mjs Loop",
+    "gif": "node render.mjs Loop && ffmpeg -y -loglevel error -i out/loop.mp4 -vf \"fps=12,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=bayer:bayer_scale=5\" ../../docs/labsidian_demo.gif"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.532",

@@ -1,20 +1,27 @@
-"""Record the Labsidian demo film (fake demo lab) → video/raw/*.webm + video/remotion/public/{raw.mp4, timeline.json}
+"""Record the Labsidian demo film (fake demo lab, video/STORYBOARD.md) → video/raw/frames + video/remotion/public/{raw.mp4, timeline.json}
 
     python scripts/serve.py 8766 --demo          # demo site must be up
-    .venv/Scripts/python video/record.py         # records a clean screen capture + a timeline of scenes/spotlights
-    cd video/remotion && npm run render          # Remotion adds act cards, captions, chips, spotlights → out/labsidian_demo.mp4
+    .venv/Scripts/python video/record.py         # (THEME=light for the light version) records the screen (2880×1800) and a timeline: kept segments, captions,
+                                                 # chapters, camera targets, cursor path, clicks, overlays
+    cd video/remotion && npm run render          # Remotion: macOS window, camera, cursor, captions → out/labsidian_demo.mp4
 
-Story: one member's week — 한서윤 signs in on Monday, catches up, picks papers on the map, writes a diary, prepares a
-study, asks her own AI (MCP). Everything is the fake demo dataset (data/demo); no real member appears.
-The recording is a clean screen capture (only a cursor is injected, video/cursor.js); every caption lives in
-timeline.json, so wording can be changed and re-rendered without recording again.
-Runs in a throwaway browser profile; your own browser data is untouched.
+The story follows one paper (Bike Flow Prediction with Multi-Graph Convolutional Networks) through 한서윤's research loop:
+find → read → write → share → read together → look back. Everything is the fake demo dataset; no real member appears.
+
+Capture: Chrome's screencast at device scale 2 (Playwright's own video is VP8 at 1 Mbps — too soft to zoom into).
+The page shows no cursor; Remotion draws one from the logged mouse path. Captions and camera live in timeline.json,
+so wording and framing can change without recording again. Runs in a throwaway browser profile.
 """
+import base64
 import json
+import math
 import os
+import random
+import shutil
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -22,157 +29,197 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parent.parent
 VID = ROOT / "video"
 RAW, PUB = VID / "raw", VID / "remotion" / "public"
+FRAMES = RAW / "frames"
 SITE = "http://localhost:8766"
-W, H = 1920, 1080
-INIT_PW = "labsidian"            # mock initial password (site/store.js MOCK_INITIAL_PASSWORD)
-ME, ME_ID = "한서윤", "hsy"      # the protagonist
-ASKER = "pjh"                    # 박지호 asks her a question before the film starts (seeded, not recorded)
-SESSION_KEY = "labsidian.session.demo"
-# a real paper that is not in the demo set — looked up live from its arXiv id during the writing scene
-NEW_PAPER_URL = "https://arxiv.org/abs/1709.04875"   # STGCN (Yu, Yin & Zhu, IJCAI 2018)
-NEW_PAPER_KEY = "Spatio-Temporal Graph Convolutional Networks"
+W, H = 1440, 900                 # CSS viewport; captured at 2× (2880×1800)
+FPS = 30
+THEME = os.environ.get("THEME", "dark")   # dark | light — the site's theme; Remotion's frame follows it (timeline.json)
+ME = "hsy"                       # 한서윤 — the protagonist
+FRIEND = "yhn"                   # 윤하늘 — read the paper first, asks a question
+SHARED = "p54"                   # LLGformer — read by 최민재, 한서윤, Priya Raman
+PAPER = "p29"                    # Bike Flow Prediction with Multi-Graph Convolutional Networks
+NEAR = "p12"                     # her metro-ridership paper whose similar list has p29
+GUIDE = "g_demo_forecast"        # 「교통 예측 입문」 reading group
+DCRNN = "https://arxiv.org/abs/1707.01926"
+random.seed(7)
 
 T0 = None
-scenes = []       # timeline.json
-cur = None        # the scene being recorded
+TL = dict(keep=[], caps=[], chips=[], chapters=[], cam=[], mouse=[], clicks=[], overlays=[])
+_cap = None
 
 
-# ------------------------------------------------------------------ timeline
-class scene:
-    """A kept segment of the raw video + its caption. Everything outside a scene is cut."""
-    def __init__(self, id, chip="", ko="", en="", act=None, order=None, overlay=None, hero=0):
-        self.d = dict(id=id, chip=chip, ko=ko, en=en, act=act, overlay=overlay, hero=hero, spots=[],
-                      order=order if order is not None else len(scenes) + 1)
-    def __enter__(self):
-        global cur
-        self.d["t0"] = now(); cur = self.d; return self
-    def __exit__(self, *a):
-        global cur
-        self.d["t1"] = now(); cur = None
-        for s in self.d["spots"]:
-            s.setdefault("t1", self.d["t1"])
-        scenes.append(self.d)
-        print(f"  [{self.d['id']}] {self.d['t1'] - self.d['t0']:.1f}s")
+def now(): return time.time() - T0
 
 
-def now(): return time.monotonic() - T0
+# ------------------------------------------------------------------ timeline marks
+_k = None
+SPEED = 1.25     # ordinary footage plays a touch faster than life; typing segments use keep(2..3) and show a ⏩ badge
+
+
+@contextmanager
+def keep(speed=SPEED):
+    """Everything outside a keep() is cut."""
+    global _k
+    _k = dict(t0=now(), speed=speed)
+    yield
+    _close()
+
+
+def _close():
+    global _k
+    if _k: _k["t1"] = now(); TL["keep"].append(_k); _k = None
+
+
+@contextmanager
+def offcam():
+    """Cut a wait (loading, lookups) out of the current keep()."""
+    global _k
+    sp = _k["speed"] if _k else None
+    _close()
+    yield
+    if sp: _k = dict(t0=now(), speed=sp)
+
+
+def cap(text=None):
+    """Start a caption (closes the previous one). cap() just closes."""
+    global _cap
+    if _cap: _cap["t1"] = now(); TL["caps"].append(_cap); _cap = None
+    if text: _cap = dict(t0=now(), text=text)
+
+
+def chip(text, dur=2.5): TL["chips"].append(dict(t0=now(), t1=now() + dur, text=text))
+def chapter(n): TL["chapters"].append(dict(t=now(), n=n))
+def overlay(kind, t0, t1): TL["overlays"].append(dict(kind=kind, t0=t0, t1=t1))
+
+
+class Film:
+    def __init__(self, page):
+        self.p = page
+        self.mx, self.my = W * 0.62, H * 0.55
+
+    # ---- small helpers
+    def ev(self, js, arg=None): return self.p.evaluate(js, arg)
+    def wait(self, s): self.p.wait_for_timeout(int(s * 1000))
+    def loc(self, sel, text=None):
+        l = self.p.locator(sel)
+        return (l.filter(has_text=text) if text else l).first
+
+    def box(self, target, text=None):
+        if isinstance(target, dict): return target
+        l = target if not isinstance(target, str) else self.loc(target, text)
+        l.wait_for(state="visible", timeout=15000)
+        b = l.bounding_box()
+        return dict(x=b["x"], y=b["y"], w=b["width"], h=b["height"])
+
+    # ---- camera: Remotion eases the view onto this box (CSS px of the page); zoom 1 = the whole window
+    def cam(self, target=None, text=None, pad=24, zoom=None):
+        if target is None:
+            TL["cam"].append(dict(t=now(), reset=True)); return
+        b = self.box(target, text)
+        TL["cam"].append(dict(t=now(), x=b["x"] - pad, y=b["y"] - pad, w=b["w"] + 2 * pad, h=b["h"] + 2 * pad, zoom=zoom))
+
+    # ---- a human-ish mouse: curved path, ease in/out, settle before clicking
+    def move(self, x, y, dur=None):
+        x0, y0 = self.mx, self.my
+        d = math.hypot(x - x0, y - y0)
+        if d < 1: return
+        dur = dur or min(0.8, 0.22 + d / 2400)
+        nx, ny = -(y - y0) / d, (x - x0) / d                  # bend the path a little to one side
+        bend = random.uniform(-0.12, 0.12) * d
+        cx, cy = (x0 + x) / 2 + nx * bend, (y0 + y) / 2 + ny * bend
+        start = time.time(); n = max(8, int(dur * 60))
+        for i in range(1, n + 1):
+            s = i / n; e = s * s * (3 - 2 * s)
+            px = (1 - e) ** 2 * x0 + 2 * (1 - e) * e * cx + e * e * x
+            py = (1 - e) ** 2 * y0 + 2 * (1 - e) * e * cy + e * e * y
+            self.p.mouse.move(px, py)
+            TL["mouse"].append([round(now(), 3), round(px, 1), round(py, 1)])
+            lag = start + dur * s - time.time()
+            if lag > 0: time.sleep(lag)
+        self.mx, self.my = x, y
+
+    def at(self, target, text=None, dx=0.5, dy=0.5):
+        if isinstance(target, str) or not isinstance(target, dict):
+            l = target if not isinstance(target, str) else self.loc(target, text)
+            l.wait_for(state="visible", timeout=15000)
+            l.scroll_into_view_if_needed()
+            self.wait(0.15)
+        b = self.box(target, text)
+        return b["x"] + b["w"] * dx, b["y"] + b["h"] * dy
+
+    def hover(self, target, text=None, settle=0.25):
+        x, y = self.at(target, text)
+        self.move(x, y); self.wait(settle)
+
+    def click(self, target, text=None, settle=0.2, after=0.35):
+        x, y = self.at(target, text)
+        self.move(x, y); self.wait(settle)
+        TL["clicks"].append([round(now(), 3), round(x, 1), round(y, 1)])
+        self.p.mouse.down(); self.wait(0.07); self.p.mouse.up()
+        self.wait(after)
+
+    def type(self, text, lo=0.045, hi=0.12):
+        for ch in text:
+            self.p.keyboard.type(ch)
+            time.sleep(random.uniform(lo, hi) * (1.8 if ch == " " else 1))
+
+    def paste(self, text):
+        self.p.keyboard.insert_text(text)
+
+    def wheel_to(self, target, text=None, where=0.42):
+        """Scroll with the wheel (under the mouse) until the element sits around `where` of the viewport height."""
+        l = self.loc(target, text) if isinstance(target, str) else target
+        l.wait_for(state="attached", timeout=15000)
+        for _ in range(40):
+            b = l.bounding_box()
+            if not b: break
+            dy = b["y"] + b["height"] / 2 - H * where
+            if abs(dy) < 40: break
+            self.p.mouse.wheel(0, max(-160, min(160, dy)))
+            self.wait(0.05)
+        self.wait(0.35)
+
+    def nav(self, view):
+        self.click(f'#nav a[data-view="{view}"]', after=0.9)
+
+    def blank(self):   # a click on an empty spot of the top bar closes popovers and menus
+        self.click({"x": 760, "y": 18, "w": 40, "h": 10}, after=0.4)
+
+    def graph_ready(self, timeout=30):
+        self.p.wait_for_function("window.LabGraph && LabGraph._r && LabGraph.demo.settled()", timeout=timeout * 1000)
+
+    def node(self, nid):
+        xy = self.ev("id => LabGraph.demo.nodeXY(id)", nid)
+        return dict(x=xy["x"] - 6, y=xy["y"] - 6, w=12, h=12)
 
 
 # ------------------------------------------------------------------ setup (not recorded)
 def setup(browser):
     ctx = browser.new_context(viewport={"width": W, "height": H}, locale="ko-KR")
     p = ctx.new_page()
-    p.goto(SITE)
-    p.wait_for_function("window.Store && window.LAB")
-    # the demo server keeps its data (data/demo/labsidian.db): wipe it so every take starts from a fresh demo lab
+    p.goto(SITE); p.wait_for_function("window.Store && window.LAB")
+    # the demo server keeps its data (data/demo/labsidian.db): reset it so every take starts from the seeded lab, dated today
     p.evaluate("async () => { await Store.auth.demoSignIn('admin'); await Store.admin.reset(); }")
-    p.evaluate("() => { localStorage.clear(); localStorage.setItem('lab.theme', 'dark'); localStorage.setItem('lab.lang', 'ko'); }")
-    p.reload(); p.wait_for_function("window.Store && window.LAB")
-    ids = p.evaluate("""async ([asker, me]) => {
-      // seeded social activity (data/demo/social.json) is applied on first load; add one fresh question for 한서윤
-      await Store.auth.demoSignIn(asker);
-      const mine = LAB.reviews.filter(r => r.person === me);
-      const rv = mine.find(r => /MGC-RNN/.test(LAB.papers.find(p => p.id === r.paper).title)) || mine[0];
-      const c = await Store.comments.add({ reviewId: rv.id, parent: null, kind: "question",
-        body: "@한서윤 multi-graph에서 그래프 종류별 기여도도 따로 보셨어요? 거리 그래프 하나만 써도 비슷하게 나올지 궁금해요." });
-      await Store.auth.signOut();
-      const sts = Store.studies.list();
-      const open = sts.find(st => !st.closed && st.blind && st.members.includes(me)) || sts.find(st => !st.closed);
-      const past = sts.find(st => st.closed && st.notes && st.members.includes(me)) || sts.find(st => st.closed);
-      // a paper I share with others whose map neighbours include one I haven't read (→ "add to reading list")
-      const unread = p => (p.nb || []).map(([id]) => LAB.papers.find(x => x.id === id)).find(x => x && !x.readers.includes(me));
-      const cands = LAB.papers.filter(p => p.readers.includes(me) && p.readers.length > 1).sort((a, b) => b.readers.length - a.readers.length);
-      const shared = cands.find(unread) || cands[0];
-      const related = unread(shared);
-      const dupTitle = LAB.papers.find(p => p.readers.length === 1 && !p.readers.includes(me) && /Large Language Models for Travel/.test(p.title))?.title
-        || LAB.papers.find(p => p.readers.length === 1 && !p.readers.includes(me)).title;
-      const c3 = LAB.clusters.find(c => c.level === "c" && /transit|대중교통/i.test((c.ko || "") + (c.en || ""))) || LAB.clusters[0];
-      const f = LAB.clusters.filter(c => c.parent === c3.id).sort((a, b) => b.size - a.size)[0];
-      return { review: rv.id, comment: c.id, study: open.id, past: past.id, shared: shared.id, related: related?.id,
-               dupTitle, c3: c3.id, f: f?.id, people: LAB.people.map(p => p.id) };
-    }""", [ASKER, ME_ID])
+    p.evaluate("""([me, theme]) => { localStorage.clear(); localStorage.setItem('lab.theme', theme); localStorage.setItem('lab.lang', 'ko');
+                         localStorage.setItem('labsidian.session.demo', me); }""", [ME, THEME])
+    p.reload(); p.wait_for_function("window.Store && window.LAB && window.LabMe")
     state = ctx.storage_state()
     ctx.close()
-    state["_ids"] = ids
     return state
 
 
-# ------------------------------------------------------------------ helpers
-class Film:
-    def __init__(self, page):
-        self.p = page
-        self.mx, self.my = W / 2, H / 2
-
-    def ev(self, js, arg=None): return self.p.evaluate(js, arg)
-    def wait(self, s): self.p.wait_for_timeout(int(s * 1000))
-
-    def spot(self, sel, label="", pad=8, hold=None):
-        """Spotlight the element's current box (in the Remotion layer) from now until `hold` seconds or the scene end."""
-        b = self.p.locator(sel).first.bounding_box()
-        if not b or cur is None: return
-        s = dict(t0=now(), x=b["x"] - pad, y=b["y"] - pad, w=b["width"] + 2 * pad, h=b["height"] + 2 * pad, label=label)
-        if hold: s["t1"] = now() + hold
-        cur["spots"].append(s)
-    def spot_union(self, sel, label="", pad=8, hold=None):
-        """Spotlight the box around every element matching `sel` (e.g. a list of rows)."""
-        b = self.ev("""s => { const r = [...document.querySelectorAll(s)].map(e => e.getBoundingClientRect()).filter(r => r.width);
-            if (!r.length) return null; const x = Math.min(...r.map(q => q.left)), y = Math.min(...r.map(q => q.top));
-            return { x, y, width: Math.max(...r.map(q => q.right)) - x, height: Math.max(...r.map(q => q.bottom)) - y }; }""", sel)
-        if not b or cur is None: return
-        s = dict(t0=now(), x=b["x"] - pad, y=b["y"] - pad, w=b["width"] + 2 * pad, h=b["height"] + 2 * pad, label=label)
-        if hold: s["t1"] = now() + hold
-        cur["spots"].append(s)
-    def unspot(self):
-        if cur and cur["spots"] and "t1" not in cur["spots"][-1]: cur["spots"][-1]["t1"] = now()
-
-    def move(self, x, y, dur=0.7):
-        self.p.mouse.move(x, y, steps=max(6, int(dur * 30)))
-        self.mx, self.my = x, y
-
-    def center(self, sel):
-        el = self.p.locator(sel).first
-        el.scroll_into_view_if_needed()
-        b = el.bounding_box()
-        return b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
-
-    def click(self, sel, dur=0.6, pause=0.25):
-        x, y = self.center(sel)
-        self.move(x, y, dur); self.wait(pause)
-        self.p.mouse.click(x, y)
-
-    def type(self, text, delay=55): self.p.keyboard.type(text, delay=delay)
-
-    def close_pops(self):  # a click outside popovers/menus, without risking a click on a graph node
-        self.ev("document.querySelector('header.top').click()")
-
-    def go(self, hash_, settle=0.8):
-        self.ev("h => { location.hash = h; }", hash_); self.wait(settle)
-        self.p.mouse.move(self.mx, self.my)
-
-    def reload(self, hash_=None):
-        if hash_:
-            self.ev("h => { location.hash = h; }", hash_)
-        self.p.reload(); self.p.wait_for_function("window.LabUI && window.__cur")
-        self.wait(0.6); self.p.mouse.move(self.mx, self.my)
-
-    def graph_ready(self, timeout=25):
-        self.p.wait_for_function("window.LabGraph && LabGraph._r", timeout=timeout * 1000)
-        self.p.wait_for_function("LabGraph.demo.settled()", timeout=timeout * 1000)
-
-    def node(self, nid): return self.ev("id => LabGraph.demo.nodeXY(id)", nid)
-
-    def scroll(self, dy, steps=6, x=None, y=None):
-        if x is not None: self.move(x, y, 0.4)
-        for _ in range(steps):
-            self.p.mouse.wheel(0, dy / steps); self.wait(0.06)
-
-    def as_user(self, uid, hash_):
-        self.ev("([k, id]) => localStorage.setItem(k, id)", [SESSION_KEY, uid])
-        self.reload(hash_)
+def as_member(browser, uid, js, arg=None):
+    """Do something as another member, off camera (their own context; the filmed page picks it up by polling)."""
+    ctx = browser.new_context(viewport={"width": W, "height": H}, locale="ko-KR")
+    ctx.add_init_script(f"localStorage.setItem('labsidian.session.demo', '{uid}'); localStorage.setItem('lab.lang', 'ko');")
+    p = ctx.new_page(); p.goto(SITE + "/#/home"); p.wait_for_function("window.Store && window.LAB && window.LabMe")
+    out = p.evaluate(js, arg)
+    p.wait_for_timeout(400); ctx.close()
+    return out
 
 
-def mcp_draft(user):
-    """Ask the MCP server (as the member's own AI would) to create a diary draft."""
+def mcp_draft():
+    """What her own AI does: create a diary draft through the MCP server (the terminal on screen is drawn by Remotion)."""
     code = r'''
 import asyncio, os, sys
 from mcp import ClientSession, StdioServerParameters
@@ -183,252 +230,498 @@ async def main():
         async with ClientSession(r, w) as s:
             await s.initialize()
             res = await s.call_tool("create_draft", {
-                "title": "UniST: A Prompt-Empowered Universal Model for Urban Spatio-Temporal Prediction", "authors": "Yuan Yuan, Jingtao Ding, Jie Feng, Depeng Jin, Yong Li",
-                "venue": "KDD", "year": "2024", "link": "https://arxiv.org/abs/2402.11838", "rating": 4, "tags": ["d:forecast", "d:transit", "m:transformer"],
-                "summary": "Problem: 도시·데이터마다 따로 학습하던 시공간 예측 모델을 하나로 쓸 수 있는가\nMethod: 여러 도시의 격자 시공간 데이터를 같은 토큰 형식으로 묶어 Transformer를 사전학습하고, 공간·시간 패턴을 담은 prompt를 붙여 새 도시·새 데이터에 맞춤\nResult: 20여 개 데이터셋에서 개별 학습 모델과 비슷하거나 더 좋고, 데이터가 적은 few-shot 상황에서 차이가 커짐",
-                "memo": "격자 단위 데이터가 전제라 노선·역 단위 대중교통 수요에는 바로 못 씀. 역 네트워크를 격자로 바꾸거나 그래프 토큰을 넣는 변형이 필요함. 서울 교통카드 데이터로 few-shot 실험을 해볼 만함."})
+                "title": "Diffusion Convolutional Recurrent Neural Network: Data-Driven Traffic Forecasting",
+                "authors": "Yaguang Li, Rose Yu, Cyrus Shahabi, Yan Liu", "venue": "ICLR", "year": "2018",
+                "link": "https://arxiv.org/abs/1707.01926", "rating": 4, "tags": ["d:forecast", "m:gnn"],
+                "summary": "Problem: 도로망 센서의 교통 속도를 최대 1시간 앞까지 예측\nMethod: 도로 그래프 위의 확산(diffusion) 합성곱을 GRU 안에 넣고, encoder-decoder와 scheduled sampling으로 여러 시점을 한 번에 예측\nResult: METR-LA·PEMS-BAY에서 기존 방법보다 오차 12~15% 감소, 예측 구간이 길수록 차이가 커짐",
+                "memo": "그래프가 방향을 가진다는 점(상류·하류)을 모델에 직접 넣은 게 핵심. 지하철은 노선 방향이 분명해서 역 단위 승객 흐름에도 잘 맞을 듯. 다만 그래프가 고정이라 환승 패턴 변화는 못 담음."})
             print(res.content[0].text if res.content else "")
 asyncio.run(main())
 '''
-    out = subprocess.run([sys.executable, "-c", code, user, str(ROOT / "mcp" / "labsidian_mcp.py")], capture_output=True, text=True,
+    out = subprocess.run([sys.executable, "-c", code, ME, str(ROOT / "mcp" / "labsidian_mcp.py")], capture_output=True, text=True,
                          encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"}, timeout=120, cwd=str(ROOT))
-    print("  mcp:", out.stdout.strip()[:120], out.stderr.strip()[-300:] if out.returncode else "")
+    print("  mcp:", out.stdout.strip()[:100], out.stderr.strip()[-300:] if out.returncode else "")
+
+
+def pdf_file():
+    """A stand-in PDF for the paper (only its name shows on screen)."""
+    f = RAW / "Bike Flow Prediction with Multi-Graph Convolutional Networks.pdf"
+    body = b"BT /F1 18 Tf 72 720 Td (Bike Flow Prediction with Multi-Graph Convolutional Networks) Tj ET"
+    objs = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+            b"<< /Length %d >>stream\n" % len(body) + body + b"\nendstream", b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    out, offs = b"%PDF-1.4\n", []
+    for i, o in enumerate(objs, 1):
+        offs.append(len(out)); out += b"%d 0 obj\n" % i + o + b"\nendobj\n"
+    x = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % o for o in offs)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, x)
+    f.write_bytes(out)
+    return f
 
 
 # ------------------------------------------------------------------ the film
-def film(page, ids):
-    f = Film(page)
-    page.goto(SITE)
-    page.wait_for_function("window.Store && window.__cur")
-    f.wait(0.5)
+def film(f, browser):
+    p = f.p
+    # ================= intro: the logo, then the lab's map gathers itself behind it
+    f.graph_ready()
+    f.ev("LabGraph.demo.fit(0)")
+    f.wait(0.6)
+    with keep():
+        chapter(0)
+        t = now()
+        f.ev("LabGraph.demo.scatter(700)")
+        f.wait(3.4)
+        overlay("intro", t, now())
+        cap("연구실 멤버들은 논문을 읽을 때마다 짧은 다이어리를 써요")
+        f.wait(3.4)
+        cap("Labsidian은 그 다이어리를 연구실의 지도로 만들어요")
+        f.wait(3.6)
+        cap()
 
-    # ================= Monday: what happened last week?
-    with scene("login", "로그인", "아이디는 이름 하나 — 계정은 관리자가 만들어줘요", "Your name is your ID — accounts are issued by the admin",
-               act=("월요일", "지난주에 무슨 일이 있었지?")):
+    # ================= ⓪ 지도 — the graph itself
+    with keep():
+        chapter(1)
+        # the map fills the frame: the film's camera moves in past the toolbar and legend
+        mapbox = f.ev("""() => { const r = LabGraph._r, g = r.getGraph(), c = document.querySelector('#graph').getBoundingClientRect();
+            let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+            g.forEachNode((n, a) => { const v = r.graphToViewport(a); x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); });
+            return { x: x0 + c.left, y: y0 + c.top, w: x1 - x0, h: y1 - y0 }; }""")
+        on_map = lambda: f.cam(mapbox, pad=0, zoom=1.3)
+        on_map()
+        cap("비슷한 논문끼리 모여 영역이 돼요")
+        lab = f.box("#cluster-labels .cl.coarse", "대중교통·철도")
+        f.move(lab["x"] + lab["w"] / 2, lab["y"] + lab["h"] + 40, 0.9)
+        f.wait(1.6)
+        cap("다가가면 세부 주제와 논문 제목까지")
+        cid = lambda name: f.ev("n => LAB.clusters.find(c => c.level === 'c' && (c.ko || '').includes(n)).id", name)
+        f.ev("([id]) => LabGraph.demo.zoomCluster(id, 0.36, 2600)", [cid("대중교통")]); f.wait(3.4)
+        f.ev("([id]) => LabGraph.demo.zoomCluster(id, 0.36, 3000)", [cid("교통 예측")]); f.wait(3.4)
+        f.ev("LabGraph.demo.fit(2200)"); f.wait(2.6)
+        cap("사람은 자기가 읽은 논문들 한가운데에 놓여요")
+        f.hover(f.node("u:" + ME), settle=2.4)
+        cap("가까이 있을수록 관심사가 비슷해요")
+        f.hover(f.node("u:kdy"), settle=1.8)
+        f.hover(f.node("u:pjh"), settle=1.8)
+        cap("여럿이 읽은 논문엔 테두리 — 올리면 읽은 사람이 이어져요")
+        ids = [SHARED, "u:cmj", "u:" + ME, "u:prr"]
+        xs = [f.ev("id => LabGraph.demo.nodeXY(id)", i) for i in ids]
+        x0, y0 = min(q["x"] for q in xs), min(q["y"] for q in xs)
+        f.cam({"x": x0, "y": y0, "w": max(q["x"] for q in xs) - x0, "h": max(q["y"] for q in xs) - y0}, pad=110)
+        f.hover(f.node(SHARED), settle=2.8)
+        on_map()
+        cap("누르면 그 사람의 지도 — 연구 지형과 비슷한 사람까지")
+        f.click(f.node("u:" + ME), after=2.0)
+        f.cam("#drawer", pad=0)
+        b = f.box("#drawer")
+        f.move(b["x"] + b["w"] * 0.5, b["y"] + b["h"] * 0.55, 0.6)
+        for _ in range(4):
+            f.p.mouse.wheel(0, 160); f.wait(0.12)
         f.wait(2.2)
-        f.click(".gate-pw summary"); f.wait(0.8)
-        f.click('#login-form input[name="name"]'); f.type(ME, 90); f.wait(0.3)
-        f.click('#login-form input[name="pw"]'); f.type(INIT_PW, 70); f.wait(0.4)
-        page.keyboard.press("Enter")
-        page.wait_for_function("window.LabMe && document.querySelector('#h-feed')"); f.wait(1.4)
-    with scene("feed", "홈 피드", "새 다이어리만이 아니라 질문·답글·새로 열린 스터디까지, 한 피드에", "New diaries plus questions, replies and new studies — one feed"):
-        f.move(700, 520, 0.6)
-        f.spot(".feed-tabs", "전체 · 내 관심 분야 · 질문 · 함께 읽은 논문", hold=2.0); f.wait(2.2)
-        f.scroll(520, 10, 700, 560); f.wait(1.0)
-        # the first activity rows (someone asked / replied / opened a study) — show that the feed isn't only diaries
-        f.ev("() => document.querySelector('#h-feed .feed-item.act')?.scrollIntoView({ block: 'center', behavior: 'smooth' })"); f.wait(1.2)
-        f.spot("#h-feed .feed-item.act", "질문 · 답글 · 스터디 개설", hold=2.4); f.wait(2.6)
-        f.scroll(360, 8, 700, 560); f.wait(1.2)
-    with scene("bell", "알림", "내 리뷰에 온 질문, @멘션, 스터디 초대는 알림으로", "Questions on your reviews, mentions and study invites arrive as notifications"):
-        f.scroll(-2000, 6, 700, 500); f.wait(0.4)
-        f.click("#bell"); f.wait(0.8)
-        f.spot(".menu-notif", hold=2.4); f.wait(2.8)
-    with scene("reply", "댓글·답글", "답글은 그 자리에서 — @로 부르면 그 사람에게 알림이 가요", "Reply right there — @mention someone and they get notified"):
-        f.click(f'.menu-notif .notif[data-comment="{ids["comment"]}"]'); f.wait(1.8)
-        cm = f'#drawer .cm[data-cid="{ids["comment"]}"]'
-        f.click(cm + ' [data-cact="reply"]'); f.wait(0.5)
-        f.click(cm + " .cm-kids .cm-form textarea")
-        f.type("@박지", 90); f.wait(0.6)
-        f.click(cm + " .cm-kids .mention-pop [data-name]"); f.wait(0.2)
-        f.type("님 네, ablation에 distance·correlation·adjacency 셋 다 있어요. 거리 그래프만 쓰면 MAE가 6% 정도 나빠졌어요.", 38); f.wait(0.4)
-        f.click(cm + " .cm-kids .cm-form button.btn.primary"); f.wait(2.0)
-    f.ev("LabUI.closeDrawer()")
+        f.cam()
+        cap("논문을 누르면 읽은 사람들이, 한 단계 더 가면 그들이 읽은 논문이")
+        f.click(f.node(SHARED), after=1.8)
+        if f.p.locator("#focus-depth").count():
+            f.click('#focus-depth button[data-v="2"]', after=2.4)
+            f.click("#focus-clear", after=0.6)
+        f.click("#drawer-close", after=0.5)
+        f.cam({"x": 0, "y": 360, "w": 900, "h": 540})
+        cap("두 사람을 고르면 겹치는 관심사가 보여요")
+        f.click(f'#g-people .pl[data-id="{ME}"]', after=0.4)
+        f.click('#g-people .pl[data-id="kdy"]', after=2.4)
+        f.click("#people-clear", after=0.6)
+        f.cam()
+        cap()
 
-    # ================= Tuesday: what should I read this week?
-    f.go("#/graph", 0.5); f.graph_ready(); f.ev("LabGraph.demo.fit(0)"); f.wait(0.4)
-    with scene("map", "지식 그래프", "연구실이 읽은 논문 전부가 한 장의 지도 — 비슷한 논문은 가까이 있어요", "Every paper the lab has read, on one map — similar papers sit close together",
-               act=("화요일", "이번 주엔 뭘 읽지?"), hero=5):
-        f.wait(2.4)
-        f.move(960, 540, 0.8)
-        f.ev("id => LabGraph.demo.zoomCluster(id, 0.32, 1800)", ids["c3"]); f.wait(2.4)
-        if ids.get("f"):
-            f.ev("id => LabGraph.demo.zoomCluster(id, 0.13, 1600)", ids["f"]); f.wait(2.6)
-        f.ev("LabGraph.demo.fit(1400)"); f.wait(2.0)
-    with scene("people", "사람 노드", "사람은 자기가 읽은 논문들 한가운데 — 누가 어느 분야에 있는지 보여요", "Each member sits among the papers they read — you see who works where", hero=4):
-        xy = f.node("u:" + ME_ID); f.move(xy["x"], xy["y"], 0.9); f.wait(1.8)
-        xy = f.node("u:pjh"); f.move(xy["x"], xy["y"], 0.8); f.wait(0.5)
-        page.mouse.down(); f.move(xy["x"] + 150, xy["y"] - 90, 0.9); f.wait(0.3); page.mouse.up(); f.wait(1.2)
-    with scene("overlap", "겹치는 관심사", "관심사가 겹치는 사람은 지도에서 바로 보여요", "Overlapping interests show up right on the map", hero=4):
-        f.move(1500, 900, 0.5)
-        f.click('#g-people .pl[data-id="yhn"]'); f.wait(0.5)
-        f.click('#g-people .pl[data-id="prr"]'); f.wait(2.2)
-        f.click("#people-clear"); f.wait(0.6)
-    with scene("filters", "필터", "분야·방법론·학회·연도·별점으로 거르기", "Filter by field, method, venue, year, rating"):
-        f.click("#tb-field"); f.wait(0.6)
-        f.click('#pop-field .chip[data-id="d:forecast"]'); f.wait(0.5)
-        f.close_pops(); f.wait(1.2)
-        f.click("#tb-more"); f.wait(0.6)
-        f.click('#f-rating button[data-v="4"]'); f.wait(0.5)
-        f.close_pops(); f.wait(1.6)
-        f.click("#tb-reset"); f.wait(0.6)
-    with scene("local", "로컬 그래프", "한 편을 고르면 그 주변 — 읽은 사람, 비슷한 논문, 인용 관계", "Pick one paper and see its neighbourhood — readers, similar papers, citations"):
-        xy = f.node(ids["shared"]); f.move(xy["x"], xy["y"], 0.9); f.wait(0.3)
-        f.ev("id => LabGraph.select(id, { openDrawer: true, zoom: true })", ids["shared"]); f.wait(2.0)
-        f.spot("#focus-bar", "깊이 1 · 2", hold=1.6)
-        f.click('#focus-depth button[data-v="2"]'); f.wait(2.2)
-    with scene("react", "반응 · 읽을 목록", "좋았던 리뷰엔 👍, 읽고 싶은 논문은 읽을 목록에", "👍 a review you liked; save a paper to your reading list"):
-        f.scroll(700, 10, 1600, 600); f.wait(0.8)
-        other = f.ev("([pid, me]) => LAB.papers.find(p => p.id === pid).reviews.map(r => LAB.reviews.find(x => x.id === r)).find(r => r.person !== me).id", [ids["shared"], ME_ID])
-        f.click(f'#drawer .rv-foot[data-rid="{other}"] [data-act="like"]'); f.wait(1.0)
-        if ids.get("related"):
-            f.ev("id => document.querySelector(`#drawer .mini[data-open=\"paper:${id}\"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })", ids["related"]); f.wait(1.0)
-            f.click(f'#drawer .mini[data-open="paper:{ids["related"]}"]'); f.wait(1.2)
-            f.click("#drawer [data-reading]"); f.wait(1.8)
-    f.ev("LabUI.closeDrawer(); LabGraph.select(null)")
-    with scene("people_page", "사람", "연구실 전체가 어디를 읽는지, 그리고 사람마다 어디에 관심이 있는지", "What the whole lab reads, and what each member cares about"):
-        f.go("#/people", 1.0)
-        f.move(900, 400, 0.6)
-        f.spot("#lab-bars", "연구실 전체 — 분야 · 방법론", hold=2.4); f.wait(2.6)
-        f.ev("() => window.scrollTo({ top: document.querySelector('#people-grid').getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' })"); f.wait(1.4)
-        f.spot("#people-grid .person-card", "관심 분야 · 주별 작성 · 가장 비슷한 사람", hold=2.2); f.wait(2.6)
-    with scene("person", "사람 상세", "사람별 관심 분야·방법론, 관심사가 비슷한 사람, 그 사람이 좋아할 만한 논문", "Per member: fields, methods, who thinks alike, and papers they'd like"):
-        f.click('#people-grid .person-card[data-open="person:cmj"]'); f.wait(1.2)
-        f.move(1600, 500, 0.5)
-        f.spot_union("#drawer .stat-row, #drawer .bars", "읽은 논문 · 평균 별점 · 관심 분야", hold=1.8); f.wait(2.2)
-        f.ev("() => { const h = [...document.querySelectorAll('#drawer h4')].find(h => h.textContent.includes('비슷')); const d = document.querySelector('#drawer'); d.scrollTo({ top: h.offsetTop - 120, behavior: 'smooth' }); }"); f.wait(1.2)
-        f.spot_union("#drawer .sim-row", "관심사가 비슷한 사람 · 함께 읽은 논문", hold=2.2); f.wait(2.4)
-    with scene("recs", "추천", "내 관심 분야에서 다른 사람이 읽은 것 중 가까운 논문부터", "Papers others read in your fields, closest to yours first"):
-        f.ev("() => [...document.querySelectorAll('#drawer h4')].find(h => h.textContent.includes('추천'))?.scrollIntoView({ block: 'start', behavior: 'smooth' })")
-        f.wait(1.2); f.wait(2.0)
-    f.ev("LabUI.closeDrawer()")
-    with scene("search", "논문 검색", "연구실 리뷰 전체를 검색 — 제목뿐 아니라 리뷰 본문까지", "Search everything the lab wrote — titles and the reviews themselves"):
-        f.go("#/papers", 0.8)
-        f.click("#p-search"); f.type("passenger flow", 70); f.wait(1.2)
-        f.click("#paper-list .paper-row"); f.wait(1.4)
-        f.scroll(600, 8, 1600, 600); f.wait(1.2)
-    f.ev("LabUI.closeDrawer()")
+    # ================= ① 찾기
+    with keep():
+        chapter(2)
+        cap("분야·학회·연도로 거를 수도 있어요")
+        f.click("#tb-field", after=0.5)
+        f.cam("#g-toolbar", pad=30)
+        f.click('#pop-field .ui-chip[data-id="d:forecast"]', after=0.6)
+        f.blank()
+        f.cam()
+        f.wait(1.4)
+        f.click("#tb-reset", after=0.6)
+        cap("비슷한 논문은 가까이 — 확대하면 세부 주제가 보여요")
+        f.click("#cluster-labels .cl.coarse", "대중교통·철도", after=2.4)
+        if f.p.locator("#drawer.open").count():
+            f.wait(0.6); f.click("#drawer-close", after=0.5)
+        cap("내가 읽은 논문 바로 옆, 아직 안 읽은 논문")
+        f.click(f.node(NEAR), after=1.3)
+        f.hover("#drawer h2", settle=0.6)
+        row = f'#drawer .ui-row.mini[data-open="paper:{PAPER}"]'
+        f.wheel_to(row)
+        f.cam(row, pad=60)
+        f.hover(row, settle=1.4)
+        cap("누가 읽었는지, 주변에 뭐가 있는지 한눈에")
+        f.click(row, after=1.0)
+        f.cam()
+        f.click("#drawer [data-graph]", after=1.6)
+        if not f.p.locator("#drawer.open").count():
+            f.click(f.node(PAPER), after=1.0)
+        if f.p.locator("#focus-depth").count():
+            f.click('#focus-depth button[data-v="2"]', after=2.0)
+        cap("읽고 싶은 논문은 읽을 목록에")
+        f.cam(f'#drawer button[data-reading="{PAPER}"]', pad=80)
+        f.click(f'#drawer button[data-reading="{PAPER}"]', after=2.6)
+        f.cam()
+        cap()
 
-    # ================= Thursday: read it, now write it
-    with scene("dup", "다이어리 쓰기", "이미 읽은 사람이 있으면 알려줘요 — 그 리뷰부터 읽고 시작", "If someone already read it, you'll know — start from their review",
-               act=("목요일", "읽었으니 쓰자")):
-        f.go("#/write", 0.8); f.wait(1.6)
-        f.click("#w-title"); f.type(ids["dupTitle"], 22); f.wait(1.0)   # exact title → "already read by …"
-        f.spot("#w-dup", hold=2.4); f.wait(2.6)
-        page.keyboard.press("Control+A"); page.keyboard.press("Delete"); f.wait(0.5)
-    with scene("lookup", "서지 정보 자동", "링크 하나면 제목·저자·학회·초록은 자동", "Paste a link — title, authors, venue and abstract fill themselves"):
-        f.click("#w-lookup"); f.type(NEW_PAPER_URL, 28); page.keyboard.press("Enter")
-        page.wait_for_function("document.querySelector('#w-title').value.length > 5", timeout=25000); f.wait(0.8)
-        f.spot("#w-form .row3", hold=2.2); f.wait(2.4)
-    with scene("tags", "태그 · 별점 · 메모", "태그는 추천에서 고르고, 메모는 솔직하게", "Pick tags from the suggestions; be honest in the memo"):
-        f.spot("#w-suggest", hold=1.6); f.wait(0.4)
-        f.click("#w-suggest [data-add]"); f.wait(0.4)
-        f.click("#w-suggest [data-add]"); f.wait(0.6)
-        f.click('#w-stars button[data-v="4"]'); f.wait(0.4)
-        f.click("#w-content"); f.type("Problem: 도로망 위 교통 속도·흐름을 수십 분 앞까지 예측\nMethod: 그래프 합성곱(공간) + 1D 게이트 합성곱(시간)을 번갈아 쌓은 완전 합성곱 구조, RNN 없음\nResult: PeMSD7·BJER4에서 LSTM·GRU 계열보다 정확하고 학습이 훨씬 빠름", 11)
-        f.click("#w-memo"); f.type("그래프를 거리 기반으로 고정해서 쓰기 때문에 노선 환승처럼 거리와 무관한 연결은 못 담음. 대중교통에 쓰려면 인접행렬 설계가 핵심일 듯.", 13); f.wait(0.5)
-        f.click("#w-form button.btn.primary"); f.wait(0.3)
-    page.wait_for_function("location.hash.startsWith('#/me')", timeout=15000)
-    f.reload("#/graph"); f.graph_ready()
-    with scene("dot", "지도에 바로", "쓰는 순간 지도에 올라가요", "The moment you publish, it's on the map"):
-        pid = f.ev("key => (LAB.papers.find(p => p.fresh && p.title.includes(key)) || LAB.papers.find(p => p.fresh)).id", NEW_PAPER_KEY)
-        f.wait(0.6)
-        f.ev("id => LabGraph.select(id, { zoom: true })", pid); f.wait(2.8)
-    f.ev("LabGraph.select(null); LabUI.closeDrawer()")
-    with scene("me", "내 페이지", "이번 학기 작성률과 캘린더, 기존 양식 docx로 내보내기", "This term's progress and calendar — export to the lab's .docx format"):
-        f.go("#/me", 1.0)
-        f.move(900, 400, 0.6); f.spot(".progress-card", hold=1.8); f.wait(2.0)
-        x, y = f.center("#me-export"); f.move(x, y, 0.7); f.spot("#me-export", hold=1.4); f.wait(1.6)
-        f.scroll(520, 8, 900, 600); f.wait(1.2)
-
-    # ================= Friday: talk it through
-    with scene("shared", "함께 읽은 논문", "같은 논문을 각자 어떻게 읽었는지 나란히", "The same paper, everyone's take, side by side",
-               act=("금요일", "같이 이야기하기")):
-        f.go("#/study?tab=shared", 0.8); f.wait(1.8)
-        f.move(960, 600, 0.6)
-        f.scroll(420, 8, 960, 600); f.wait(1.0)
-        f.spot("#shared-list .shared-item .rev-cols", hold=2.0); f.wait(2.2)
-    with scene("study", "논문 스터디", "스터디 전까지 질문은 블라인드 — 먼저 생각하고 모여요", "Before the meeting, write first and read later — think before you gather"):
-        f.go("#/study?tab=open", 0.8); f.wait(1.0)   # the list remembers the last tab (shared) without ?tab
-        f.click(f'.st-card[href="#/study/{ids["study"]}"]'); f.wait(1.6)
-        f.spot(".st-todo", "모임 준비 체크리스트", hold=1.8); f.wait(2.0)
-        f.click('.st-tabs a[href$="tab=diary"]'); f.wait(1.0)
-        f.spot(".blind-on", hold=2.0); f.wait(2.2)
-    with scene("question", "질문 보드", "궁금한 점을 미리 올리고 👍로 투표 — 많이 받은 순서로 이야기해요", "Post questions ahead, vote with 👍 — the most-voted go first"):
-        f.click('.st-tabs a[href$="tab=prep"]'); f.wait(1.0)
-        f.click("#st-q"); f.type("취소된 요청을 다음 round로 미루는 규칙이 수요가 몰리는 시간대에도 유지되는지 궁금해요", 38); f.wait(0.3)
-        f.click("#st-q-form button"); f.wait(1.2)
-        f.spot(".st-qs .st-q", hold=1.6); f.wait(1.8)
-    with scene("notes", "정리 노트", "끝난 스터디는 정리 노트로 남아요 — 결론, 남은 질문, 다음에 읽을 논문", "Finished studies keep their notes — conclusions, open questions, what to read next"):
-        f.go(f"#/study/{ids['past']}?tab=notes", 1.2)
-        f.move(900, 600, 0.6)
-        f.spot(".st-notes-view", hold=2.4); f.wait(2.6)
-        f.scroll(360, 6, 900, 600); f.wait(1.0)
-
-    # ================= and: with your own AI
-    page.goto((VID / "terminal.html").as_uri())
-    page.wait_for_function("window.play && window.__cur")
-    with scene("mcp", "내 AI 연결 (MCP)", "내 Claude·Codex를 연결하면, 연구실 리뷰를 근거로 답해요", "Connect your own Claude or Codex — it answers from the lab's reviews",
-               act=("그리고", "내 AI와 함께")):
-        f.wait(1.8)
-        page.evaluate("play()")
-        f.wait(3.5)
-    page.goto(SITE + "/#/home")
-    page.wait_for_function("window.LabUI && window.__cur")
-    mcp_draft(ME)
-    page.wait_for_function("Store.drafts.mcp().length > 0", timeout=30000); f.wait(0.6)
-    with scene("draft", "AI 초안", "AI는 초안까지만 — 읽고 고치고, 게시는 내가", "The AI only drafts — you read, edit and publish"):
-        f.click("#bell"); f.wait(1.2)
-        f.click('.menu-notif .notif[data-draft]:not([data-draft=""])'); f.wait(1.4)
-        f.spot(".restored.mcp", hold=2.0); f.wait(2.2)
-        f.scroll(520, 8, 760, 600); f.wait(1.6)
-    f.ev("() => Store.drafts.clear()")
-
-    # ================= ending
-    f.reload("#/graph"); f.graph_ready(); f.ev("LabGraph.demo.fit(0)")
-    with scene("timelapse", "타임랩스", "매주 쓰는 다이어리가 한 학기 뒤엔 이렇게", "A weekly diary, one term later"):
-        f.click("#tb-settings"); f.wait(0.5)
-        f.click("label:has(#l-timeline)"); f.wait(0.3)
-        f.close_pops(); f.wait(0.4)
-        f.ev("""() => new Promise(done => {
-            const r = document.querySelector('#t-range'); let i = 0; const n = +r.max;
-            r.value = 0; r.dispatchEvent(new Event('input'));
-            const iv = setInterval(() => { i = Math.min(n, i + 2); r.value = i; r.dispatchEvent(new Event('input')); if (i >= n) { clearInterval(iv); done(); } }, 60);
-        })""")
+    # ================= ② 읽기
+    with keep():
+        chapter(3)
+        f.click("#drawer-close", after=0.4)
+        f.click("#user-btn", after=0.5)
+        f.click('.menu-user a[href="#/reading"]', after=1.0)
+        item = f.p.locator(".rl-item").filter(has_text="Bike Flow").first
+        f.cam(item, pad=20)
+        f.wait(0.8)
+        f.click(item.locator('[data-act="reading"]'), after=1.0)
+        cap("읽기 전에, 먼저 읽은 동료의 다이어리부터")
+        item = f.p.locator(".rl-item").filter(has_text="Bike Flow").first
+        f.cam(item, pad=20)
+        att = item.locator('label:has(input[data-act="attach"]), [data-act="attach"]').first
+        x, y = f.at(att); f.move(x, y); f.wait(0.3)
+        with f.p.expect_file_chooser() as fc:
+            TL["clicks"].append([round(now(), 3), round(x, 1), round(y, 1)])
+            att.click()
+        fc.value.set_files(str(pdf_file()))
         f.wait(1.0)
-    f.ev("() => localStorage.setItem('lab.lang', 'en')"); f.reload("#/home")
-    with scene("en", "English", "English UI too", "한국어 / English"):
-        f.move(700, 520, 0.6); f.wait(1.6)
-    f.ev("() => { localStorage.setItem('lab.lang', 'ko'); localStorage.setItem('lab.theme', 'light'); }"); f.reload("#/graph"); f.graph_ready()
-    with scene("light", "라이트 테마", "라이트 테마도", "Light theme too"):
-        f.wait(1.8)
-    f.ev("() => localStorage.setItem('lab.theme', 'dark')"); f.reload("#/graph"); f.graph_ready(); f.ev("LabGraph.demo.fit(0)"); f.wait(0.5)
-    with scene("final", "", "", "", overlay="ending", order=999):
-        f.wait(5.0)
-    # the opening is recorded last (needs a signed-in graph) and placed first by `order`
-    f.ev("LabGraph.demo.scatter(640)"); f.wait(0.2)
-    with scene("opening", "", "", "", overlay="opening", order=0, hero=0):
-        f.wait(2.4)
-        f.ev("LabGraph.demo.fit(1500)")
+        f.click(item.locator(".rl-title [data-open]"), after=1.4)
+        memo = "#drawer .review .rv-memo"
+        f.wheel_to(memo, where=0.5)
+        f.cam(f.p.locator("#drawer .review").first, pad=16)
+        b = f.box(f.p.locator("#drawer .review .rv-body").first)
+        f.move(b["x"] - 14, b["y"] + 8, 0.6)
+        f.move(b["x"] - 14, b["y"] + b["h"] - 8, 1.5)
+        f.cam(memo, pad=40)
+        f.hover(memo, settle=2.0)
+        f.cam()
+        f.click("#drawer-close", after=0.5)
+        cap("링크 하나면 정보는 알아서 채워져요")
+        f.click("#rl-input", after=0.3)
+        f.paste(DCRNN); f.wait(0.5)
+        f.cam("#rl-form", pad=30)
+        f.click("#rl-form button.ui-btn.prominent", after=0.2)
+        with offcam(): f.p.locator(".rl-item").filter(has_text="Diffusion").first.wait_for(timeout=30000)
+        f.wait(0.6)
+        f.cam(f.p.locator(".rl-item").filter(has_text="Diffusion").first, pad=20)
+        f.wait(1.6)
+        cap("읽는 중부터 다 읽음까지 한 목록에")
+        item = f.p.locator(".rl-item").filter(has_text="Bike Flow").first
+        f.cam(item, pad=20)
+        f.click(item.locator('[data-act="read"]'), after=2.6)
+        f.cam()
+        cap()
+
+    # ================= ③ 쓰기
+    with keep():
+        chapter(4)
+        item = f.p.locator(".rl-item").filter(has_text="Bike Flow").first
+        f.click(item.locator('a[href^="#/write?reading="]'), after=1.2)
+        cap("논문 정보와 PDF는 이미 채워져 있어요")
+        f.cam("#w-form", pad=10)
+        f.hover("#w-title", settle=0.5)
+        f.hover("#w-authors", settle=0.6)
+        f.cam("#w-dup", pad=50)
+        f.hover("#w-dup", settle=1.8)
+        f.cam()
+        cap("요약은 Problem·Method·Result, 메모엔 내 생각")
+        f.click('#w-stars button[data-v="4"]', after=0.4)
+        f.click("#w-content", after=0.2)
+        f.cam("#w-content", pad=60)
+        f.type("Problem: 공유자전거 대여소별 대여·반납량을 다음 시간대까지 예측")
+    with keep(3):
+        f.type("\nMethod: 거리·이용 상관·OD 흐름 그래프를 따로 만들고 multi-graph convolution으로 합친 뒤 encoder-decoder로 예측\nResult: NYC·Chicago 데이터에서 기존 모델보다 오차 17~25% 감소", 0.02, 0.05)
+        f.click("#w-memo", after=0.2)
+        f.cam("#w-memo", pad=60)
+        f.type("그래프를 여러 개 겹치는 방식은 지하철 역 단위 승객 흐름에도 바로 쓸 수 있을 듯. MGC-RNN과 거의 같은 발상이라 같은 데이터로 비교해보고 싶음.", 0.02, 0.05)
+    with keep():
+        cap("태그는 추천에서 골라요")
+        f.cam("#w-suggest", pad=60)
+        for _ in range(2):
+            if f.p.locator("#w-suggest [data-add]").count(): f.click("#w-suggest [data-add]", after=0.5)
+        f.wait(0.6)
+        f.cam()
+        f.click("#w-form .form-foot button.ui-btn.prominent", after=0.2)
+        with offcam(): f.p.wait_for_function("location.hash.startsWith('#/me')", timeout=15000); f.wait(0.6)
+        f.wait(0.6)
+        f.nav("graph")
+        with offcam(): f.graph_ready(); f.wait(0.3)
+        cap("게시하는 순간 지도에 — 이제 둘이 함께 읽은 논문이에요")
+        f.click("#g-find", after=0.2)
+        f.type("Bike Flow")
+        f.wait(0.6); f.p.keyboard.press("Enter")
+        f.wait(2.8)
+        cap()
+    # her own AI — a terminal window (drawn by Remotion) while the real MCP call runs
+    f.click("#drawer-close", after=0.3)
+    with keep():
+        cap("다음 논문은 내 AI에게 초안을 맡겨요")
+        t = now()
+        f.wait(1.0)
+        mcp_draft()
+        f.wait(max(0.0, 6.5 - (now() - t)))
+        overlay("terminal", t, now())
+        with offcam(): f.p.wait_for_function("Store.drafts.mcp().length > 0", timeout=30000)
+        f.wait(1.2)
+        f.click("#bell", after=0.8)
+        f.click('.menu-notif .notif[data-draft]:not([data-draft=""])', after=1.4)
+        cap("읽고 고쳐서 게시하는 건 나")
+        f.cam("#w-form .ui-notice.info:not([hidden])", pad=60)
         f.wait(3.2)
+        f.cam()
+        cap()
+
+    # ================= ④ 나누기 — 윤하늘 asks about her diary (off camera)
+    cid = as_member(browser, FRIEND, """async ([me, pid]) => {
+        const rv = LAB.reviews.find(r => r.person === me && r.paper === pid) || Object.values(LabUI.R || {}).find(r => r.person === me && r.paper === pid);
+        const c = await Store.comments.add({ reviewId: rv.id, parent: null, kind: "question",
+          body: "@한서윤 서윤님은 4점 주셨네요! 지하철역 단위로 바꿔도 multi-graph 효과가 비슷할까요?" });
+        return c.id; }""", [ME, PAPER])
+    print("  question:", cid)
+    try: f.p.wait_for_function("document.querySelector('#bell .ui-badge')", timeout=20000)
+    except Exception: print("  (no bell badge yet)")
+    with keep():
+        chapter(5)
+        chip("다음 날")
+        f.nav("home")
+        cap("홈에선 연구실 소식이 한 흐름으로 — 다이어리, 질문, 답글, 새 스터디")
+        f.wait(0.6)
+        f.cam("#h-feed .feed-item.act", pad=24)
+        f.hover("#h-feed .feed-item.act", settle=1.6)
+        f.cam()
+        f.move(W * 0.4, H * 0.6, 0.5)
+        for _ in range(8):
+            f.p.mouse.wheel(0, 140); f.wait(0.16)
+        f.wait(0.8)
+        cap("오른쪽엔 이번 주 작성 현황과 다가오는 스터디")
+        f.cam(".home-side", pad=10)
+        f.hover(".compose-row", settle=1.0)
+        f.hover(".side-st", settle=1.2)
+        f.cam()
+        cap("질문만, 내 관심 분야만 골라 볼 수도 있어요")
+        f.move(W * 0.4, H * 0.5, 0.4)
+        for _ in range(8):
+            f.p.mouse.wheel(0, -200); f.wait(0.08)
+        f.click('.feed-tabs a[data-tab="q"]', after=1.6)
+        f.click('.feed-tabs a[data-tab="mine"]', after=1.6)
+        f.click('.feed-tabs a[data-tab="all"]', after=0.8)
+        cap("내 다이어리에 질문이 오면 알림으로")
+        f.click("#bell", after=0.8)
+        f.click(f'.menu-notif .notif[data-comment="{cid}"]', after=1.8)
+        cm = f'#drawer .cm[data-cid="{cid}"]'
+        f.cam(cm, pad=40)
+        f.wait(1.4)
+        cap("답은 그 자리에서 — @로 부르면 알림이 가요")
+        f.click(cm + ' [data-cact="reply"]', after=0.4)
+        f.click(cm + " .cm-kids .cm-form textarea", after=0.2)
+        f.cam(cm, pad=40)
+        f.type("@윤"); f.wait(0.6)
+        f.click(cm + " .cm-kids .mention-pop [data-name]", after=0.2)
+    with keep(2):
+        f.type("네, 역 단위로도 그대로 만들 수 있어요. 다만 환승 연결 때문에 노선 그래프를 하나 더 넣어야 할 것 같아요.", 0.025, 0.06)
+    with keep():
+        f.click(cm + " .cm-kids .cm-form button.ui-btn.prominent", after=1.4)
+        f.cam()
+        f.click("#drawer-close", after=0.3)
+        f.nav("study")
+        f.click('.page-tabs a[href="#/study?tab=shared"]', after=0.6)
+        cap("같은 논문, 서로 다른 시각을 나란히")
+        item = f.p.locator("#shared-list .shared-item").filter(has_text="Bike Flow").first
+        f.move(W * 0.5, H * 0.6, 0.4)
+        f.wheel_to(item, where=0.45)
+        f.cam(item, pad=10)
+        f.wait(3.0)
+        f.cam()
+        cap()
+
+    # ================= ⑤ 함께 읽기
+    with keep():
+        chapter(6)
+        f.nav("papers")
+        f.click(".papers-tabs a[href='#/guides']", after=0.9)
+        f.click(".gd-card", "교통 예측 입문", after=1.2)
+        cap("연구실이 함께 모으는 핵심 논문과 정기 모임")
+        f.cam(".gd-group", pad=20)
+        f.hover(".gd-rounds li.next", settle=2.8)
+        cap("다이어리를 쓰면 진행도가 저절로 올라가요")
+        it = f.p.locator(".gd-item").filter(has_text="Bike Flow").first
+        f.move(W * 0.5, H * 0.6, 0.4)
+        f.wheel_to(it, where=0.55)
+        f.cam(it, pad=30)
+        f.wait(1.0)
+        f.click(it.locator('[data-act="vote"]'), after=1.0)
+        f.cam()
+        f.wheel_to(".gd-rounds li.next", where=0.4)
+        f.click(".gd-rounds li.next a", after=1.4)
+        cap("모임 전엔 블라인드 — 각자 먼저 읽고 와요")
+        f.cam(".st-todo", pad=24)
+        f.wait(1.6)
+        f.click('.st-tabs a[href$="tab=diary"]', after=0.8)
+        f.cam(".ui-notice.warn:not([hidden])", pad=50)
+        f.wait(1.8)
+        cap("궁금한 점은 미리 올리고 투표해요")
+        f.click('.st-tabs a[href$="tab=prep"]', after=0.8)
+        f.click("#st-q", after=0.2)
+        f.cam("#st-q-form", pad=60)
+    with keep(2.5):
+        f.type("시뮬레이션으로 학습한 모델이 실제 사고 데이터에서도 비슷하게 나올까요?", 0.03, 0.07)
+    with keep():
+        f.click("#st-q-form button", after=1.0)
+        f.cam(".st-qs", pad=24)
+        other = f.p.locator(".st-qs .st-q").filter(has_not_text="시뮬레이션으로 학습한").locator('button.vote[data-act="vote"]').first
+        if other.count(): f.click(other, after=1.0)
+        f.wait(0.8)
+        f.cam()
+        chip("모임이 끝나고")
+        cap("끝난 모임은 정리 노트로 남겨요")
+        f.click('.st-tabs a[href$="tab=notes"]', after=0.8)
+        f.click('[data-act="nedit"]', after=0.6)
+        f.click("#st-n-conclusion", after=0.2)
+        f.cam("#st-n-conclusion", pad=80)
+    with keep(3):
+        f.type("시뮬레이션 데이터로 부족한 사고 데이터를 메울 수 있지만, 실제 적용엔 보정이 필요해요.", 0.02, 0.05)
+        f.click("#st-n-next", after=0.2)
+        f.cam("#st-n-next", pad=80)
+        f.type("https://arxiv.org/abs/2510.09350 열차 지연 전파", 0.02, 0.05)
+    with keep():
+        if f.p.locator('[data-act="fromboard"]').count(): f.click('[data-act="fromboard"]', after=0.6)
+        f.click('[data-act="notes"]', after=1.2)
+        f.cam()
+        f.wheel_to("details.st-manage:visible", where=0.3)
+        f.click("details.st-manage:visible summary", after=0.5)
+        f.click('details.st-manage[open] [data-act="close"]', after=0.6)
+        f.click('.ui-alert [data-v="1"]', after=1.4)
+        cap("다음에 읽을 논문은 가이드에 쌓여요")
+        if f.p.locator(".st-series a").count(): f.click(".st-series a", after=1.2)
+        else:
+            f.nav("papers"); f.click(".papers-tabs a[href='#/guides']", after=0.9); f.click(".gd-card", "교통 예측 입문", after=1.2)
+        harvested = f.p.locator(".gd-item").filter(has_text="2510.09350").first
+        if not harvested.count(): harvested = f.p.locator(".gd-item").filter(has_text="Cascading").first
+        if harvested.count():
+            f.move(W * 0.5, H * 0.6, 0.4)
+            f.wheel_to(harvested, where=0.5)
+            f.cam(harvested, pad=30)
+            f.wait(2.8)
+            f.cam()
+        cap("다음 모임은 날짜·발표 차례·후보 논문까지 채워져 있어요")
+        new = f'a[href="#/study/new?guide={GUIDE}"]'
+        f.wheel_to(new, where=0.3)
+        f.click(new, after=1.2)
+        f.cam("#st-form", pad=10)
+        f.wait(1.2)
+        f.cam(".st-suggest", pad=30)
+        f.click(".st-suggest [data-sug]", "Bike Flow", after=1.0)
+        f.cam("#st-form", pad=10)
+        f.hover("#st-presenter", settle=1.4)
+        f.cam()
+        cap("내가 찾은 논문이 연구실이 함께 읽는 논문으로")
+        f.click("#st-form .form-foot button.ui-btn.prominent", after=2.4)
+        cap()
+
+    # ================= ⑥ 돌아보기
+    with keep():
+        chapter(7)
+        f.nav("me")
+        cap("이번 학기 작성률과 달력 — 공휴일은 알아서 빠져요")
+        f.cam(".progress-card", pad=10)
+        f.wait(1.4)
+        f.cam("#me-cal", pad=20)
+        hol = f.p.locator("#me-cal i.off-holiday[data-day]").last
+        if hol.count(): f.hover(hol, settle=1.6)
+        f.cam()
+        f.move(W * 0.5, H * 0.6, 0.4)
+        f.wheel_to("#me-export", where=0.3)
+        f.hover("#me-export", settle=1.0)
+        f.nav("people")
+        cap("연구실 전체가 어디를 읽는지, 누가 무엇에 밝은지")
+        f.cam("#lab-bars", pad=10)
+        f.click("#lab-bars [data-pick-axis]", "대중교통·철도", after=1.2)
+        f.cam()
+        f.move(W * 0.5, H * 0.6, 0.4)
+        f.wheel_to("#people-grid", where=0.25)
+        f.wait(1.6)
+        cap("관심사가 비슷한 사람은 나란히 비교해서")
+        f.p.keyboard.press("Control+k"); f.wait(0.5)
+        f.type("강도윤"); f.wait(0.7)
+        f.click(".spot-row", "강도윤", after=1.6)
+        f.click("a.ui-btn", "비교", after=1.6)
+        f.wait(2.4)
+        f.nav("graph")
+        with offcam(): f.graph_ready()
+        cap("매주 한 편씩, 한 학기가 쌓이면")
+        f.ev("LabGraph.demo.fit(600)"); f.wait(0.7)
+        f.click("#tb-settings", after=0.5)
+        f.click("label:has(#l-timeline)", after=0.4)
+        f.blank()
+        f.click("#t-play", after=0.2)
+    with keep(5):
+        f.move(W * 0.62, H * 0.5, 0.6)
+        f.p.wait_for_function("(() => { const r = document.querySelector('#t-range'); return r && +r.value >= +r.max; })()", timeout=90000)
+        f.wait(0.6)
+    with keep():
+        f.wait(1.0)
+        cap()
+        t = now(); f.wait(3.6); overlay("ending", t, now())
+        chapter(8)
 
 
-# ------------------------------------------------------------------ main
+# ------------------------------------------------------------------ capture + main
 def main():
     global T0
-    RAW.mkdir(parents=True, exist_ok=True); PUB.mkdir(parents=True, exist_ok=True)
-    for x in RAW.glob("*.webm"):
-        x.unlink()
+    FRAMES.mkdir(parents=True, exist_ok=True)
+    for x in FRAMES.glob("*.jpg"): x.unlink()
+    PUB.mkdir(parents=True, exist_ok=True)
+    frames = []
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True, args=["--use-angle=d3d11", "--ignore-gpu-blocklist", "--enable-gpu-rasterization"])
+        browser = pw.chromium.launch(headless=True, args=["--force-device-scale-factor=2", "--use-angle=d3d11", "--ignore-gpu-blocklist",
+                                                           "--enable-gpu-rasterization", "--hide-scrollbars"])
         state = setup(browser)
-        ids = state.pop("_ids"); print("  ids:", json.dumps(ids, ensure_ascii=False))
-        ctx = browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=1, storage_state=state,
-                                  record_video_dir=str(RAW), record_video_size={"width": W, "height": H}, locale="ko-KR")
-        ctx.add_init_script(path=str(VID / "cursor.js"))
+        ctx = browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, storage_state=state, locale="ko-KR")
         page = ctx.new_page()
-        T0 = time.monotonic()
+        page.goto(SITE + "/#/graph"); page.wait_for_function("window.Store && window.LabMe")
+        cdp = ctx.new_cdp_session(page)
+
+        def on_frame(ev):
+            i = len(frames)
+            (FRAMES / f"{i:06d}.jpg").write_bytes(base64.b64decode(ev["data"]))
+            frames.append(ev["metadata"]["timestamp"])
+            cdp.send("Page.screencastFrameAck", {"sessionId": ev["sessionId"]})
+        cdp.on("Page.screencastFrame", on_frame)
+        T0 = time.time()
+        cdp.send("Page.startScreencast", {"format": "jpeg", "quality": 90, "maxWidth": 2 * W, "maxHeight": 2 * H, "everyNthFrame": 1})
+        f = Film(page)
         try:
-            film(page, ids)
+            film(f, browser)
+        except Exception:
+            page.screenshot(path=str(RAW / "fail.png")); raise
         finally:
-            video = page.video.path()
+            cdp.send("Page.stopScreencast")
+            page.wait_for_timeout(300)
             ctx.close(); browser.close()
-    scenes.sort(key=lambda s: s["order"])
-    (PUB / "timeline.json").write_text(json.dumps({"fps": 30, "width": W, "height": H, "video": "raw.mp4", "scenes": scenes}, ensure_ascii=False, indent=1), encoding="utf-8")
-    total = sum(s["t1"] - s["t0"] for s in scenes)
-    print(f"{len(scenes)} scenes, {total:.1f}s kept → {PUB / 'timeline.json'}")
-    # Remotion seeks a lot: an h264 mp4 with frequent keyframes is far faster than the vp8 webm
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-r", "30", "-g", "30", "-c:v", "libx264", "-preset", "fast", "-crf", "16",
-                    "-pix_fmt", "yuv420p", "-an", str(PUB / "raw.mp4")], check=True)
+    cap()
+    # frames arrive when the page changes: hold each one until the next → constant 30 fps
+    ts = [t - T0 for t in frames]
+    lst = RAW / "frames.ffconcat"
+    end = max(ts[-1] + 0.5, now())
+    lines = ["ffconcat version 1.0"]
+    first = ts[0]
+    for i, t in enumerate(ts):
+        nxt = ts[i + 1] if i + 1 < len(ts) else end
+        lines += [f"file 'frames/{i:06d}.jpg'", f"duration {max(0.001, nxt - t):.4f}"]
+    lines.append(f"file 'frames/{len(ts) - 1:06d}.jpg'")
+    lst.write_text("\n".join(lines), encoding="utf-8")
+    TL.update(theme=THEME, fps=FPS, width=2 * W, height=2 * H, css=dict(w=W, h=H), video="raw.mp4", offset=first)
+    (PUB / "timeline.json").write_text(json.dumps(TL, ensure_ascii=False), encoding="utf-8")
+    kept = sum((k["t1"] - k["t0"]) / k["speed"] for k in TL["keep"])
+    print(f"{len(frames)} frames, raw {end:.0f}s, kept {kept:.0f}s → {PUB / 'timeline.json'}")
+    # raw.mp4 starts at the first frame (offset); h264 with a keyframe every second so Remotion seeks fast
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-vf", f"fps={FPS}",
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "14", "-g", str(FPS), "-pix_fmt", "yuv420p", str(PUB / "raw.mp4")],
+                   check=True, cwd=str(RAW))
     print("→", PUB / "raw.mp4")
 
 
