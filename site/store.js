@@ -1409,12 +1409,13 @@
       holidays: [...new Set((db.terms || []).flatMap(t => [+t.start.slice(0, 4), +t.end.slice(0, 4)]))].flatMap(y => Store.calendar.holidays(y)),
       studies: Object.values(db.studies).map(st => ({ ...st, paperId: Store.studies.paperOf(st)?.id || st.paperId,
         picks: Object.fromEntries(Object.entries(st.picks || {}).map(([u, pk]) => [u, { ...pk, paperId: Store.studies.pickPaper(pk)?.id || pk.paperId }])) })),
-      studyQuestions: Object.values(db.studyQs),
+      studyQuestions: Object.values(db.studyQs), mcpDrafts: db.mcpDrafts || {},
     };
   }
   // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
-  // and stores the result; a hosted DB would do the same in an RPC / edge function.
-  const OPS = new Set(["draft", "comment", "reading.add", "study.question", "study.notesDraft",
+  // and stores the result; a hosted DB would do the same in an RPC / edge function. Returns what it made (ids) for the caller.
+  const OPS = new Set(["draft", "draft.delete", "comment", "react", "inbox.read", "reading.add", "study.question", "study.questionVote",
+    "study.notesDraft", "study.create", "study.join",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
     "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
   async function applyOp(op) {
@@ -1425,14 +1426,55 @@
       "offday.save", "offday.remove"];
     if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
+    let res = {};
     try {
       if (op.op === "draft") {
         (db.mcpDrafts ||= {})[op.actor] ||= [];
-        db.mcpDrafts[op.actor].unshift({ id: op.id, at: op.at || now(), ...op.data });
+        db.mcpDrafts[op.actor].unshift({ id: op.id, at: op.at || now(), ...op.data, files: cleanFiles(op.data.files) });
         (db.notifications[op.actor] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: op.actor, type: "mcpDraft", draftId: op.id, excerpt: op.data.title });
+        res = { draftId: op.id };
       }
-      if (op.op === "comment") await Store.comments.add({ reviewId: op.reviewId, parent: op.parent || null, kind: op.kind || "comment", body: op.body });
-      if (op.op === "study.question") await Store.studies.questions.add(op.studyId, op.body);
+      if (op.op === "draft.delete") {
+        const list = db.mcpDrafts?.[op.actor] || [], i = list.findIndex(d => d.id === op.draftId);
+        if (i < 0) throw new Error("draft.missing");
+        list.splice(i, 1);
+        db.notifications[op.actor] = (db.notifications[op.actor] || []).filter(n => n.draftId !== op.draftId);
+      }
+      if (op.op === "comment") res = { commentId: (await Store.comments.add({ reviewId: op.reviewId, parent: op.parent || null, kind: op.kind || "comment", body: op.body })).id };
+      if (op.op === "react") {  // set, not toggle: 👍 a diary, or "I want to read this too" (→ my reading list)
+        if (!["like", "want"].includes(op.kind) || !reviewById(op.reviewId)) throw new Error("react.bad");
+        const on = (db.reactions[op.reviewId]?.[op.kind] || []).includes(op.actor);
+        if (on !== (op.on !== false)) await Store.reactions.toggle(op.reviewId, op.kind);
+        const r = Store.reactions.get(op.reviewId);
+        res = { like: r.like.length, want: r.want.length };
+      }
+      if (op.op === "inbox.read") (db.notifications[op.actor] || []).forEach(n => { if (!op.ids || op.ids.includes(n.id)) n.read = true; });
+      if (op.op === "study.question") res = { questionId: (await Store.studies.questions.add(op.studyId, op.body)).id };
+      if (op.op === "study.questionVote") {
+        const q = db.studyQs[op.questionId]; if (!q) throw new Error("question.missing");
+        if (q.votes.includes(op.actor) !== (op.on !== false)) await Store.studies.questions.vote(op.questionId);
+        res = { votes: db.studyQs[op.questionId].votes.length };
+      }
+      if (op.op === "study.join") { const st = db.studies[op.studyId]; if (!st || st.closed) throw new Error("study.missing"); await Store.studies.join(op.studyId); }
+      if (op.op === "study.create") {
+        // a reading group's next session gets the same defaults as the site's "next session" form
+        const g = op.guideId ? db.guides[op.guideId] : null, grp = g && Store.guides.isGroup(g) ? g.group : null;
+        if (op.guideId && !g) throw new Error("guide.missing");
+        if (grp) {
+          if (Store.guides.upcoming(g)) throw new Error("guide.upcoming");
+          if (!Store.guides.member(g) && !Store.guides.canManage(g)) throw new Error("forbidden");
+        }
+        const it = g ? (g.items.find(x => x.id === op.itemId) || (grp && !op.title && !op.paperId ? Store.guides.suggestNext(g)[0] : null)) : null;
+        const p = op.paperId ? SEED.allPapers.find(x => x.id === op.paperId) : it ? Store.guides.paperOf(it) : null;
+        const title = p?.title || op.title || (it ? Store.guides.titleOf(it) : "");
+        res = { studyId: (await Store.studies.create({
+          title, paperId: p?.id || null, link: op.link || p?.link || it?.meta?.link || "",
+          date: op.date || (grp ? Store.guides.nextDate(g) : ""), time: op.time || grp?.cadence?.time || "", place: op.place || grp?.place || "",
+          presenter: op.presenter && db.users[op.presenter] ? op.presenter : grp ? Store.guides.nextPresenter(g) : op.actor,
+          desc: op.desc || "", invite: [...new Set([...(op.invite || []), ...(grp ? grp.members : [])])].filter(u => db.users[u]),
+          blind: op.blind !== false, bring: !!op.bring, guideId: g ? g.id : null,
+        })).id };
+      }
       if (op.op === "study.notesDraft") {
         const st = db.studies[op.studyId];
         if (!st || (!st.members.includes(op.actor) && actor.role !== "admin")) throw new Error("forbidden");
@@ -1440,21 +1482,21 @@
         (db.notifications[op.actor] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: op.actor, type: "studyNotesDraft", studyId: st.id, excerpt: st.title });
       }
       if (op.op === "reading.add") {
-        if (op.paperId) { if (!Store.reading.has(op.paperId)) await Store.reading.toggle(op.paperId); }
+        if (op.paperId) res = { itemId: await Store.reading.add({ paperId: op.paperId, note: op.note, status: op.status, source: "mcp" }) };
         else {  // a paper of their own: a link / DOI / arXiv id is looked up like in the write form
           const meta = op.input ? await Store.lookup(op.input) : null;
           if (op.input && !meta && /^https?:|^10\.\d/.test(op.input) && !op.title) throw new Error("lookup.failed");
-          await Store.reading.add({ ...(meta || {}), title: meta?.title || op.title || op.input, link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""),
-            note: op.note, status: op.status, source: "mcp" });
+          res = { itemId: await Store.reading.add({ ...(meta || {}), title: meta?.title || op.title || op.input, link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""),
+            note: op.note, status: op.status, source: "mcp" }), title: meta?.title || op.title || op.input };
         }
       }
       if (op.op === "reading.update") await Store.reading.update(op.itemId, op.patch || {});
-      if (op.op === "guide.create") await Store.guides.create({ ...op.guide, id: op.guideId });
+      if (op.op === "guide.create") { await Store.guides.create({ ...op.guide, id: op.guideId }); res = { guideId: op.guideId }; }
       if (op.op === "guide.update") await Store.guides.update(op.guideId, op.patch || {});
       if (op.op === "guide.addItem") {  // a link / DOI / arXiv id is looked up like in the write form
         const meta = op.input && !op.paperId ? await Store.lookup(op.input) : null;
-        await Store.guides.addItem(op.guideId, { ...(meta || {}), paperId: op.paperId, title: meta?.title || op.title || op.input,
-          link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""), section: op.section, note: op.note });
+        res = { itemId: await Store.guides.addItem(op.guideId, { ...(meta || {}), paperId: op.paperId, title: meta?.title || op.title || op.input,
+          link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""), section: op.section, note: op.note }) };
       }
       if (op.op === "guide.vote") { const it = db.guides[op.guideId]?.items.find(x => x.id === op.itemId); if (it && !(it.votes || []).includes(op.actor)) await Store.guides.vote(op.guideId, op.itemId); }
       if (op.op === "tag.merge") await Store.tags.merge(op.from, op.into);
@@ -1493,6 +1535,7 @@
       }
       log("mcp." + op.op, `${actor.name}: ${op.summary || ""}`);
     } finally { actingAs = null; }
+    return res;
   }
   const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
     "offday.save", "offday.remove"]);

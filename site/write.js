@@ -137,7 +137,7 @@
       const d = fromReading ? null : S.drafts.get();
       if (mcpDraft) {
         ["title", "venue", "year", "link", "authors", "abstract", "date", "content", "memo"].forEach(k => set("w-" + k, mcpDraft[k]));
-        rating = mcpDraft.rating || 0; tags = [...(mcpDraft.tags || [])];
+        rating = mcpDraft.rating || 0; tags = [...(mcpDraft.tags || [])]; files = [...(mcpDraft.files || [])];
         const known = S.findPaper(mcpDraft.title);
         if (known && !mcpDraft.venue) { set("w-venue", known.venueNorm || known.venue); set("w-authors", known.authors); set("w-link", known.link); }
       } else if (fromReading && !prePaper) {

@@ -12,7 +12,7 @@ Needs Node.js (MCP ops run the site's own store.js headless: scripts/store_worke
   GET  /api/changes?since=N    {version, ops} — what changed since N (the open site polls this)
   GET  /api/version            {version}
   GET  /api/snapshot           {version, snapshot} — the built dataset + social data, for the MCP server
-  POST /api/ops                one MCP command, applied right away as its actor → {ok, id, version} | {ok: false, error}
+  POST /api/ops                one MCP command, applied right away as its actor → {ok, id, version, result} | {ok: false, error}
   GET  /api/ops?limit=N        recent commands with their result (also: SELECT * FROM ops in the .db file)
   GET|PUT|DELETE /api/files/<id>   attachments (PDF · images)
 
@@ -175,7 +175,7 @@ def apply_op(op):
         if r.get("ok"):
             _, v = STORE.replace(r["db"])
             STORE.log_op(op, "ok", None, v)
-            return {"ok": True, "id": op["id"], "version": v}
+            return {"ok": True, "id": op["id"], "version": v, "result": r.get("result") or {}}
         STORE.log_op(op, "error", r.get("error"), STORE.version())
         return {"ok": False, "id": op["id"], "error": r.get("error")}
 

@@ -4,7 +4,7 @@
 //   node scripts/store_worker.mjs <site/data.js | site/data.demo.js>
 //
 // One JSON request per stdin line, one JSON reply per stdout line:
-//   {"cmd": "apply", "db": {...}, "op": {...}}  → {"ok": true, "db": {...}} | {"ok": false, "error": "forbidden"}
+//   {"cmd": "apply", "db": {...}, "op": {...}}  → {"ok": true, "db": {...}, "result": {ids it made}} | {"ok": false, "error": "forbidden"}
 //   {"cmd": "snapshot", "db": {...}}            → {"ok": true, "snapshot": {...}, "db": {...}}
 // "db" is the site's whole state (what the browser keeps in window.Store); the server diffs and stores the result.
 import fs from "node:fs";
@@ -46,7 +46,7 @@ for await (const line of readline.createInterface({ input: process.stdin, crlfDe
   try { req = JSON.parse(line); } catch (e) { out({ ok: false, error: "bad request" }); continue; }
   try {
     const api = boot(req.db);
-    if (req.cmd === "apply") { await api.applyOp(req.op); out({ ok: true, db: api.db() }); }
+    if (req.cmd === "apply") { const result = await api.applyOp(req.op); out({ ok: true, db: api.db(), result: result || {} }); }
     else if (req.cmd === "snapshot") out({ ok: true, snapshot: api.snapshot(), db: api.db() });
     else out({ ok: false, error: `unknown cmd ${req.cmd}` });
   } catch (e) { out({ ok: false, error: e.message || String(e) }); }

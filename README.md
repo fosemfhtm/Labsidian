@@ -178,27 +178,32 @@ env = { LABSIDIAN_USER = "한서윤" }
 
 `LABSIDIAN_USER`는 사이트의 멤버 이름이에요(데모에서는 `한서윤`, `박지호` 등).
 관리자 작업용으로는 같은 명령을 이름만 바꿔 한 번 더 등록하면 돼요(예: `claude mcp add labsidian-admin -e LABSIDIAN_USER=admin -- ...`).
+선택: `LABSIDIAN_LAB`(연구실 이름 — AI가 소개할 때 씀), `LABSIDIAN_DOWNLOADS`(`download_pdf`가 PDF를 저장할 폴더, 기본은 임시 폴더).
 
 | 도구 | 하는 일 |
 |---|---|
-| `search_papers` `get_paper` `get_person` `similar_papers` `recommend_papers` `lab_progress` `list_tags` `my_inbox` `whoami` | 읽기 — 논문·다이어리·댓글·관심사·작성률 조회 (번역은 `get_paper`로 받아서 AI가 직접) |
-| `create_draft` | 다이어리 **초안** 생성 → 내 페이지·알림으로 도착, 본인이 검토 후 게시 (자동 게시 없음) |
-| `my_reading_list` `add_to_reading_list` `update_reading_item` | 읽을 목록 보기, 링크·제목으로 논문 담기, 상태(읽는 중·다 읽음)·메모 바꾸기 |
-| `add_comment` | 내 이름으로 댓글·질문(@멘션) |
+| `search_papers` `get_paper` `get_person` `similar_papers` `recommend_papers` `lab_progress` `list_tags` `whoami` | 읽기 — 논문·다이어리·댓글·관심사·작성률 조회. 검색은 제목에 맞는 논문부터 (번역은 `get_paper`로 받아서 AI가 직접) |
+| `my_inbox` | 내 알림 — 답하는 데 필요한 id까지 함께(질문이면 `add_comment(..., reply_to=…)`로 바로 답글), 읽음 처리 |
+| `create_draft` `my_drafts` `delete_draft` | 다이어리 **초안** 만들기(PDF 첨부: 로컬 파일이나 읽을 목록 항목) → 내 페이지·알림으로 도착, 본인이 검토 후 게시 (자동 게시 없음) · 초안 목록·지우기 |
+| `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기, 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
+| `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |
-| `add_study_question` `draft_study_notes` | 스터디 질문 올리기, 정리 노트 **초안** |
+| `open_study` `join_study` `add_study_question` `vote_study_question` `draft_study_notes` | 스터디 열기(리딩 그룹이면 날짜·장소·발표 차례·후보 논문이 사이트처럼 채워짐) · 참가 · 질문 올리기·👍 · 정리 노트 **초안** |
 | `list_guides` `get_guide` `create_guide` `add_guide_item` `vote_guide_item` | 핵심 논문 가이드 보기(누가 읽었는지·내 진행·다룬 스터디·정기 모임 회차), 만들기, 링크·제목으로 논문 추가, 👍 |
 | `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_list_off_days` `admin_save_off_day` `admin_remove_off_day` `admin_merge_tags` `admin_rename_tag` `admin_create_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기, 연구실 휴무일, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
 | `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름·키워드 짓기(지도를 다시 만들어도 그 논문들을 따라감), 규칙이 잘못 붙인 분야·방법론 태그 고치기 |
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
-- "이 PDF 읽고 다이어리 초안 만들어줘"
+- "읽을 목록에서 읽는 중인 논문 PDF 읽고 다이어리 초안 만들어줘" — PDF도 초안에 붙어서 와요
+- "나한테 온 질문 보여주고 답 초안 써줘, 내가 OK하면 달아줘"
+- "교통 예측 입문 다음 모임 잡아줘" — 후보(👍 많은 순)와 날짜·발표자를 보여 주고 열어요
 - (관리자) "비슷한 태그 찾아서 병합 계획 보여주고, 내가 OK하면 병합해줘"
 - (관리자) "지도 영역 이름 중에 내용이랑 안 맞는 거 찾아서 새 이름 제안해줘" — 관리자에게는 매달 1일 사이트 알림으로 정리할 때라고 알려 줘요
 
 > 로컬 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(8765 실제, 8766 데모). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
-> 동작 확인(데모 서버 `python scripts/serve.py 8766 --demo`): `python mcp/smoke_test.py 한서윤`
+> 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_reading_group_session`(리딩 그룹 다음 모임).
+> 동작 확인(데모 서버 `python scripts/serve.py 8766 --demo`): `python mcp/smoke_test.py 한서윤` · 쓰기 도구까지 전부 `--writes`(데모 서버에서만 돌아요)
 
 ## 데이터와 프라이버시
 
