@@ -2,10 +2,8 @@
 (() => {
   const D = window.LAB;
   const { t, lang } = window.I18N;
-  const P = Object.fromEntries(D.people.map(p => [p.id, p]));
-  const T = Object.fromEntries(D.topics.map(x => [x.id, x]));
-  const PA = Object.fromEntries((D.allPapers || D.papers).map(p => [p.id, p]));
-  const R = Object.fromEntries((D.allReviews || D.reviews).map(r => [r.id, r]));
+  // lookups by id; filled by index() and refilled in place whenever the store rebuilds window.LAB
+  const P = {}, T = {}, PA = {}, R = {};
   const CL = Object.fromEntries((D.clusters || []).map(c => [c.id, c]));
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -16,12 +14,22 @@
   const topicIds = p => [...p.domains.map(d => "d:" + d), ...p.methods.map(m => "m:" + m)];
 
   const paperTopicCount = {};
-  D.papers.forEach(p => topicIds(p).forEach(x => (paperTopicCount[x] = (paperTopicCount[x] || 0) + 1)));
-  new Set([...D.papers, ...(D.allPapers || [])]).forEach(p => {
-    p._hay = (p.title + " " + p.authors + " " + p.venue + " " + p.venueNorm + " " +
-      p.reviews.filter(r => !window.Store?.studies.hidden(R[r])).map(r => R[r].content + " " + R[r].memo).join(" ")).toLowerCase();
-    p._last = p.reviews.map(r => R[r].date).sort().pop();
-  });
+  function index() {
+    for (const [map, list] of [[P, D.people], [T, D.topics], [PA, D.allPapers || D.papers], [R, D.allReviews || D.reviews]]) {
+      Object.keys(map).forEach(k => delete map[k]);
+      list.forEach(x => (map[x.id] = x));
+    }
+    Object.keys(paperTopicCount).forEach(k => delete paperTopicCount[k]);
+    D.papers.forEach(p => topicIds(p).forEach(x => (paperTopicCount[x] = (paperTopicCount[x] || 0) + 1)));
+    new Set([...D.papers, ...(D.allPapers || [])]).forEach(p => {
+      p._hay = (p.title + " " + p.authors + " " + p.venue + " " + p.venueNorm + " " +
+        p.reviews.filter(r => !window.Store?.studies.hidden(R[r])).map(r => R[r].content + " " + R[r].memo).join(" ")).toLowerCase();
+      p._last = p.reviews.map(r => R[r].date).sort().pop();
+    });
+  }
+  index();
+  // changes polled from the server (another tab, a teammate, MCP) rebuild window.LAB with new objects
+  window.addEventListener("lab:data", index);
 
   // ---------- render helpers ----------
   const avatar = (id, big) => {

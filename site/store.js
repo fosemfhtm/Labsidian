@@ -1516,6 +1516,7 @@
     server.version = st.version; server.synced = recordsOf(db);
     ensureSeed();  // the server's data may have been reset meanwhile
     buildDataset();
+    window.dispatchEvent(new Event("lab:data"));  // pages re-index the rebuilt window.LAB before anything re-renders
     const ops = (r.ops || []).filter(o => o.status === "ok");
     window.dispatchEvent(new CustomEvent("lab:mcp", { detail: { applied: ops.length, needsReload: ops.some(o => RELOADING.has(o.op)) } }));
   }
