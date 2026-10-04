@@ -209,7 +209,7 @@ function nodeReducer(node, data) {
   return res;
 }
 function edgeReducer(edge, data) {
-  const res = { ...data, size: 0.6 };
+  const res = { ...data, size: 0.8 };
   const [s, tg] = graph.extremities(edge);
   if (!nodeOn(s) || !nodeOn(tg)) { res.hidden = true; return res; }
   const set = focusSet || hoverSet;
@@ -222,7 +222,7 @@ function edgeReducer(edge, data) {
   if (!state.layers.links) { res.hidden = true; return res; }
   const uid = s.slice(2), p = PA[tg];
   const dimmed = !matches(p) || (state.people.size && !state.people.has(uid));
-  res.color = dimmed ? fade(THEME.other, 0.05) : fade(data.color, 0.22);
+  res.color = dimmed ? fade(THEME.other, 0.05) : fade(data.color, 0.34);
   return res;
 }
 
@@ -293,7 +293,7 @@ function drawOverlay() {
   const dimAll = !!(focusSet || state.find);
   const zr = renderer.getCamera().ratio;
   if (state.layers.regions) {
-    ctx.globalAlpha = Math.max(0.35, Math.min(1, zr / 0.55));
+    ctx.globalAlpha = Math.max(0.7, Math.min(1, zr / 0.55));   // zoomed in, the region you're in stays visible
     regions.forEach(({ c, rings }) => {
       ctx.beginPath();
       rings.forEach(ring => ring.forEach(([x, y], i) => {
@@ -302,8 +302,8 @@ function drawOverlay() {
       }));
       ctx.closePath();
       const col = hex(c.color);
-      ctx.fillStyle = col + (dimAll ? "08" : DARK ? "12" : "1c"); ctx.fill("evenodd");
-      ctx.strokeStyle = col + (dimAll ? "14" : DARK ? "3a" : "66"); ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = col + (dimAll ? "08" : "26"); ctx.fill("evenodd");
+      ctx.strokeStyle = col + (dimAll ? "14" : DARK ? "70" : "8c"); ctx.lineWidth = dimAll ? 1 : 1.5; ctx.stroke();
     });
     ctx.globalAlpha = 1;
   }
