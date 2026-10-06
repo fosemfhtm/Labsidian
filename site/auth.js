@@ -11,6 +11,7 @@
       "a.pwWrong": "현재 비밀번호가 맞지 않아요", "a.pwShort": "6자 이상으로 해주세요", "a.cancel": "취소",
       "a.demoHint": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 이 브라우저에만 저장돼요.",
       "a.demoHintServer": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 서버에 저장돼서 같이 접속한 사람에게도 보여요.",
+      "c.copied": "복사했어요", "c.copyFail": "복사하지 못했어요. 직접 선택해서 복사해 주세요.",
       "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.reading": "읽을 목록", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
       "n.title": "알림", "n.empty": "새 알림이 없어요", "n.readAll": "모두 읽음",
       "n.curation": "이번 달 태그·지도 정리할 때예요 — 비슷한 태그 합치기, 지도 영역 이름 확인 (내 AI에게 시켜도 돼요)",
@@ -31,6 +32,7 @@
       "a.pwWrong": "Current password is wrong", "a.pwShort": "Use at least 6 characters", "a.cancel": "Cancel",
       "a.demoHint": "A fictional lab. Pick any member to sign in — your changes stay in this browser only.",
       "a.demoHintServer": "A fictional lab. Pick any member to sign in — your changes are saved on the server, so others signed in see them too.",
+      "c.copied": "Copied", "c.copyFail": "Couldn't copy. Select the text and copy it yourself.",
       "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.reading": "Reading list", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
       "n.title": "Notifications", "n.empty": "No new notifications", "n.readAll": "Mark all read",
       "n.curation": "Time for this month's tidy-up — merge similar tags, check the map's region names (or ask your AI)",
@@ -191,6 +193,19 @@
     return Math.floor(s / 86400) + (lang === "ko" ? "일 전" : "d");
   };
   window.LabAgo = ago;
+  // the clipboard API only exists on https:// and localhost; the lab's server on http://<IP> needs the old way
+  window.LabCopy = async text => {
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.className = "copy-buffer";
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand("copy"); ta.remove();
+      if (!ok) { LabToast(t("c.copyFail"), 4000); return false; }
+    }
+    LabToast(t("c.copied"));
+    return true;
+  };
   const actorName = id => UI.P[id]?.name || (id === "admin" ? "admin" : id);
   window.LabNotifText = n => t("n." + n.type, { a: actorName(n.actor) });
   function notifMenu() {

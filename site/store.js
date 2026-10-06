@@ -1396,6 +1396,16 @@
     },
     findPaper(title) { const key = normTitle(title); return key.length > 8 ? SEED.allPapers.find(p => p.key === key) || null : null; },
 
+    // my AI (MCP) tokens — kept by the server (hashed), so only there; the token itself comes back once, from create
+    tokens: {
+      async list() { const r = await fetch("/api/tokens", { cache: "no-store" }); if (!r.ok) throw new Error("tokens"); return r.json(); },
+      async create(label) {
+        const r = await fetch("/api/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label }) });
+        if (!r.ok) throw new Error("tokens"); return r.json();
+      },
+      async remove(id) { const r = await fetch(`/api/tokens/${encodeURIComponent(id)}`, { method: "DELETE" }); if (!r.ok) throw new Error("tokens"); },
+    },
+
     admin: {
       exportJSON() { requireAdmin(); return JSON.stringify({ exportedAt: now(), db }, null, 1); },
       async importJSON(text) { requireAdmin(); const j = JSON.parse(text); db = Object.assign(empty(), j.db || j); save(); await saving; },

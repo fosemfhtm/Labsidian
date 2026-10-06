@@ -16,6 +16,7 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
   POST /api/login              {name, password} | {id} (demo lab) → {user} + session cookie
   POST /api/logout · GET /api/login-info {demo} · GET /api/whoami {user}
   POST /api/password           {old, new} — your own password
+  GET|POST /api/tokens · DELETE /api/tokens/<id>   your MCP tokens: [{id, label, created, used}] · {label} → {token} (shown once)
   GET  /api/state              {version, db, seedOnly, me} — the site's whole state (window.Store's db), no secrets
   POST /api/state              {upserts: [[coll, id, value]], deletes: [[coll, id]]} → {version, prev}
                                (accounts: members only change their own; passwords, roles and deletes are refused)
@@ -29,7 +30,7 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
 
 Tables: records(coll, id, value) — one row per user / review / comment / member's notifications …, coll "_meta" for the
 rest (terms, tag ops, log …) · ops(id, at, actor, op, status, error, version) · files(id, type, data) · meta(key, value)
-· sessions(hash, user, kind, created, used) — browser sessions ("web") and MCP tokens ("mcp"), stored hashed.
+· sessions(hash, user, kind, created, used, label) — browser sessions ("web") and MCP tokens ("mcp"), stored hashed.
 A backup is taken once a day on start (data[/demo]/_backup/, last 14 kept).
 """
 import calendar
@@ -132,7 +133,9 @@ class Store:
             CREATE TABLE IF NOT EXISTS ops (id TEXT PRIMARY KEY, at TEXT, actor TEXT, op TEXT, body TEXT, status TEXT, error TEXT, version INTEGER);
             CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, type TEXT, data BLOB);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
-            CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user TEXT, kind TEXT, created TEXT, used TEXT);""")
+            CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user TEXT, kind TEXT, created TEXT, used TEXT, label TEXT);""")
+        if "label" not in [c[1] for c in self.con.execute("PRAGMA table_info(sessions)")]:
+            self.con.execute("ALTER TABLE sessions ADD COLUMN label TEXT")
         self.snap = (None, None)
 
     def version(self):
@@ -201,10 +204,16 @@ class Store:
                          op.get("actor"), op.get("op"), json.dumps(op, ensure_ascii=False), status, error, version))
 
     # sessions: a browser sign-in ("web", expires SESSION_DAYS after its last use) or a personal MCP token ("mcp")
-    def new_session(self, user, kind):
+    def new_session(self, user, kind, label=""):
         token = secrets.token_urlsafe(32)
-        self.con.execute("INSERT INTO sessions VALUES (?,?,?,?,?)", (sha(token), user, kind, now_iso(), now_iso()))
+        # an MCP token's "used" stays empty until an AI first signs in with it
+        self.con.execute("INSERT INTO sessions VALUES (?,?,?,?,?,?)", (sha(token), user, kind, now_iso(), now_iso() if kind == "web" else None, label))
         return token
+
+    def tokens(self, user):
+        """a member's MCP tokens — the id is the start of the hash; the token itself isn't kept"""
+        rows = self.con.execute("SELECT hash, label, created, used FROM sessions WHERE user=? AND kind='mcp' ORDER BY created DESC", (user,))
+        return [{"id": h[:16], "label": label or "", "created": c, "used": u} for h, label, c, u in rows]
 
     def session_user(self, token, kind):
         if not token:
@@ -215,7 +224,7 @@ class Store:
         if kind == "web" and time.time() - calendar.timegm(time.strptime(row[1], "%Y-%m-%dT%H:%M:%SZ")) > SESSION_DAYS * 86400:
             self.con.execute("DELETE FROM sessions WHERE hash=?", (sha(token),))
             return None
-        if row[1][:13] != now_iso()[:13]:  # touch at most once an hour
+        if (row[1] or "")[:13] != now_iso()[:13]:  # touch at most once an hour
             self.con.execute("UPDATE sessions SET used=? WHERE hash=?", (now_iso(), sha(token)))
         u = self.user(row[0])
         return row[0] if u and not u.get("disabled") else None
@@ -420,6 +429,8 @@ class Handler(SimpleHTTPRequestHandler):
                                    "me": who if who != LOCAL else None})
         elif u.path == "/api/version":
             return self.send_json({"version": STORE.version()})
+        elif u.path == "/api/tokens":
+            return self.send_json(STORE.tokens(who)) if who != LOCAL else self.send_json({"error": "forbidden"}, 403)
         elif u.path == "/api/changes":
             return self.send_json(STORE.changes(int((q.get("since") or ["0"])[0])))
         elif u.path == "/api/snapshot":
@@ -479,6 +490,12 @@ class Handler(SimpleHTTPRequestHandler):
             STORE.write([("users", me["id"], me)], [])
             STORE.end_sessions(me["id"], keep=self.cookie())  # signed in elsewhere with the old password → signed out
             return self.send_json({"ok": True, "user": public_user(me)})
+        if u.path == "/api/tokens":
+            if who == LOCAL:
+                return self.send_json({"error": "forbidden"}, 403)
+            label = str(req.get("label") or "").strip()[:60]
+            token = STORE.new_session(who, "mcp", label)
+            return self.send_json({"token": token, **next(x for x in STORE.tokens(who) if x["id"] == sha(token)[:16])})
         if u.path == "/api/state":
             if who == LOCAL:
                 return self.send_json({"error": "forbidden"}, 403)
@@ -546,9 +563,19 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json({"ok": True})
 
     def do_DELETE(self):
+        who = self.who()
+        if self.path.startswith("/api/tokens/"):
+            tid = self.path[len("/api/tokens/"):]
+            if not who or who == LOCAL:
+                return self.send_json({"error": "signin"}, 401)
+            if len(tid) != 16 or any(c not in "0123456789abcdef" for c in tid):
+                return self.send_error(404)
+            with STORE.lock:
+                n = STORE.con.execute("DELETE FROM sessions WHERE user=? AND kind='mcp' AND substr(hash, 1, 16)=?", (who, tid)).rowcount
+            return self.send_json({"ok": True}) if n else self.send_error(404)
         if not self.path.startswith("/api/files/"):
             return self.send_error(404)
-        if not self.who():
+        if not who:
             return self.send_json({"error": "signin"}, 401)
         with STORE.lock:
             STORE.con.execute("DELETE FROM files WHERE id=?", (self.file_id(),))

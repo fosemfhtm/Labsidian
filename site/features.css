@@ -33,6 +33,9 @@ em.hint { font-style: normal; display: block; margin-top: 4px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .temp-pw { display: flex; align-items: center; gap: 10px; background: var(--bg-2); border-radius: var(--r-control); padding: 10px 12px; margin-top: 10px; }
 .temp-pw code { font-size: var(--fs-title3); letter-spacing: .06em; flex: 1; }
+.temp-pw.secret { margin: 0 0 var(--s-4); }
+.temp-pw.secret code { font: var(--t-footnote); font-family: var(--font-mono); letter-spacing: 0; word-break: break-all; }
+.copy-buffer { position: fixed; top: 0; left: 0; opacity: 0; pointer-events: none; }  /* LabCopy on http:// */
 body.locked main, body.locked .top nav, body.locked #search { visibility: hidden; }
 .gate { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: var(--bg); }
 .gate-card { width: min(360px, 100%); background: var(--glass-tint-strong); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px 24px 20px; position: relative; }
@@ -508,6 +511,8 @@ details.fld summary { cursor: pointer; }
 .me-reviews { margin-top: var(--s-4); }
 .me-reviews > .row-between { margin-bottom: var(--s-3); }
 .me-reviews > .row-between h3 { margin: 0; }
+.me-ai { margin-top: var(--s-6); }
+.me-ai > .row-between h3 { margin: 0; }
 .me-head .sub a { color: var(--link-text); }
 
 /* ---------- interest drift (diaries.js, on the person page): a row per term, or per month of one term ---------- */

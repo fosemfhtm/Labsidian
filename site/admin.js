@@ -131,7 +131,7 @@
     const m = LabModal(`<h2>${t("ad.tempTitle")}</h2><p class="sub">${t("ad.tempSub", { name: esc(name) })}</p>
       <div class="temp-pw"><code>${esc(pw)}</code><button class="ui-btn small" id="cp">${t("ad.copy")}</button></div>
       <div class="modal-foot"><button class="ui-btn prominent" data-close>${t("ad.close")}</button></div>`);
-    m.querySelector("#cp").onclick = () => navigator.clipboard?.writeText(pw).then(() => LabToast("✓"));
+    m.querySelector("#cp").onclick = () => LabCopy(pw);
     // a new member changes the dataset (people list) → rebuild after closing
     if (reload) m.addEventListener("click", e => { if (e.target.closest("[data-close]")) LabReload("#/admin?tab=members"); });
   }

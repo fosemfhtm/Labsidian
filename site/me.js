@@ -20,6 +20,17 @@
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
       "me.mcpDraft": "내 AI 초안", "me.review": "검토하고 게시", "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
       "me.more": "더보기",
+      "me.ai": "AI 연결", "me.aiSub": "내 Claude·Codex에 Labsidian을 연결하는 토큰이에요. 토큰을 쓰는 AI는 내 이름으로 초안을 만들고 댓글을 달 수 있어요.",
+      "me.aiNew": "새 토큰…", "me.aiTitle": "새 토큰", "me.aiName": "이름", "me.aiNamePh": "예: 노트북 Claude Code", "me.aiAdd": "추가", "me.aiCancel": "취소",
+      "me.aiLoading": "불러오는 중…", "me.aiLoadFail": "토큰 목록을 불러오지 못했어요. 새로 고침해 보세요.",
+      "me.aiEmpty": "아직 만든 토큰이 없어요. 새 토큰을 만들어 내 AI에 연결해 보세요.", "me.aiUnnamed": "이름 없는 토큰",
+      "me.aiMeta": "만든 날 {created} · {used}", "me.aiUsed": "마지막 사용 {ago}", "me.aiNever": "아직 쓰지 않음",
+      "me.aiDel": "삭제", "me.aiDelQ": "이 토큰을 삭제할까요?", "me.aiDelMsg": "이 토큰을 쓰는 AI는 더 이상 연결되지 않아요.",
+      "me.aiDeleted": "토큰을 삭제했어요", "me.aiDelFail": "토큰을 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+      "me.aiFail": "토큰을 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+      "me.aiOnce": "토큰은 지금 한 번만 보여요. 이 창을 닫으면 다시 볼 수 없어요.", "me.aiToken": "토큰", "me.aiCmd": "Claude Code에 연결",
+      "me.aiRepo": "<저장소 경로>", "me.aiCmdHelp": "<저장소 경로>는 Labsidian 저장소를 받은 폴더로 바꿔 주세요. Codex 설정은 README에 있어요.",
+      "me.aiCopy": "복사", "me.aiDone": "완료",
     },
     en: {
       "me.title": "My page", "me.term": "Term", "me.progress": "This term's diary rate", "me.of": "{n} of {target} target",
@@ -35,6 +46,17 @@
       "me.notYet": " · starts on {d}", "me.fromDate": "Writing from {d} (target prorated from that date)", "me.customTarget": "Target set by an admin",
       "me.mcpDraft": "AI draft", "me.review": "Review & publish",
       "me.more": "More",
+      "me.ai": "AI Connection", "me.aiSub": "Tokens that connect your Claude or Codex to Labsidian. An AI with a token can draft diaries and comment in your name.",
+      "me.aiNew": "New Token…", "me.aiTitle": "New Token", "me.aiName": "Name", "me.aiNamePh": "e.g. Laptop Claude Code", "me.aiAdd": "Add", "me.aiCancel": "Cancel",
+      "me.aiLoading": "Loading…", "me.aiLoadFail": "Couldn't load your tokens. Try reloading the page.",
+      "me.aiEmpty": "No tokens yet. Make one to connect your AI.", "me.aiUnnamed": "Unnamed token",
+      "me.aiMeta": "Created {created} · {used}", "me.aiUsed": "Last used {ago}", "me.aiNever": "Never used",
+      "me.aiDel": "Delete", "me.aiDelQ": "Delete this token?", "me.aiDelMsg": "Any AI using this token won't be able to connect anymore.",
+      "me.aiDeleted": "Token deleted", "me.aiDelFail": "Couldn't delete the token. Try again in a moment.",
+      "me.aiFail": "Couldn't make a token. Try again in a moment.",
+      "me.aiOnce": "This is the only time the token is shown. Once you close this, it can't be shown again.", "me.aiToken": "Token", "me.aiCmd": "Connect Claude Code",
+      "me.aiRepo": "<repo path>", "me.aiCmdHelp": "Replace <repo path> with the folder you cloned Labsidian into. Codex setup is in the README.",
+      "me.aiCopy": "Copy", "me.aiDone": "Done",
     },
   });
 
@@ -108,7 +130,8 @@
           <a class="ui-btn text" href="#/study">${t("me.studiesAll")} →</a></div>
       </div>
       ${person ? `<div class="ui-card me-reviews" id="me-reviews"><div class="row-between"><h3>${t("me.reviews")} <span class="muted">${n}</span></h3>
-        <button class="ui-btn" id="me-export" ${n ? "" : "disabled"}>⬇ ${t("me.export")}</button></div><div id="me-dl"></div></div>` : ""}`;
+        <button class="ui-btn" id="me-export" ${n ? "" : "disabled"}>⬇ ${t("me.export")}</button></div><div id="me-dl"></div></div>` : ""}
+      ${S.server ? `<div class="ui-card me-ai" id="me-ai"></div>` : ""}`;
 
     $("#me-term", view).onchange = e => { termId = e.target.value; render(); };
     $("#me-color", view)?.addEventListener("change", async e => { await S.users.setMyColor(e.target.value); LabReload("#/me", "🎨 ✓"); });
@@ -117,6 +140,62 @@
     if (person) window.LabDiaries.mount($("#me-dl", view), { person: me.id, owner: true, term });
     inbox();
     reading();
+    aiTokens();
+  }
+
+  // AI (MCP) tokens: each member connects their own Claude / Codex. The server keeps them (hashed), so only there.
+  const day = iso => {
+    const d = new Date(iso), other = d.getFullYear() !== new Date().getFullYear();
+    return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", { ...(other ? { year: "numeric" } : {}), month: lang === "ko" ? "long" : "short", day: "numeric" }).format(d);
+  };
+  async function aiTokens() {
+    const box = $("#me-ai", view);
+    if (!box) return;
+    box.innerHTML = `<div class="row-between"><h3>${t("me.ai")}</h3><button class="ui-btn" id="me-ai-new">${t("me.aiNew")}</button></div>
+      <p class="muted">${t("me.aiSub")}</p><div id="me-ai-list"><p class="ui-empty compact">${t("me.aiLoading")}</p></div>`;
+    $("#me-ai-new", box).onclick = newToken;
+    let list;
+    try { list = await S.tokens.list(); }
+    catch (e) { console.warn(e); $("#me-ai-list", box).innerHTML = `<p class="ui-empty compact">${t("me.aiLoadFail")}</p>`; return; }
+    $("#me-ai-list", box).innerHTML = list.map(x => `<div class="ui-row two ruled"><div class="grow"><div>${esc(x.label || t("me.aiUnnamed"))}</div>
+        <div class="m">${t("me.aiMeta", { created: day(x.created), used: x.used ? t("me.aiUsed", { ago: LabAgo(x.used) }) : t("me.aiNever") })}</div></div>
+        <button class="ui-btn small destructive" data-del="${esc(x.id)}">${t("me.aiDel")}</button></div>`).join("")
+      || `<p class="ui-empty compact">${t("me.aiEmpty")}</p>`;
+    box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+      if (!await LabConfirm(t("me.aiDelQ"), { message: t("me.aiDelMsg"), ok: t("me.aiDel"), destructive: true })) return;
+      try { await S.tokens.remove(b.dataset.del); LabToast(t("me.aiDeleted")); }
+      catch (e) { console.warn(e); LabToast(t("me.aiDelFail")); }
+      aiTokens();
+    });
+  }
+  // shown once: the token and a ready-to-paste command (forced: a stray click outside mustn't lose it)
+  function newToken() {
+    const m = LabModal(`<form id="ai-form"><h2>${t("me.aiTitle")}</h2>
+      <label class="ui-label" for="ai-label">${t("me.aiName")}</label>
+      <input id="ai-label" name="label" maxlength="60" autocomplete="off" placeholder="${t("me.aiNamePh")}">
+      <p class="err" id="ai-err" role="alert"></p>
+      <div class="modal-foot"><button type="button" class="ui-btn" data-close>${t("me.aiCancel")}</button><button class="ui-btn prominent">${t("me.aiAdd")}</button></div>
+    </form>`, { forced: true });
+    const f = $("#ai-form", m);
+    setTimeout(() => f.label.focus(), 50);
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const btn = $(".prominent", f);
+      btn.disabled = true;
+      let r;
+      try { r = await S.tokens.create(f.label.value.trim()); }
+      catch (x) { console.warn(x); $("#ai-err", m).textContent = t("me.aiFail"); btn.disabled = false; return; }
+      const cmd = `claude mcp add labsidian -e LABSIDIAN_URL=${location.origin} -e LABSIDIAN_TOKEN=${r.token} -- python ${t("me.aiRepo")}/mcp/labsidian_mcp.py`;
+      $(".modal", m).innerHTML = `<h2>${t("me.aiTitle")}</h2><p class="sub">${t("me.aiOnce")}</p>
+        <span class="ui-label">${t("me.aiToken")}</span>
+        <div class="temp-pw secret"><code>${esc(r.token)}</code><button class="ui-btn small" data-copy="token">${t("me.aiCopy")}</button></div>
+        <span class="ui-label">${t("me.aiCmd")}</span>
+        <div class="temp-pw secret"><code>${esc(cmd)}</code><button class="ui-btn small" data-copy="cmd">${t("me.aiCopy")}</button></div>
+        <p class="muted">${esc(t("me.aiCmdHelp"))}</p>
+        <div class="modal-foot"><button class="ui-btn prominent" data-close>${t("me.aiDone")}</button></div>`;
+      m.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => LabCopy(b.dataset.copy === "token" ? r.token : cmd));
+      aiTokens();
+    };
   }
 
   // calendar cells: hover → that day's entries (or the day off); click → open the entry, or write one for that day
