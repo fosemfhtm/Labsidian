@@ -19,6 +19,15 @@
         "--demo"
       ],
       "port": 8766
+    },
+    {
+      "name": "labsidian-wsl-lan",
+      "runtimeExecutable": "wsl",
+      "runtimeArgs": [
+        "-d", "Ubuntu", "--", "bash", "-lc",
+        "cd ~/labsidian && python3 scripts/serve.py 8780 --host 0.0.0.0"
+      ],
+      "port": 8780
     }
   ]
 }

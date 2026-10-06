@@ -60,9 +60,10 @@
     offDays: {},  // the lab's weekdays off (public holidays, shutdowns, conferences): no diary owed
     guides: {},   // core-paper guides the lab curates together (docs/PEOPLE_TOPICS_GUIDES.md)
   });
-  // Local server (scripts/serve.py): the source of truth is its SQLite file. The page loads it once, sends only the
-  // records it changed, and picks up changes made elsewhere (MCP ops, other tabs). Static host (GitHub Pages) or the
-  // headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
+  // Labsidian server (scripts/serve.py, on this machine or the lab's): the source of truth is its SQLite file. The page
+  // loads it once, sends only the records it changed, and picks up changes made elsewhere (MCP ops, other tabs). The
+  // server signs people in (session cookie) and keeps password hashes to itself. Static host (GitHub Pages, no /api) or
+  // the headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
   const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
     "paperTags", "clusterNames", "offDays", "guides"];
@@ -79,13 +80,16 @@
       const x = new XMLHttpRequest(); x.open(method, url, false);
       if (body) x.setRequestHeader("Content-Type", "application/json");
       x.send(body ? JSON.stringify(body) : null);
-      return x.status === 200 ? JSON.parse(x.responseText) : null;
-    } catch (e) { return null; }
+      return { status: x.status, body: x.status === 200 ? JSON.parse(x.responseText) : null };
+    } catch (e) { return { status: 0, body: null }; }
   };
   const fromLocal = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } };
   const HEADLESS = !!window.__LABSIDIAN_HEADLESS__;
   let db, server = null;  // server: { version, synced: Map(record → JSON last known to the server), failed }
-  const state = !HEADLESS && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? xhr("GET", "/api/state") : null;
+  const res = HEADLESS ? null : xhr("GET", "/api/state"), state = res?.body;
+  // a server that wants a sign-in first: its demo lab shows the sign-in screen with nothing loaded or stored yet
+  // (the real lab's server shows login.html instead, so its data never reaches a signed-out browser)
+  const SERVER = !!state || res?.status === 401;
   let migrateFiles = false;
   if (state) {
     let d = state.db, version = state.version;
@@ -93,7 +97,7 @@
     const old = state.seedOnly && fromLocal();
     const used = d => Object.values(d.users || {}).some(u => u.pw) || COLLS.some(c => c !== "users" && Object.keys(d[c] || {}).length);
     if (old && used(old)) {
-      const r = xhr("POST", "/api/state/import", { db: old });
+      const r = xhr("POST", "/api/state/import", { db: old }).body;
       if (r) { d = r.db; version = r.version; migrateFiles = true; }
     }
     db = Object.assign(empty(), d || {});
@@ -102,7 +106,7 @@
 
   let saving = Promise.resolve();
   const save = () => {
-    if (!server) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { console.warn("store save failed", e); } return; }
+    if (!server) { if (!SERVER) try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { console.warn("store save failed", e); } return; }
     const cur = recordsOf(db), upserts = [], deletes = [];
     cur.forEach((v, k) => { if (server.synced.get(k) !== v) upserts.push([...k.split("\u0000"), JSON.parse(v)]); });
     server.synced.forEach((_, k) => { if (!cur.has(k)) deletes.push(k.split("\u0000")); });
@@ -502,7 +506,7 @@
 
   // ---------------------------------------------------------------- session
   let actingAs = null; // set while applying an MCP op on behalf of its author
-  function session() { if (actingAs) return actingAs; try { return localStorage.getItem(SESSION); } catch (e) { return null; } }
+  function session() { if (actingAs) return actingAs; if (SERVER) return state?.me || null; try { return localStorage.getItem(SESSION); } catch (e) { return null; } }
   const current = () => { const id = session(); const u = id && db.users[id]; return u && !u.disabled ? publicUser(u) : null; };
   const publicUser = u => ({ id: u.id, name: u.name, role: u.role, mustChange: !!u.mustChange });
   const requireUser = () => { const u = current(); if (!u) throw new Error("auth"); return u; };
@@ -584,12 +588,14 @@
 
   // ---------------------------------------------------------------- public API
   const Store = {
-    mock: true,
+    mock: !SERVER,
+    server: SERVER,
     demo: DEMO,
     today, termOf, normTitle,
     auth: {
       current,
       async signIn(name, password) {
+        if (SERVER) return (await LabServerAuth.signIn(name, password)).user;
         const u = findUser(name || "");
         if (!u || u.disabled) throw new Error("login.fail");
         const ok = u.pw ? (await hash(password, u.id)) === u.pw : password === (u.tempPw || MOCK_INITIAL_PASSWORD);
@@ -599,15 +605,24 @@
       },
       // demo lab only: sign in as any seeded account without a password
       async demoSignIn(id) {
+        if (SERVER) return (await LabServerAuth.demoSignIn(id)).user;
         const u = DEMO && db.users[id];
         if (!u || u.disabled) throw new Error("login.fail");
         if (u.mustChange && !u.pw) { u.mustChange = false; save(); }
         localStorage.setItem(SESSION, u.id);
         return publicUser(u);
       },
-      async signOut() { localStorage.removeItem(SESSION); },
+      async signOut() { if (SERVER) await LabServerAuth.signOut(); else localStorage.removeItem(SESSION); },
       async changePassword(oldPw, newPw) {
         const me = requireUser(), u = db.users[me.id];
+        if (SERVER) {  // checked and hashed on the server; this copy only learns that there is a password now
+          if (!newPw || newPw.length < 6) throw new Error("pw.short");
+          await LabServerAuth.changePassword(oldPw, newPw);
+          u.pw = true; u.mustChange = false; delete u.tempPw;
+          server.synced.set(`users\u0000${u.id}`, JSON.stringify(u));
+          log("password.change", u.id); save();
+          return;
+        }
         const ok = u.pw ? (await hash(oldPw, u.id)) === u.pw : oldPw === (u.tempPw || MOCK_INITIAL_PASSWORD);
         if (!ok) throw new Error("pw.wrong");
         if (!newPw || newPw.length < 6) throw new Error("pw.short");
@@ -1547,7 +1562,11 @@
     if (!server) return;
     await saving;
     let r;
-    try { r = await fetch(`/api/changes?since=${server.version}`, { cache: "no-store" }).then(x => x.json()); misses = 0; }
+    try {
+      const x = await fetch(`/api/changes?since=${server.version}`, { cache: "no-store" });
+      if (x.status === 401) { location.reload(); return; }  // signed out (password changed elsewhere, session expired) → sign-in
+      r = await x.json(); misses = 0;
+    }
     catch (e) { misses++; return; }  // server down: poll less and less often (up to once a minute) until it's back
     if (server.failed) save();  // the server is back: resend what didn't get stored
     if (r.version === server.version) return;

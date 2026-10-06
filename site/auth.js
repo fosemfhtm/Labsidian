@@ -5,13 +5,12 @@
 
   I18N.extend({
     ko: {
-      "a.title": "연구실 Paper Diary", "a.id": "이름", "a.pw": "비밀번호", "a.login": "로그인", "a.fail": "이름 또는 비밀번호가 맞지 않아요",
       "a.mock": "데모 모드 — 계정과 데이터가 이 브라우저에만 저장돼요. 계정은 관리자가 발급해요.",
       "a.changeTitle": "새 비밀번호 설정", "a.changeSub": "처음 로그인했거나 비밀번호가 초기화됐어요. 본인만 아는 비밀번호로 바꿔주세요.",
       "a.old": "현재(초기) 비밀번호", "a.new": "새 비밀번호 (6자 이상)", "a.new2": "새 비밀번호 확인", "a.save": "저장", "a.mismatch": "새 비밀번호가 서로 달라요",
       "a.pwWrong": "현재 비밀번호가 맞지 않아요", "a.pwShort": "6자 이상으로 해주세요", "a.cancel": "취소",
-      "a.demoPick": "데모 계정으로 둘러보기", "a.demoHint": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 이 브라우저에만 저장돼요.",
-      "a.demoAdmin": "관리자", "a.orPw": "이름·비밀번호로 로그인",
+      "a.demoHint": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 이 브라우저에만 저장돼요.",
+      "a.demoHintServer": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 서버에 저장돼서 같이 접속한 사람에게도 보여요.",
       "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.reading": "읽을 목록", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
       "n.title": "알림", "n.empty": "새 알림이 없어요", "n.readAll": "모두 읽음",
       "n.curation": "이번 달 태그·지도 정리할 때예요 — 비슷한 태그 합치기, 지도 영역 이름 확인 (내 AI에게 시켜도 돼요)",
@@ -26,13 +25,12 @@
       "sync.error": "서버에 저장하지 못했어요 — scripts/serve.py가 켜져 있는지 확인해 주세요. 다시 연결되면 자동으로 보내요.",
     },
     en: {
-      "a.title": "Lab Paper Diary", "a.id": "Name", "a.pw": "Password", "a.login": "Sign in", "a.fail": "Wrong name or password",
       "a.mock": "Demo mode — accounts and data are stored in this browser only. Accounts are issued by an admin.",
       "a.changeTitle": "Set a new password", "a.changeSub": "This is your first sign-in or your password was reset. Choose a password only you know.",
       "a.old": "Current (initial) password", "a.new": "New password (6+ chars)", "a.new2": "Confirm new password", "a.save": "Save", "a.mismatch": "Passwords don't match",
       "a.pwWrong": "Current password is wrong", "a.pwShort": "Use at least 6 characters", "a.cancel": "Cancel",
-      "a.demoPick": "Explore with a demo account", "a.demoHint": "A fictional lab. Pick any member to sign in — your changes stay in this browser only.",
-      "a.demoAdmin": "Admin", "a.orPw": "Sign in with name & password",
+      "a.demoHint": "A fictional lab. Pick any member to sign in — your changes stay in this browser only.",
+      "a.demoHintServer": "A fictional lab. Pick any member to sign in — your changes are saved on the server, so others signed in see them too.",
       "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.reading": "Reading list", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
       "n.title": "Notifications", "n.empty": "No new notifications", "n.readAll": "Mark all read",
       "n.curation": "Time for this month's tidy-up — merge similar tags, check the map's region names (or ask your AI)",
@@ -86,34 +84,11 @@
   });
 
   // ---------- login gate ----------
-  function loginScreen() {
-    const g = document.createElement("div");
-    g.className = "gate";
-    g.innerHTML = `<form class="gate-card" id="login-form" autocomplete="on">
-      <div class="gate-logo"><img class="logo-mark" src="logo.svg" alt="">Labsidian</div>
-      <p class="sub">${t("a.title")}</p>
-      ${S.demo ? `<div class="gate-demo"><b>${t("a.demoPick")}</b><p class="hint">${t("a.demoHint")}</p>
-        <div class="gate-people">${(window.LAB.people || []).map(p => `<button type="button" data-demo="${esc(p.id)}">${UI.avatar(p.id)}<span>${esc(p.name)}</span></button>`).join("")}
-        <button type="button" data-demo="admin"><span class="avatar admin">A</span><span>${t("a.demoAdmin")}</span></button></div></div>
-      <details class="gate-pw"><summary>${t("a.orPw")}</summary>` : ""}
-      <label>${t("a.id")}<input name="name" autocomplete="username" required></label>
-      <label>${t("a.pw")}<input name="pw" type="password" autocomplete="current-password" required></label>
-      <p class="err" id="login-err"></p>
-      <button class="ui-btn prominent large">${t("a.login")}</button>
-      ${S.demo ? "</details>" : S.mock ? `<p class="hint">${t("a.mock")}</p>` : ""}
-      <div class="lang ui-seg small gate-lang"><button type="button" data-v="ko">KO</button><button type="button" data-v="en">EN</button></div>
-    </form>`;
-    document.body.appendChild(g);
-    g.querySelectorAll(".gate-lang button").forEach(b => { b.setAttribute("aria-pressed", b.dataset.v === lang); b.onclick = () => I18N.setLang(b.dataset.v); });
-    g.querySelector("form").onsubmit = async e => {
-      e.preventDefault();
-      const f = e.target;
-      try { await S.auth.signIn(f.name.value, f.pw.value); location.reload(); }
-      catch (err) { $("#login-err").textContent = t("a.fail"); }
-    };
-    g.querySelectorAll("[data-demo]").forEach(b => b.onclick = async () => { await S.auth.demoSignIn(b.dataset.demo); location.reload(); });
-    if (!S.demo) setTimeout(() => g.querySelector("input").focus(), 50);
-  }
+  const loginScreen = () => LabGate({
+    signIn: S.auth.signIn, demoSignIn: S.auth.demoSignIn,
+    demo: S.demo ? (window.LAB.people || []).map(p => ({ id: p.id, name: p.name, avatar: UI.avatar(p.id) })) : null,
+    hint: S.demo ? t(S.server ? "a.demoHintServer" : "a.demoHint") : S.server ? t("a.issued") : t("a.mock"),
+  });
   function passwordForm(forced) {
     const m = LabModal(`<form id="pw-form">
       <h2>${t("a.changeTitle")}</h2>${forced ? `<p class="sub">${t("a.changeSub")}</p>` : ""}

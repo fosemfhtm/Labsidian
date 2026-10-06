@@ -153,7 +153,20 @@ python scripts/serve.py
 
 - 로컬 서버에서는 계정·다이어리·댓글·스터디·첨부가 모두 **SQLite 파일 하나**에 저장돼요(실제 `data/labsidian.db`, 데모 `data/demo/labsidian.db`, 둘 다 저장소에 안 올라감). 서버를 켤 때 하루 한 번 `_backup/`에 자동 백업(최근 14개)하고, `sqlite3`나 DB Browser로 바로 열어 볼 수 있어요.
 - 다른 탭·멤버·MCP의 변경은 3초마다 가져와요(그래프 지도는 아직 새로고침해야 반영돼요 — [백로그](docs/BACKLOG.md)).
-- 멤버 계정은 관리자가 만들어요(첫 비밀번호로 들어와서 바꿈). 작성 목표는 평일 기준이고, 공휴일은 자동, 연구실 휴무(학회·셧다운)만 관리자가 넣어요.
+- 로그인은 서버가 확인해요. 로그인하기 전에는 로그인 화면만 보이고 다이어리 데이터는 내려가지 않아요. 비밀번호는 서버에만 해시로 있어요.
+- 멤버 계정은 관리자가 만들어요. 관리자 화면에서 임시 비밀번호를 받아 전해 주면, 멤버가 처음 로그인할 때 자기 비밀번호로 바꿔요. 관리자 비밀번호를 잊었거나 첫 관리자라면 서버에서 `python scripts/serve.py --reset-password admin`으로 임시 비밀번호를 받아요.
+- 작성 목표는 평일 기준이고, 공휴일은 자동, 연구실 휴무(학회·셧다운)만 관리자가 넣어요.
+
+#### 연구실 서버에 두고 같이 쓰기
+
+연구실 리눅스 서버 한 대에 띄우고, 멤버는 브라우저로 들어와요. 학교 밖에서는 학교 VPN을 켜고 들어오면 돼요.
+
+```bash
+python scripts/serve.py 8765 --host 0.0.0.0     # 학교망에서 http://<서버 IP>:8765
+```
+
+- 방화벽은 학교망과 VPN 대역만 열어 두세요(KAIST는 `143.248.0.0/16`, KVPN `172.25.0.0/16`).
+- 비밀번호가 네트워크로 오가니 서버 앞에 HTTPS(예: Caddy 리버스 프록시)를 두는 걸 권해요. 프록시를 쓰면 serve.py는 `--host` 없이 `127.0.0.1`에 두면 돼요.
 
 ## 내 Claude · Codex 연결 (MCP)
 
@@ -163,9 +176,15 @@ python scripts/serve.py
 pip install mcp
 ```
 
+MCP 서버는 내 컴퓨터에서 돌고, 개인 토큰으로 연구실 서버에 로그인해요. 토큰은 관리자가 서버에서 만들어 전해 줘요.
+
+```bash
+python scripts/serve.py --token 한서윤      # 서버에서 (관리자) → 토큰이 한 번만 표시돼요
+```
+
 **Claude Code**
 ```bash
-claude mcp add labsidian -e LABSIDIAN_USER=한서윤 -- python <저장소 경로>/mcp/labsidian_mcp.py
+claude mcp add labsidian -e LABSIDIAN_URL=http://<서버 주소>:8765 -e LABSIDIAN_TOKEN=<토큰> -- python <저장소 경로>/mcp/labsidian_mcp.py
 ```
 
 **Codex** (`~/.codex/config.toml`)
@@ -173,11 +192,11 @@ claude mcp add labsidian -e LABSIDIAN_USER=한서윤 -- python <저장소 경로
 [mcp_servers.labsidian]
 command = "python"
 args = ["<저장소 경로>/mcp/labsidian_mcp.py"]
-env = { LABSIDIAN_USER = "한서윤" }
+env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토큰>" }
 ```
 
-`LABSIDIAN_USER`는 사이트의 멤버 이름이에요(데모에서는 `한서윤`, `박지호` 등).
-관리자 작업용으로는 같은 명령을 이름만 바꿔 한 번 더 등록하면 돼요(예: `claude mcp add labsidian-admin -e LABSIDIAN_USER=admin -- ...`).
+서버는 토큰 주인으로 요청을 처리해요. 관리자 작업용으로는 관리자 계정 토큰으로 한 번 더 등록하면 돼요(예: `claude mcp add labsidian-admin -e LABSIDIAN_TOKEN=<admin 토큰> -- ...`).
+서버를 내 컴퓨터에서 직접 띄웠다면 토큰 없이 `LABSIDIAN_USER=<사이트의 멤버 이름>`만 줘도 돼요(데모에서는 `한서윤`, `박지호` 등). 같은 저장소의 `data/.local_secret`이 이 컴퓨터라는 증명이 돼요.
 선택: `LABSIDIAN_LAB`(연구실 이름 — AI가 소개할 때 씀), `LABSIDIAN_DOWNLOADS`(`download_pdf`가 PDF를 저장할 폴더, 기본은 임시 폴더).
 
 | 도구 | 하는 일 |
@@ -201,7 +220,7 @@ env = { LABSIDIAN_USER = "한서윤" }
 - (관리자) "비슷한 태그 찾아서 병합 계획 보여주고, 내가 OK하면 병합해줘"
 - (관리자) "지도 영역 이름 중에 내용이랑 안 맞는 거 찾아서 새 이름 제안해줘" — 관리자에게는 매달 1일 사이트 알림으로 정리할 때라고 알려 줘요
 
-> 로컬 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(8765 실제, 8766 데모). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
+> Labsidian 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(기본은 이 컴퓨터의 8765, 데모는 8766). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
 > 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_reading_group_session`(리딩 그룹 다음 모임).
 > 동작 확인(데모 서버 `python scripts/serve.py 8766 --demo`): `python mcp/smoke_test.py 한서윤` · 쓰기 도구까지 전부 `--writes`(데모 서버에서만 돌아요)
 

@@ -1,9 +1,13 @@
 """Labsidian MCP server — lets each member's own Claude / Codex read the lab's paper diary and act for them.
 
 Run (stdio):  .venv/Scripts/python mcp/labsidian_mcp.py
-Identity:     LABSIDIAN_USER=<your name as on the site>   (mock: trusted as-is; the DB version uses a login token)
 Server:       LABSIDIAN_URL=http://localhost:8765          the Labsidian server (scripts/serve.py) — real lab;
-              http://localhost:8766 = the demo lab (serve.py --demo), which is where MCP changes get tested
+              http://localhost:8766 = the demo lab (serve.py --demo), which is where MCP changes get tested;
+              the lab's shared server, e.g. https://labsidian.example.ac.kr
+Identity:     LABSIDIAN_TOKEN=<your personal token>       you, on any server (the admin makes one:
+              python scripts/serve.py --token <name>); the server acts as the token's member
+              LABSIDIAN_USER=<your name as on the site>   instead, only for a server on this machine: this checkout's
+              data/.local_secret proves it's local, and the server trusts the name
 
 The server owns the data (one SQLite file). This MCP server reads its snapshot and sends it one command per write;
 the server applies the command right away with the site's own rules and answers ok or the reason it refused.
@@ -49,7 +53,9 @@ except ImportError:
 SITE = os.environ.get("LABSIDIAN_URL", "http://localhost:8765").rstrip("/")
 # the server listens on 127.0.0.1 only; "localhost" would try IPv6 first and wait ~2 s per request on Windows
 API = re.sub(r"//localhost(?=[:/]|$)", "//127.0.0.1", SITE)
-ME = os.environ.get("LABSIDIAN_USER", "").strip()
+TOKEN = os.environ.get("LABSIDIAN_TOKEN", "").strip()
+ME = "" if TOKEN else os.environ.get("LABSIDIAN_USER", "").strip()   # with a token: whoever the server says it belongs to
+LOCAL_SECRET = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", ".local_secret")
 LAB = os.environ.get("LABSIDIAN_LAB", "").strip()   # the lab's name, e.g. "KAIST 교통·AI 연구실" (optional)
 FILES = os.environ.get("LABSIDIAN_DOWNLOADS") or os.path.join(tempfile.gettempdir(), "labsidian")   # where download_pdf saves
 PDF_LIMIT = 20 * 1024 * 1024   # same as the site (site/store.js FILE_LIMIT)
@@ -82,20 +88,36 @@ def norm_title(t):
     return re.sub(r"[^0-9a-z가-힣]+", "", t)
 
 
+def auth_headers():
+    """a personal token, or — for a server on this machine — the secret it shares with this checkout"""
+    if TOKEN:
+        return {"Authorization": f"Bearer {TOKEN}"}
+    if re.match(r"https?://(127\.0\.0\.1|\[::1\])[:/]", API + "/") and os.path.exists(LOCAL_SECRET):
+        with open(LOCAL_SECRET, encoding="utf-8") as f:
+            return {"X-Lab-Local": f.read().strip()}
+    return {}
+
+
 class ServerBackend:
-    """the local Labsidian server (scripts/serve.py); a hosted DB later changes the URL and adds a login token"""
+    """the Labsidian server (scripts/serve.py) — on this machine or the lab's"""
     _http = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never route localhost through a system proxy
 
     def __init__(self):
         self.version, self.d = None, None
 
+    def request(self, path, data=None, headers=None, method=None):
+        return urllib.request.Request(API + path, data=data, headers={**auth_headers(), **(headers or {})}, method=method)
+
     def call(self, path, body=None):
-        req = urllib.request.Request(API + path, data=None if body is None else json.dumps(body).encode("utf-8"),
-                                     headers={"Content-Type": "application/json"}, method="GET" if body is None else "POST")
+        req = self.request(path, None if body is None else json.dumps(body).encode("utf-8"), {"Content-Type": "application/json"},
+                           "GET" if body is None else "POST")
         try:
             with self._http.open(req, timeout=120) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
+            if e.code == 401:
+                raise ToolError(f"The Labsidian server at {SITE} didn't accept this MCP server's sign-in — set LABSIDIAN_TOKEN "
+                                "(your admin makes one: python scripts/serve.py --token <your name>)")
             try:
                 return json.loads(e.read())
             except ValueError:
@@ -104,6 +126,9 @@ class ServerBackend:
             raise ToolError(f"The Labsidian server isn't running at {SITE} — start it with: python scripts/serve.py")
 
     def data(self):
+        global ME
+        if TOKEN and not ME:
+            ME = (self.call("/api/whoami").get("user") or {}).get("id", "")
         v = self.call("/api/version")["version"]
         if v != self.version or self.d is None:
             r = self.call("/api/snapshot")
@@ -147,7 +172,7 @@ class ServerBackend:
 
     def put_file(self, data, mime):
         fid = "f_mcp" + uuid.uuid4().hex[:10]
-        req = urllib.request.Request(f"{API}/api/files/{fid}", data=data, headers={"Content-Type": mime}, method="PUT")
+        req = self.request(f"/api/files/{fid}", data, {"Content-Type": mime}, "PUT")
         try:
             with self._http.open(req, timeout=120) as r:
                 r.read()
@@ -157,7 +182,7 @@ class ServerBackend:
 
     def get_file(self, fid):
         try:
-            with self._http.open(urllib.request.Request(f"{API}/api/files/{urllib.request.quote(fid)}"), timeout=120) as r:
+            with self._http.open(self.request(f"/api/files/{urllib.request.quote(fid)}"), timeout=120) as r:
                 return r.read(), r.headers.get("Content-Type") or ""
         except urllib.error.HTTPError as e:
             raise ToolError(f"no file {fid!r} on the server" if e.code == 404 else f"Labsidian server error {e.code}")
@@ -181,8 +206,9 @@ def person(name_or_id):
 
 
 def me():
+    DB.data()  # with a token, this learns who "me" is
     if not ME:
-        raise ToolError("LABSIDIAN_USER is not set — add it to this MCP server's env (your name as on the site).")
+        raise ToolError("Set LABSIDIAN_TOKEN (or, for a server on this machine, LABSIDIAN_USER = your name as on the site) in this MCP server's env.")
     return person(ME)
 
 
