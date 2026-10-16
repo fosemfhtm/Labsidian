@@ -202,7 +202,7 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 | `search_papers` `get_paper` `get_person` `similar_papers` `recommend_papers` `lab_progress` `list_tags` `whoami` | 읽기 — 논문·다이어리·댓글·관심사·작성률 조회. 검색은 제목에 맞는 논문부터 (번역은 `get_paper`로 받아서 AI가 직접) |
 | `my_inbox` | 내 알림 — 답하는 데 필요한 id까지 함께(질문이면 `add_comment(..., reply_to=…)`로 바로 답글), 읽음 처리 |
 | `create_draft` `my_drafts` `delete_draft` | 다이어리 **초안** 만들기(PDF 첨부: 로컬 파일이나 읽을 목록 항목) → 내 페이지·알림으로 도착, 본인이 검토 후 게시 (자동 게시 없음) · 초안 목록·지우기 |
-| `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기, 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
+| `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기(로컬 PDF 첨부, 이미 읽은 논문은 "다 읽음"으로 바로), 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
 | `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |
 | `open_study` `join_study` `add_study_question` `vote_study_question` `draft_study_notes` | 스터디 열기(리딩 그룹이면 날짜·장소·발표 차례·후보 논문이 사이트처럼 채워짐) · 참가 · 질문 올리기·👍 · 정리 노트 **초안** |

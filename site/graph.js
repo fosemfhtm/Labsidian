@@ -621,6 +621,32 @@ function initDrag() {
   return () => moved;
 }
 
+// ---------------- wheel zoom ----------------
+// sigma zooms a fixed 1.7× per wheel event, drops events closer than 50 ms and restarts its animation from the
+// half-zoomed state, so a spun wheel or a trackpad jumps unpredictably. Here the zoom follows the scroll amount and
+// eases in over a few frames, always about the point under the cursor.
+function initWheelZoom() {
+  const cam = renderer.getCamera();
+  let pending = 0, at = null, raf = 0;
+  const step = () => {
+    const d = Math.abs(pending) < 0.002 ? pending : pending * 0.35;
+    pending -= d;
+    const ratio = cam.getBoundedRatio(cam.getState().ratio * Math.exp(d));
+    if (ratio === cam.getState().ratio) pending = 0;   // at the zoom limit
+    else cam.setState(renderer.getViewportZoomedState(at, ratio));
+    raf = pending ? requestAnimationFrame(step) : 0;
+  };
+  renderer.getMouseCaptor().on("wheel", e => {
+    // sigma 3.0.3's preventSigmaDefault() flags a copy of the wheel event, not the one handleWheel checks → set it here
+    e.sigmaDefaultPrevented = true;
+    const o = e.original, px = o.deltaMode === 1 ? 16 : o.deltaMode === 2 ? 400 : 1;
+    // one mouse-wheel notch (~100 px) ≈ 1.28×; a trackpad pinch (ctrl + small deltas) gets more per pixel
+    pending += Math.max(-150, Math.min(150, o.deltaY * px)) * (o.ctrlKey ? 0.01 : 0.0025);
+    at = { x: e.x, y: e.y };
+    if (!raf) raf = requestAnimationFrame(step);
+  });
+}
+
 // ---------------- boot ----------------
 function start() {
   if (started) return;
@@ -655,6 +681,7 @@ function start() {
   });
   renderer.on("leaveNode", () => { state.hovered = null; hoverSet = null; $("#graph").style.cursor = ""; renderer.refresh(); });
   const wasDrag = initDrag();
+  initWheelZoom();
   renderer.on("clickNode", ({ node }) => { if (!wasDrag()) select(node, { openDrawer: true }); });
   renderer.on("clickStage", () => { if (state.selected) { select(null); UI.closeDrawer(); } });
   initUI();

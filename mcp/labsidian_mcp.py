@@ -603,18 +603,24 @@ def my_reading_list(status: str = "") -> list:
 
 
 @mcp.tool()
-def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", note: str = "") -> dict:
+def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", note: str = "", pdf_path: str = "", status: str = "") -> dict:
     """Add a paper to my reading list: a lab paper (paper_ref = id or title from search_papers), or any paper by link /
-    DOI / arXiv id (looked up for title, authors, abstract) or just its title. An optional note says why I want to read it."""
+    DOI / arXiv id (looked up for title, authors, abstract) or just its title. An optional note says why I want to read it.
+    pdf_path = a local PDF to attach (download_pdf and create_draft(reading_item_id=…) pick it up later).
+    status = todo (default) / reading / read — "read" for a paper I've already read and still have to write up."""
     u = me()
+    if status and status not in ("todo", "reading", "read"):
+        raise ToolError("status: todo | reading | read")
+    if not (paper_ref or link or title):
+        raise ToolError("give paper_ref, link or title")
+    files = [_attach_pdf(pdf_path)] if pdf_path else []
     if paper_ref:
         p = paper(paper_ref)
-        return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "note": note, "summary": p["title"][:60]}), {"open": f"{SITE}/#/reading"})
-    if not (link or title):
-        raise ToolError("give paper_ref, link or title")
+        return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "note": note, "status": status, "files": files,
+                               "summary": p["title"][:60]}), {"open": f"{SITE}/#/reading"})
     try:
         op = DB.apply({"op": "reading.add", "actor": u["id"], "input": (link or title).strip(), "title": title.strip(), "link": link.strip(),
-                       "note": note, "summary": (title or link)[:60]})
+                       "note": note, "status": status, "files": files, "summary": (title or link)[:60]})
     except ToolError as e:
         if "lookup.failed" in str(e):
             raise ToolError("couldn't find the paper behind that link — call again with its title as well")

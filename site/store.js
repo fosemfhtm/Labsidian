@@ -1341,7 +1341,7 @@
     async lookup(input) {
       input = (input || "").trim();
       const doi = (input.match(/10\.\d{4,9}\/[^\s"<>]+/) || [])[0]?.replace(/[.,;)]$/, "");
-      const arxiv = (input.match(/arxiv\.org\/(?:abs|pdf)\/([\w.\-\/]+?)(?:v\d+)?(?:\.pdf)?$/i) || input.match(/^(\d{4}\.\d{4,5})(?:v\d+)?$/) || [])[1];
+      const arxiv = (input.match(/arxiv\.org\/(?:abs|pdf)\/([\w.\-\/]+?)(?:v\d+)?(?:\.pdf)?$/i) || input.match(/^(?:arxiv:\s*)?(\d{4}\.\d{4,5})(?:v\d+)?$/i) || [])[1];
       const get = async url => { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); };
       const fromS2 = d => d && ({ title: d.title, venue: d.venue || d.journal?.name || "", year: d.year || "", abstract: d.abstract || d.tldr?.text || "",
         authors: (d.authors || []).map(a => a.name).join(", "), link: d.externalIds?.DOI ? "https://doi.org/" + d.externalIds.DOI : (d.url || input), source: "Semantic Scholar" });
@@ -1507,12 +1507,15 @@
         (db.notifications[op.actor] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: op.actor, type: "studyNotesDraft", studyId: st.id, excerpt: st.title });
       }
       if (op.op === "reading.add") {
-        if (op.paperId) res = { itemId: await Store.reading.add({ paperId: op.paperId, note: op.note, status: op.status, source: "mcp" }) };
+        if (op.paperId) res = { itemId: await Store.reading.add({ paperId: op.paperId, note: op.note, status: op.status, files: op.files, source: "mcp" }) };
         else {  // a paper of their own: a link / DOI / arXiv id is looked up like in the write form
-          const meta = op.input ? await Store.lookup(op.input) : null;
+          // a title-only input is a fuzzy search: if it finds a different paper than the title given, keep the title
+          const found = op.input ? await Store.lookup(op.input) : null;
+          const fuzzy = op.title && op.input === op.title.trim() && !/^https?:|^10\.\d|^arxiv:|^\d{4}\.\d{4,5}/i.test(op.input);
+          const meta = found && fuzzy && normTitle(found.title) !== normTitle(op.title) ? null : found;
           if (op.input && !meta && /^https?:|^10\.\d/.test(op.input) && !op.title) throw new Error("lookup.failed");
           res = { itemId: await Store.reading.add({ ...(meta || {}), title: meta?.title || op.title || op.input, link: meta?.link || op.link || (/^https?:/.test(op.input || "") ? op.input : ""),
-            note: op.note, status: op.status, source: "mcp" }), title: meta?.title || op.title || op.input };
+            note: op.note, status: op.status, files: op.files, source: "mcp" }), title: meta?.title || op.title || op.input };
         }
       }
       if (op.op === "reading.update") await Store.reading.update(op.itemId, op.patch || {});

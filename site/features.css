@@ -107,6 +107,7 @@ body.locked main, body.locked .top nav, body.locked #search { visibility: hidden
 details.fld summary { cursor: pointer; }
 .write-form input:not([type=color]):not([type=checkbox]), .write-form textarea, .lookup input { width: 100%; }
 .write-form textarea { resize: vertical; line-height: 1.55; }
+.write-form textarea.grow { overflow-y: hidden; }
 .write-form input[readonly] { color: var(--text-2); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .row3 { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 12px; }

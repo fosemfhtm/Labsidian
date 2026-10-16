@@ -100,8 +100,8 @@
               <em class="hint" id="w-date-hint" title="${t("w.dateHint")}"></em></div>
             <div class="fld"><span>${t("w.rating")} *</span><div class="star-input" id="w-stars">${[1, 2, 3, 4, 5].map(i => `<button type="button" data-v="${i}">★</button>`).join("")}</div></div>
           </div>
-          ${field("w-content", t("w.content"), `<textarea id="w-content" rows="10" placeholder="${t("w.content.ph")}"></textarea>`)}
-          ${field("w-memo", t("w.memo"), `<textarea id="w-memo" rows="5" placeholder="${t("w.memo.ph")}"></textarea><em class="hint">${t("w.memoHint")}</em>`)}
+          ${field("w-content", t("w.content"), `<textarea id="w-content" class="grow" rows="10" placeholder="${t("w.content.ph")}"></textarea>`)}
+          ${field("w-memo", t("w.memo"), `<textarea id="w-memo" class="grow" rows="6" placeholder="${t("w.memo.ph")}"></textarea><em class="hint">${t("w.memoHint")}</em>`)}
           <div class="fld"><span>${t("w.files")}</span>
             <div class="drop" id="w-drop"><div class="drop-btns">
               <button type="button" class="ui-btn small" data-pick="application/pdf">${t("w.addPdf")}</button>
@@ -263,6 +263,14 @@
       const imgs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type));
       if (imgs.length) { e.preventDefault(); addFiles(imgs); }
     }));
+    // summary and memo grow with their text (rows = the minimum), so a long diary reads without an inner scrollbar;
+    // re-measured when the width changes (window resize, or the view becoming visible)
+    view.querySelectorAll("textarea.grow").forEach(el => {
+      const grow = () => { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; };
+      let w = 0;
+      new ResizeObserver(() => { if (el.clientWidth && el.clientWidth !== w) { w = el.clientWidth; grow(); } }).observe(el);
+      el.addEventListener("input", grow);
+    });
     $("#w-stars", view).onclick = e => { const b = e.target.closest("button"); if (!b) return; rating = +b.dataset.v; paintStars(); changed(); };
     $("#w-tags", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
     $("#w-suggest", view).onclick = e => { const c = e.target.closest("[data-add]"); if (c) addTag(c.dataset.add); };
