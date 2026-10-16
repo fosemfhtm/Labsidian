@@ -35,7 +35,7 @@
       "w.date": "Diary date", "w.dateHint": "Which week this entry counts for. You can catch up on a past week or write ahead; the actual posting time is recorded separately.", "w.prevWeek": "Last week", "w.today": "Today", "w.nextWeek": "Next week", "w.dateLate": "Will show as posted {n}d late", "w.dateEarly": "Will show as written {n}d ahead", "w.dateTerm": "Counts toward {term}",
       "w.files": "Attachments (paper PDF · figures)", "w.addPdf": "📄 PDF", "w.addImg": "🖼 Image", "w.drop": "Drop files here, or paste an image into the summary", "w.fileType": "Only PDFs and images can be attached", "w.fileSize": "{name}: too large (PDF 20 MB · image 5 MB max)", "w.fileMax": "Up to {n} attachments", "w.uploading": "Uploading…", "w.fileLocal": "For now files are stored in this browser only (shared once the DB is connected)", "w.rating": "Rating", "w.content": "Summary", "w.memo": "Memo (critique)",
       "w.content.ph": "Problem:\nMethod:\nResult:\nContribution:", "w.memo.ph": "Limitations, assumptions, link to your research…",
-      "w.memoHint": "Since May 2024 only reviews with a critique count", "w.tags": "Tags", "w.tags.ph": "Search tags · Enter adds a keyword tag",
+      "w.memoHint": "Since May 2024 only diaries with a critique count", "w.tags": "Tags", "w.tags.ph": "Search tags · Enter adds a keyword tag",
       "w.publish": "Publish", "w.saveEdit": "Save changes", "w.delete": "Delete", "w.discard": "Start over", "w.saved": "Draft saved {time}",
       "w.restored": "Restored your saved draft", "w.fromReading": "From your reading list — the paper and its PDF are filled in",
       "w.already": "You already wrote a diary on this paper ({date}).", "w.editMine": "Edit that one", "w.need.title": "Please enter the paper title", "w.need.rating": "Please pick a rating",
@@ -107,7 +107,7 @@
               <button type="button" class="ui-btn small" data-pick="application/pdf">${t("w.addPdf")}</button>
               <button type="button" class="ui-btn small" data-pick="image/*">${t("w.addImg")}</button>
               <span class="hint">${t("w.drop")}</span></div>
-              <div class="att-list" id="w-files"></div><em class="hint">${t("w.fileLocal")}</em></div>
+              <div class="att-list" id="w-files"></div>${S.server ? "" : `<em class="hint">${t("w.fileLocal")}</em>`}</div>
             <input type="file" id="w-file" hidden multiple></div>
           <div class="fld"><span>${t("w.tags")}</span>
             <div class="tag-input"><div class="chips" id="w-tags"></div><input id="w-tag-q" placeholder="${t("w.tags.ph")}"><div class="tag-pop ui-popover list" id="w-tag-pop" hidden></div></div></div>
