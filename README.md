@@ -195,13 +195,13 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 
 서버는 토큰 주인으로 요청을 처리해요. 관리자 작업용으로는 관리자 계정 토큰으로 한 번 더 등록하면 돼요(예: `claude mcp add labsidian-admin -e LABSIDIAN_TOKEN=<admin 토큰> -- ...`).
 서버를 내 컴퓨터에서 직접 띄웠다면 토큰 없이 `LABSIDIAN_USER=<사이트의 멤버 이름>`만 줘도 돼요(데모에서는 `한서윤`, `박지호` 등). 같은 저장소의 `data/.local_secret`이 이 컴퓨터라는 증명이 돼요.
-선택: `LABSIDIAN_LAB`(연구실 이름 — AI가 소개할 때 씀), `LABSIDIAN_DOWNLOADS`(`download_pdf`가 PDF를 저장할 폴더, 기본은 임시 폴더).
+선택: `LABSIDIAN_LAB`(연구실 이름 — AI가 소개할 때 씀), `LABSIDIAN_DOWNLOADS`(`download_pdf`가 PDF를 저장할 폴더, 기본은 임시 폴더), `LABSIDIAN_STYLE`(내 문체 규칙 마크다운 파일 — AI가 초안을 쓸 때마다 따르고, 만들기 전에 그 규칙으로 점검해요).
 
 | 도구 | 하는 일 |
 |---|---|
 | `search_papers` `get_paper` `get_person` `similar_papers` `recommend_papers` `lab_progress` `list_tags` `whoami` | 읽기 — 논문·다이어리·댓글·관심사·작성률 조회. 검색은 제목에 맞는 논문부터 (번역은 `get_paper`로 받아서 AI가 직접) |
 | `my_inbox` | 내 알림 — 답하는 데 필요한 id까지 함께(질문이면 `add_comment(..., reply_to=…)`로 바로 답글), 읽음 처리 |
-| `create_draft` `my_drafts` `delete_draft` | 읽을 목록의 논문에 다이어리 **초안** 저장하기(PDF 첨부 가능) · 초안이 있는 논문 목록·초안 삭제. 별도 보관함이나 알림 없이 읽을 목록에서 검토 후 게시해요(자동 게시 없음) |
+| `create_draft` `my_drafts` `delete_draft` `writing_style` | 읽을 목록의 논문에 다이어리 **초안** 저장하기(PDF 첨부 가능) · 초안이 있는 논문 목록·초안 삭제 · 내 문체 규칙(`LABSIDIAN_STYLE`) 보기. 별도 보관함이나 알림 없이 읽을 목록에서 검토 후 게시해요(자동 게시 없음) |
 | `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기(로컬 PDF 첨부, 이미 읽은 논문은 "다 읽음"으로 바로), 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
 | `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |

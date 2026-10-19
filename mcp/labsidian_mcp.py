@@ -57,6 +57,9 @@ TOKEN = os.environ.get("LABSIDIAN_TOKEN", "").strip()
 ME = "" if TOKEN else os.environ.get("LABSIDIAN_USER", "").strip()   # with a token: whoever the server says it belongs to
 LOCAL_SECRET = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", ".local_secret")
 LAB = os.environ.get("LABSIDIAN_LAB", "").strip()   # the lab's name, e.g. "KAIST 교통·AI 연구실" (optional)
+# the member's own writing rules for diary drafts (a markdown file); every draft this AI writes follows them
+STYLE_PATH = os.path.expanduser(os.environ.get("LABSIDIAN_STYLE", "").strip().strip('"'))
+STYLE = open(STYLE_PATH, encoding="utf-8").read().strip() if STYLE_PATH and os.path.isfile(STYLE_PATH) else ""
 FILES = os.environ.get("LABSIDIAN_DOWNLOADS") or os.path.join(tempfile.gettempdir(), "labsidian")   # where download_pdf saves
 PDF_LIMIT = 20 * 1024 * 1024   # same as the site (site/store.js FILE_LIMIT)
 
@@ -67,7 +70,9 @@ mcp = FastMCP("labsidian", instructions=(
     "to translate a diary, fetch it with get_paper and translate it yourself. Write tools act as the member, and "
     "never publish a diary — create_draft saves a draft on a reading-list item for them to check and publish. When a paper "
     "name matches several papers, a tool lists them: pick one and call again with its id. "
-    "Admin tools only work if LABSIDIAN_USER is an admin. Answer in the user's language."))
+    "Admin tools only work if LABSIDIAN_USER is an admin. Answer in the user's language."
+    + ("\n\nThe member's writing style for diary drafts (summary and memo) — follow it in every draft you write and "
+       "check the draft against it before calling create_draft:\n\n" + STYLE if STYLE else "")))
 
 
 # ------------------------------------------------------------------ data
@@ -504,7 +509,8 @@ def _attach_pdf(path):
 def create_draft(title: str, summary: str, memo: str, rating: int = 0, tags: list[str] | None = None, link: str = "",
                  venue: str = "", authors: str = "", year: str = "", abstract: str = "",
                  pdf_path: str = "", reading_item_id: str = "") -> dict:
-    """Save a diary draft on my reading list (never published automatically). summary = Problem/Method/Result/Contribution,
+    """Save a diary draft on my reading list (never published automatically). Write summary and memo in my writing
+    style (writing_style) and check them against it first. summary = Problem/Method/Result/Contribution,
     memo = critique (required by lab rules). tags: ids from list_tags (or "f:keyword"). rating 1–5, or 0 to leave unrated.
     reading_item_id selects my existing item; its details fill in fields left empty. Otherwise a matching reading item
     is reused, or a new read item is created. Calling again replaces that item's draft, not the reading note.
@@ -1118,6 +1124,13 @@ def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
                            "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": brief(p)["title"]})
 
 
+@mcp.tool()
+def writing_style() -> dict:
+    """My writing rules for diary drafts (summary and memo). Follow them in every draft and check the draft against
+    them before create_draft. Empty when I haven't set LABSIDIAN_STYLE."""
+    return {"style": STYLE, "file": STYLE_PATH or None}
+
+
 # ------------------------------------------------------------------ prompts (Claude Code shows them as /mcp__labsidian__… commands)
 @mcp.prompt()
 def diary_from_pdf(paper: str = "") -> str:
@@ -1125,7 +1138,8 @@ def diary_from_pdf(paper: str = "") -> str:
     return ("Help me write my Labsidian paper diary. " + (f"The paper: {paper}. " if paper else
             "Look at my_reading_list and take the paper I'm reading (else the one I finished most recently); ask me if unsure. ") +
             "Get the PDF (download_pdf for a reading-list PDF, or read the file / link I gave), read it, and check get_paper / "
-            "search_papers for diaries lab members already wrote on it or close papers. Then show me a draft in my usual style: "
+            "search_papers for diaries lab members already wrote on it or close papers. Then show me a draft in my writing "
+            "style (writing_style; follow every rule and run its self-check) — "
             "summary = Problem / Method / Result (/ Contribution), memo = a short critical take (data, assumptions, would it work "
             "for our problems), a 1–5 rating and tags from list_tags. After I say OK, call create_draft with reading_item_id "
             "for an existing item, or the paper details and pdf_path for a new one. Give me its reading-item link to check "
