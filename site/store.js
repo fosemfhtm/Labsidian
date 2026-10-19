@@ -65,7 +65,7 @@
   // server signs people in (session cookie) and keeps password hashes to itself. Static host (GitHub Pages, no /api) or
   // the headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
-  const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
+  const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "studies", "studyQs",
     "paperTags", "clusterNames", "offDays", "guides"];
   const recordsOf = d => {
     const m = new Map();
@@ -690,6 +690,10 @@
         };
         if (existing) existing.readers.filter(r => r !== me.id).forEach(r => notify(r, { type: "sameRead", reviewId: id, paperId: existing.id }));
         if (data.fromDraft) delete db.drafts[me.id];   // only the general draft this form was restored from
+        if (data.readingItemId) {
+          const item = (db.reading[me.id] || []).find(x => (x.id || "rd_" + x.paperId) === data.readingItemId);
+          if (item) delete item.draft;
+        }
         log("review.create", meta.title); save();
         return { id };
       },
@@ -726,14 +730,6 @@
       get() { const me = current(); return me ? db.drafts[me.id] || null : null; },
       save(data) { const me = current(); if (!me) return; db.drafts[me.id] = { ...data, savedAt: now() }; save(); return db.drafts[me.id].savedAt; },
       clear() { const me = current(); if (me) { delete db.drafts[me.id]; save(); } },
-      // drafts written by the member's own AI through MCP
-      mcp() { const me = current(); return me ? (db.mcpDrafts?.[me.id] || []) : []; },
-      takeMcp(id) {
-        const me = current(); if (!me) return null;
-        const list = db.mcpDrafts?.[me.id] || [], i = list.findIndex(d => d.id === id);
-        if (i < 0) return null;
-        const [d] = list.splice(i, 1); save(); return d;
-      },
     },
 
     // term view filter shared by graph & list pages (empty = all terms)
@@ -1236,7 +1232,7 @@
             addedAt: x.at, startedAt: x.startedAt || null, readAt: x.readAt || null, source: x.source || (x.paperId ? "lab" : "self"),
             title: p?.title || x.title || "(untitled)", link: p?.link || x.link || "", authors: p?.authors || x.authors || "",
             venue: p?.venueNorm || p?.venue || x.venue || "", year: p?.year || x.year || "", abstract: p?.abstract || x.abstract || "",
-            readers: p ? p.readers.filter(r => r !== u) : [], written: written?.id || null,
+            readers: p ? p.readers.filter(r => r !== u) : [], written: written?.id || null, draft: x.draft || null,
           };
         });
       },
@@ -1434,7 +1430,7 @@
       holidays: [...new Set((db.terms || []).flatMap(t => [+t.start.slice(0, 4), +t.end.slice(0, 4)]))].flatMap(y => Store.calendar.holidays(y)),
       studies: Object.values(db.studies).map(st => ({ ...st, paperId: Store.studies.paperOf(st)?.id || st.paperId,
         picks: Object.fromEntries(Object.entries(st.picks || {}).map(([u, pk]) => [u, { ...pk, paperId: Store.studies.pickPaper(pk)?.id || pk.paperId }])) })),
-      studyQuestions: Object.values(db.studyQs), mcpDrafts: db.mcpDrafts || {},
+      studyQuestions: Object.values(db.studyQs),
     };
   }
   // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
@@ -1454,16 +1450,37 @@
     let res = {};
     try {
       if (op.op === "draft") {
-        (db.mcpDrafts ||= {})[op.actor] ||= [];
-        db.mcpDrafts[op.actor].unshift({ id: op.id, at: op.at || now(), ...op.data, files: cleanFiles(op.data.files) });
-        (db.notifications[op.actor] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: op.actor, type: "mcpDraft", draftId: op.id, excerpt: op.data.title });
-        res = { draftId: op.id };
+        const list = (db.reading[op.actor] ||= []);
+        let item = op.itemId ? list.find(x => (x.id || "rd_" + x.paperId) === op.itemId) : null;
+        if (op.itemId && !item) throw new Error("reading.missing");
+        if (!item) {
+          const key = normTitle(op.title);
+          if (!key) throw new Error("reading.title");
+          const match = Store.reading.list().find(x => normTitle(x.title) === key);
+          if (match) item = list.find(x => (x.id || "rd_" + x.paperId) === match.id);
+          else {
+            const id = await Store.reading.add({ title: op.title, venue: op.venue, authors: op.authors, year: op.year,
+              link: op.link, abstract: op.abstract, files: op.files, status: "read", source: "mcp" });
+            item = list.find(x => (x.id || "rd_" + x.paperId) === id);
+          }
+        }
+        item.id ||= "rd_" + item.paperId;
+        if (!item.paperId) {
+          const limits = { title: 300, venue: 200, authors: 500, year: 4, link: 500, abstract: 5000 };
+          Object.entries(limits).forEach(([key, limit]) => { if (!item[key] && op[key]) item[key] = String(op[key]).slice(0, limit); });
+          item.key = normTitle(item.title);
+        }
+        const files = cleanFiles(op.files), ids = new Set((item.files || []).map(f => f.id));
+        item.files = [...(item.files || []), ...files.filter(f => !ids.has(f.id) && ids.add(f.id))];
+        const data = op.data || {};
+        item.draft = { summary: data.summary || "", memo: data.memo || "", rating: +data.rating || 0,
+          tags: (data.tags || []).map(cleanTag).filter(Boolean), at: op.at || now() };
+        res = { itemId: item.id };
       }
       if (op.op === "draft.delete") {
-        const list = db.mcpDrafts?.[op.actor] || [], i = list.findIndex(d => d.id === op.draftId);
-        if (i < 0) throw new Error("draft.missing");
-        list.splice(i, 1);
-        db.notifications[op.actor] = (db.notifications[op.actor] || []).filter(n => n.draftId !== op.draftId);
+        const item = (db.reading[op.actor] || []).find(x => (x.id || "rd_" + x.paperId) === op.itemId);
+        if (!item?.draft) throw new Error("draft.missing");
+        delete item.draft;
       }
       if (op.op === "comment") res = { commentId: (await Store.comments.add({ reviewId: op.reviewId, parent: op.parent || null, kind: op.kind || "comment", body: op.body })).id };
       if (op.op === "react") {  // set, not toggle: 👍 a diary, or "I want to read this too" (→ my reading list)

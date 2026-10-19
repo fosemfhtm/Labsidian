@@ -201,7 +201,7 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 |---|---|
 | `search_papers` `get_paper` `get_person` `similar_papers` `recommend_papers` `lab_progress` `list_tags` `whoami` | 읽기 — 논문·다이어리·댓글·관심사·작성률 조회. 검색은 제목에 맞는 논문부터 (번역은 `get_paper`로 받아서 AI가 직접) |
 | `my_inbox` | 내 알림 — 답하는 데 필요한 id까지 함께(질문이면 `add_comment(..., reply_to=…)`로 바로 답글), 읽음 처리 |
-| `create_draft` `my_drafts` `delete_draft` | 다이어리 **초안** 만들기(PDF 첨부: 로컬 파일이나 읽을 목록 항목) → 내 페이지·알림으로 도착, 본인이 검토 후 게시 (자동 게시 없음) · 초안 목록·지우기 |
+| `create_draft` `my_drafts` `delete_draft` | 읽을 목록의 논문에 다이어리 **초안** 저장하기(PDF 첨부 가능) · 초안이 있는 논문 목록·초안 삭제. 별도 보관함이나 알림 없이 읽을 목록에서 검토 후 게시해요(자동 게시 없음) |
 | `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기(로컬 PDF 첨부, 이미 읽은 논문은 "다 읽음"으로 바로), 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
 | `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |
@@ -212,11 +212,17 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
-- "읽을 목록에서 읽는 중인 논문 PDF 읽고 다이어리 초안 만들어줘" — PDF도 초안에 붙어서 와요
+- "읽을 목록에서 읽는 중인 논문 PDF 읽고 다이어리 초안 만들어줘" — 같은 항목에 초안이 저장되고 논문 정보·PDF·읽기 메모는 그대로 남아요
 - "나한테 온 질문 보여주고 답 초안 써줘, 내가 OK하면 달아줘"
 - "교통 예측 입문 다음 모임 잡아줘" — 후보(👍 많은 순)와 날짜·발표자를 보여 주고 열어요
 - (관리자) "비슷한 태그 찾아서 병합 계획 보여주고, 내가 OK하면 병합해줘"
 - (관리자) "지도 영역 이름 중에 내용이랑 안 맞는 거 찾아서 새 이름 제안해줘" — 관리자에게는 매달 1일 사이트 알림으로 정리할 때라고 알려 줘요
+
+`create_draft`는 `reading_item_id`로 기존 항목을 지정하거나, 논문 정보가 같은 읽을 목록 항목을 찾아서 초안을 저장해요.
+맞는 항목이 없으면 "다 읽음" 항목을 새로 만들어요. 다시 요청하면 그 항목의 초안만 바뀌고, 읽기 메모와 기존 첨부 파일은 남아요.
+결과의 `item_id`와 `open`(`#/write?reading=…`)으로 작성 화면을 열어 확인하고 게시해요. 다이어리 날짜는 게시할 때 직접 정해요(`diary_date` 인자는 없어요).
+`my_reading_list`의 `hasDraft`로 초안 유무를 확인하고, `my_drafts`로 초안이 있는 항목을 모아 볼 수 있어요.
+`delete_draft(reading_item_id=…)`는 초안만 삭제하고 읽을 목록 항목·읽기 상태·메모·PDF는 남겨요. 초안을 저장하거나 삭제해도 알림은 보내지 않아요.
 
 > Labsidian 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(기본은 이 컴퓨터의 8765, 데모는 8766). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
 > 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_reading_group_session`(리딩 그룹 다음 모임).

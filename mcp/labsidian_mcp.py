@@ -65,7 +65,7 @@ mcp = FastMCP("labsidian", instructions=(
     "every paper they read (a summary + a critical memo), and the site lays the lab's papers out as a map. "
     "In Korean, call these 다이어리 (never 리뷰). Use the read tools to find papers, diaries, people and interests; "
     "to translate a diary, fetch it with get_paper and translate it yourself. Write tools act as the member, and "
-    "never publish a diary — create_draft leaves a draft on their page for them to check and publish. When a paper "
+    "never publish a diary — create_draft saves a draft on a reading-list item for them to check and publish. When a paper "
     "name matches several papers, a tool lists them: pick one and call again with its id. "
     "Admin tools only work if LABSIDIAN_USER is an admin. Answer in the user's language."))
 
@@ -461,8 +461,8 @@ def list_tags() -> list:
 
 @mcp.tool()
 def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False) -> list:
-    """My notifications: questions/comments/ideas on my diaries, replies, @mentions, 👍, study invites and reminders,
-    my AI's drafts. Each has the ids to act on it — answer a question with add_comment(review_id, …, reply_to=comment_id),
+    """My notifications: questions/comments/ideas on my diaries, replies, @mentions, 👍, study invites and reminders.
+    Each has the ids to act on it — answer a question with add_comment(review_id, …, reply_to=comment_id),
     open a study with get_study(study_id). mark_read marks the returned ones as read on the site."""
     d = DB.data()
     u = me()
@@ -470,8 +470,8 @@ def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False
     if mark_read and ns:
         DB.apply({"op": "inbox.read", "actor": u["id"], "ids": [n["id"] for n in ns], "summary": f"{len(ns)} read"})
     link = lambda n: (f"{SITE}/#/paper/{n['paperId']}" if n.get("paperId") else f"{SITE}/#/study/{n['studyId']}" if n.get("studyId")
-                      else f"{SITE}/#/guide/{n['guideId']}" if n.get("guideId") else f"{SITE}/#/write?mcp={n['draftId']}" if n.get("draftId") else None)
-    keys = (("review_id", "reviewId"), ("comment_id", "commentId"), ("study_id", "studyId"), ("guide_id", "guideId"), ("draft_id", "draftId"))
+                      else f"{SITE}/#/guide/{n['guideId']}" if n.get("guideId") else None)
+    keys = (("review_id", "reviewId"), ("comment_id", "commentId"), ("study_id", "studyId"), ("guide_id", "guideId"))
     return [{"id": n["id"], "type": n["type"], "from": _name(n.get("actor")), "at": n["at"], "read": bool(n.get("read")),
              "paper": d["PA"].get(n.get("paperId"), {}).get("title"), "excerpt": n.get("excerpt"),
              **{k: n[v] for k, v in keys if n.get(v)}, "open": link(n)} for n in ns]
@@ -501,16 +501,15 @@ def _attach_pdf(path):
 
 
 @mcp.tool()
-def create_draft(title: str, summary: str, memo: str, rating: int, tags: list[str] | None = None, link: str = "",
-                 venue: str = "", authors: str = "", year: str = "", abstract: str = "", diary_date: str = "",
+def create_draft(title: str, summary: str, memo: str, rating: int = 0, tags: list[str] | None = None, link: str = "",
+                 venue: str = "", authors: str = "", year: str = "", abstract: str = "",
                  pdf_path: str = "", reading_item_id: str = "") -> dict:
-    """Create a diary DRAFT for me (never published automatically). summary = Problem/Method/Result/Contribution,
-    memo = critique (required by lab rules). tags: ids from list_tags (or "f:keyword"). rating 1–5.
-    diary_date = which week the entry counts for (YYYY-MM-DD, default today; past/future weeks are fine —
-    the actual posting time is recorded separately when the member publishes).
-    The PDF comes along with the draft: pdf_path = a local PDF file, and/or reading_item_id = a reading-list item
-    whose PDFs to attach (its title, link and authors fill in what you leave empty). The member checks the draft
-    in the site's write form and publishes it themselves."""
+    """Save a diary draft on my reading list (never published automatically). summary = Problem/Method/Result/Contribution,
+    memo = critique (required by lab rules). tags: ids from list_tags (or "f:keyword"). rating 1–5, or 0 to leave unrated.
+    reading_item_id selects my existing item; its details fill in fields left empty. Otherwise a matching reading item
+    is reused, or a new read item is created. Calling again replaces that item's draft, not the reading note.
+    pdf_path attaches a local PDF to the item; existing attachments stay with it. The member opens the returned link,
+    checks the draft and chooses the diary date when publishing. Saving a draft does not send a notification."""
     u = me()
     d = DB.data()
     files = []
@@ -522,38 +521,38 @@ def create_draft(title: str, summary: str, memo: str, rating: int, tags: list[st
         title, link, authors, venue, year = title or x["title"], link or x.get("link") or "", authors or x.get("authors") or "", venue or x.get("venue") or "", year or str(x.get("year") or "")
     if pdf_path:
         files.append(_attach_pdf(pdf_path))
-    if not (1 <= int(rating) <= 5):
-        raise ToolError("rating must be 1..5")
+    if int(rating) != 0 and not (1 <= int(rating) <= 5):
+        raise ToolError("rating must be 0 (unrated) or 1..5")
     if not memo.strip():
         raise ToolError("memo (critique) is required — lab rule since May 2024")
     bad = [t for t in (tags or []) if t not in d["T"] and not t.startswith("f:")]
     if bad:
         raise ToolError(f"unknown tags {bad} — use list_tags")
-    if diary_date:
-        try:
-            date.fromisoformat(diary_date)
-        except ValueError:
-            raise ToolError("diary_date must be YYYY-MM-DD")
     tags = [t if not t.startswith("f:") else "f:" + re.sub(r"[^0-9a-z가-힣_-]+", "-", t[2:].lower()).strip("-")[:40] for t in (tags or [])]
-    op = DB.apply({"op": "draft", "actor": u["id"], "summary": title[:60], "data": {
-        "title": title, "content": summary, "memo": memo, "rating": int(rating), "tags": tags or [], "link": link, "venue": venue,
-        "authors": authors, "year": year, "abstract": abstract, "date": diary_date or date.today().isoformat(), "source": "mcp", "files": files}})
-    return _done(op, {"pdfs": [f["name"] for f in files], "open": f"{SITE}/#/write?mcp={op['id']}"})
+    op = DB.apply({"op": "draft", "actor": u["id"], "itemId": reading_item_id, "summary": title[:60],
+                   "title": title, "link": link, "venue": venue, "authors": authors, "year": year, "abstract": abstract,
+                   "files": files, "data": {"summary": summary, "memo": memo, "rating": int(rating), "tags": tags or []}})
+    return _done(op, {"pdfs": [f["name"] for f in files], "open": f"{SITE}/#/write?reading={op['result']['itemId']}"})
 
 
 @mcp.tool()
 def my_drafts() -> list:
-    """Diary drafts my AI made that I haven't published yet (newest first)."""
+    """My reading-list items with an AI diary draft, newest draft first (no separate draft inbox)."""
     u = me()
-    return [{"draft_id": x["id"], "title": x.get("title"), "made": x.get("at"), "rating": x.get("rating"), "pdfs": [f.get("name") for f in x.get("files") or []],
-             "open": f"{SITE}/#/write?mcp={x['id']}"} for x in (DB.data().get("mcpDrafts") or {}).get(u["id"], [])]
+    items = [x for x in (DB.data().get("reading") or {}).get(u["id"], []) if x.get("draft")]
+    return [{"item_id": x["id"], "title": x.get("title"), "made": x["draft"].get("at"),
+             "summary": x["draft"].get("summary"), "memo": x["draft"].get("memo"),
+             "rating": x["draft"].get("rating"), "tags": x["draft"].get("tags", []),
+             "pdfs": [f.get("name") for f in x.get("files") or []],
+             "open": f"{SITE}/#/write?reading={x['id']}"}
+            for x in sorted(items, key=lambda x: x["draft"].get("at", ""), reverse=True)]
 
 
 @mcp.tool()
-def delete_draft(draft_id: str) -> dict:
-    """Throw away one of my AI drafts (draft_id from my_drafts) — e.g. a duplicate or one I won't publish."""
+def delete_draft(reading_item_id: str) -> dict:
+    """Remove the draft from my reading item (item_id from my_drafts); keep its note, status, metadata and files."""
     u = me()
-    return _done(DB.apply({"op": "draft.delete", "actor": u["id"], "draftId": draft_id, "summary": draft_id}))
+    return _done(DB.apply({"op": "draft.delete", "actor": u["id"], "itemId": reading_item_id, "summary": reading_item_id}))
 
 
 @mcp.tool()
@@ -598,7 +597,7 @@ def my_reading_list(status: str = "") -> list:
         raise ToolError("status: todo | reading | read | written")
     return [{"id": x["id"], "status": state(x), "title": x["title"], "authors": x.get("authors"), "venue": x.get("venue"), "year": x.get("year"),
              "link": x.get("link"), "note": x.get("note"), "addedAt": x.get("addedAt"), "readAt": x.get("readAt"), "pdfs": file_list(x.get("files")),
-             "labPaper": x.get("paperId"), "readInLabBy": [_name(r) for r in x.get("readers") or []]}
+             "hasDraft": bool(x.get("draft")), "labPaper": x.get("paperId"), "readInLabBy": [_name(r) for r in x.get("readers") or []]}
             for x in items if not status or state(x) == status]
 
 
@@ -1128,16 +1127,17 @@ def diary_from_pdf(paper: str = "") -> str:
             "Get the PDF (download_pdf for a reading-list PDF, or read the file / link I gave), read it, and check get_paper / "
             "search_papers for diaries lab members already wrote on it or close papers. Then show me a draft in my usual style: "
             "summary = Problem / Method / Result (/ Contribution), memo = a short critical take (data, assumptions, would it work "
-            "for our problems), a 1–5 rating and tags from list_tags. After I say OK, call create_draft with the PDF attached "
-            "(reading_item_id or pdf_path) and give me the link to check and publish it.")
+            "for our problems), a 1–5 rating and tags from list_tags. After I say OK, call create_draft with reading_item_id "
+            "for an existing item, or the paper details and pdf_path for a new one. Give me its reading-item link to check "
+            "and publish; I choose the diary date there. The draft stays on the reading item and sends no notification.")
 
 
 @mcp.prompt()
 def catch_up() -> str:
     """What happened in the lab since I last looked: questions to me, replies, studies, new diaries in my fields."""
     return ("Catch me up on Labsidian. Read my_inbox (unread first) and group it: questions waiting for my answer (quote them, "
-            "with the paper), replies and mentions, study invites and reminders, my AI drafts waiting. Then list_studies for "
-            "what's coming up and recommend_papers for 3 new papers in my fields. Offer to draft answers to the questions "
+            "with the paper), replies and mentions, study invites and reminders. Call my_drafts separately for reading items "
+            "with an AI draft waiting. Then list_studies for what's coming up and recommend_papers for 3 new papers in my fields. Offer to draft answers to the questions "
             "(add_comment with reply_to) — post nothing until I approve each one. Finally mark what you showed me as read "
             "(my_inbox mark_read).")
 

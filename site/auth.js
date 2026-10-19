@@ -18,7 +18,7 @@
       "n.comment": "{a} 님이 내 다이어리에 댓글을 남겼어요", "n.question": "{a} 님이 내 다이어리에 질문했어요", "n.idea": "{a} 님이 내 다이어리에 아이디어를 남겼어요",
       "n.reply": "{a} 님이 내 댓글에 답글을 남겼어요", "n.mention": "{a} 님이 나를 언급했어요", "n.like": "{a} 님이 내 다이어리를 좋아해요",
       "n.want": "{a} 님이 내 다이어리를 보고 읽을 목록에 담았어요", "n.sameRead": "{a} 님도 내가 읽은 논문을 읽었어요",
-      "nav.me": "내 페이지", "n.mcpDraft": "내 AI(MCP)가 다이어리 초안을 만들었어요",
+      "nav.me": "내 페이지",
       "n.studyInvite": "{a} 님이 논문 스터디에 초대했어요", "n.studyJoin": "{a} 님이 내 스터디에 참가했어요", "n.studyQuestion": "{a} 님이 스터디에 질문을 올렸어요",
       "n.studyClosed": "{a} 님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요", "n.guideItem": "{a} 님이 가이드에 논문을 추가했어요", "n.guideSession": "다음 모임 발표 차례예요 — 모임을 만들어 주세요", "n.guideJoin": "{a} 님이 모임에 참여했어요",
       "tm.all": "모든 학기", "tm.title": "볼 학기", "tm.hint": "여러 학기를 함께 볼 수 있어요. 그래프·사람·논문 목록에 적용돼요.", "tm.apply": "적용",
@@ -39,7 +39,7 @@
       "n.comment": "{a} commented on your review", "n.question": "{a} asked a question on your review", "n.idea": "{a} left an idea on your review",
       "n.reply": "{a} replied to your comment", "n.mention": "{a} mentioned you", "n.like": "{a} liked your review",
       "n.want": "{a} added a paper from your review to their reading list", "n.sameRead": "{a} also read a paper you reviewed",
-      "nav.me": "My page", "n.mcpDraft": "Your AI (MCP) drafted a diary entry",
+      "nav.me": "My page",
       "n.studyInvite": "{a} invited you to a paper study", "n.studyJoin": "{a} joined your study", "n.studyQuestion": "{a} posted a question to a study",
       "n.studyClosed": "{a} finished a study — see the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow — your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today — your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes", "n.guideItem": "{a} added a paper to a guide", "n.guideSession": "You present next — set up the next session", "n.guideJoin": "{a} joined your reading group",
       "tm.all": "All terms", "tm.title": "Terms to show", "tm.hint": "Pick one or several terms. Applies to the graph, people and paper lists.", "tm.apply": "Apply",
@@ -211,7 +211,7 @@
   function notifMenu() {
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="ui-btn text" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
-      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-draft="${n.draftId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
+      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
         ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="ui-empty">${t("n.empty")}</div>`);
@@ -226,7 +226,6 @@
   // where a notification leads (used by the bell and the my-page inbox)
   function openNotif(d) {
     if (d.type === "curation") { location.hash = "#/admin?tab=tags"; return; }
-    if (d.draft) { location.hash = "#/write?mcp=" + d.draft; return; }
     if (d.guide) { location.hash = d.type === "guideSession" ? "#/study/new?guide=" + d.guide : "#/guide/" + d.guide; return; }
     if (d.study) {
       const tab = { studyClosed: "notes", studyNotesDraft: "notes", studyQuestion: "prep" }[d.type];

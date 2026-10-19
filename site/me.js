@@ -18,7 +18,7 @@
       "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기",
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
-      "me.mcpDraft": "내 AI 초안", "me.review": "검토하고 게시", "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
+      "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
       "me.more": "더보기",
       "me.ai": "AI 연결", "me.aiSub": "내 Claude·Codex에 Labsidian을 연결하는 토큰이에요. 토큰을 쓰는 AI는 내 이름으로 초안을 만들고 댓글을 달 수 있어요.",
       "me.aiNew": "새 토큰…", "me.aiTitle": "새 토큰", "me.aiName": "이름", "me.aiNamePh": "예: 노트북 Claude Code", "me.aiAdd": "추가", "me.aiCancel": "취소",
@@ -44,7 +44,6 @@
       "me.diaryTitle": "{term} Paper Diary — {name}", "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
       "me.color": "My colour", "me.exempt": "written · no diary duty this term",
       "me.notYet": " · starts on {d}", "me.fromDate": "Writing from {d} (target prorated from that date)", "me.customTarget": "Target set by an admin",
-      "me.mcpDraft": "AI draft", "me.review": "Review & publish",
       "me.more": "More",
       "me.ai": "AI Connection", "me.aiSub": "Tokens that connect your Claude or Codex to Labsidian. An AI with a token can draft diaries and comment in your name.",
       "me.aiNew": "New Token…", "me.aiTitle": "New Token", "me.aiName": "Name", "me.aiNamePh": "e.g. Laptop Claude Code", "me.aiAdd": "Add", "me.aiCancel": "Cancel",
@@ -89,7 +88,7 @@
     const elapsed = today < q.start ? 0 : S.calendar.workdays(q.start, today < qEnd ? today : qEnd);
     const target = Math.max(1, q.target), n = mine.length, pct = Math.min(100, n / target * 100);
     const expected = Math.round(q.target * elapsed / total), diff = n - expected;
-    const draft = S.drafts.get(), mcpDrafts = S.drafts.mcp();
+    const draft = S.drafts.get();
 
     const upcoming = S.studies.list().filter(st => !st.closed && st.members.includes(me.id) && (!st.date || st.date >= today)).slice(0, 4);
     view.innerHTML = `
@@ -103,7 +102,6 @@
         </div>
       </div>
       ${draft ? `<div class="ui-notice draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
-      ${mcpDrafts.map(d => `<div class="ui-notice info draft-row">🤖 ${t("me.mcpDraft")}: <b>${esc(d.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write?mcp=${d.id}">${t("me.review")}</a></div>`).join("")}
       ${!person ? `<div class="ui-card">${t("me.adminNote")}</div>` : ""}
       <div class="me-grid">
         <div class="ui-card progress-card">

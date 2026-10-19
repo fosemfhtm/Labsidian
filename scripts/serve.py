@@ -32,11 +32,13 @@ Tables: records(coll, id, value) — one row per user / review / comment / membe
 rest (terms, tag ops, log …) · ops(id, at, actor, op, status, error, version) · files(id, type, data) · meta(key, value)
 · sessions(hash, user, kind, created, used, label) — browser sessions ("web") and MCP tokens ("mcp"), stored hashed.
 A backup is taken once a day on start (data[/demo]/_backup/, last 14 kept).
+Legacy AI drafts move onto reading items after that backup, before any clients are served.
 """
 import calendar
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import shutil
 import sqlite3
@@ -61,7 +63,7 @@ LEGACY = DATA / "live_snapshot.json"  # left by the old localStorage bridge → 
 LOCAL_SECRET = ROOT / "data" / ".local_secret"  # gitignored; shared by the real and the demo server
 MAX_BODY, MAX_FILE = 50 * 1024 * 1024, 25 * 1024 * 1024
 # must match COLLS in site/store.js: each entry of these is its own record, every other top-level key is one "_meta" record
-COLLS = ("users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "mcpDrafts", "studies", "studyQs",
+COLLS = ("users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "studies", "studyQs",
          "paperTags", "clusterNames", "offDays", "guides")
 CONTENT = tuple(c for c in COLLS if c != "users")
 # real and demo servers on one host share its cookies (ports don't count) → one name each
@@ -274,6 +276,80 @@ class Worker:
 STORE, WORKER = None, Worker()
 SECRET = None  # contents of LOCAL_SECRET
 FAILS = {}  # ip → recent failed sign-in times
+
+
+def migrate_mcp_drafts():
+    """Read legacy records before store.js can discard them; commit the cutover in one transaction."""
+    with STORE.lock:
+        legacy = STORE.con.execute("SELECT id, value FROM records WHERE coll='mcpDrafts' ORDER BY id").fetchall()
+        reading = {u: json.loads(v) for u, v in STORE.con.execute("SELECT id, value FROM records WHERE coll='reading'")}
+        notifications = {u: json.loads(v) for u, v in STORE.con.execute("SELECT id, value FROM records WHERE coll='notifications'")}
+        drafts = {u: json.loads(v) for u, v in legacy}
+        # A previous whole-db import may have stored the retired collection as metadata.
+        meta = STORE.con.execute("SELECT value FROM records WHERE coll='_meta' AND id='mcpDrafts'").fetchone()
+        if meta:
+            for u, items in json.loads(meta[0]).items():
+                drafts.setdefault(u, []).extend(items)
+        resolved = {}
+        if any(drafts.values()) and any(x.get("paperId") and not x.get("title") and not x.get("key")
+                                       for u in drafts for x in reading.get(u, [])):
+            result = WORKER.call({"cmd": "snapshot", "db": STORE.db()})
+            if not result.get("ok"):
+                raise RuntimeError(f"couldn't migrate AI drafts: {result.get('error')}")
+            resolved = result["snapshot"]["reading"]
+
+        def norm_title(title):
+            return re.sub(r"[^0-9a-z가-힣]+", "", (title or "").lower().replace("ﬁ", "fi").replace("ﬂ", "fl"))
+
+        upserts, deletes = [], [("mcpDrafts", u) for u, _ in legacy]
+        if meta:
+            deletes.append(("_meta", "mcpDrafts"))
+        migrated = created = removed = 0
+        for u, items in drafts.items():
+            if not items:
+                continue
+            entries = reading.setdefault(u, [])
+            titles = {x["id"]: x["title"] for x in resolved.get(u, [])}
+            by_key = {}
+            for item in entries:
+                item_id = item.get("id") or "rd_" + str(item.get("paperId", ""))
+                key = item.get("key") or norm_title(item.get("title") or titles.get(item_id))
+                if key:
+                    by_key.setdefault(key, item)
+            # Legacy lists are newest first: all attachments survive and the latest draft wins.
+            for draft in reversed(items):
+                key = norm_title(draft.get("title"))
+                item = by_key.get(key) if key else None
+                at = draft.get("at") or now_iso()
+                if item is None:
+                    item = {"id": "rd_" + secrets.token_hex(8), "key": key, "at": at,
+                            "status": "read", "source": "mcp", "note": "", "files": []}
+                    entries.insert(0, item)
+                    if key:
+                        by_key[key] = item
+                    created += 1
+                for field in ("title", "link", "authors", "venue", "year", "abstract"):
+                    if not item.get(field) and draft.get(field):
+                        item[field] = draft[field]
+                files = item.setdefault("files", [])
+                known_files = {f["id"] for f in files}
+                for file in draft.get("files") or []:
+                    if file["id"] not in known_files:
+                        files.append(file)
+                        known_files.add(file["id"])
+                item["draft"] = {"summary": draft.get("content") or draft.get("summary", ""), "memo": draft.get("memo", ""),
+                                 "rating": draft.get("rating"), "tags": draft.get("tags") or [], "at": at}
+                migrated += 1
+            upserts.append(("reading", u, entries))
+        for u, items in notifications.items():
+            keep = [n for n in items if n.get("type") != "mcpDraft"]
+            if len(keep) != len(items):
+                removed += len(items) - len(keep)
+                upserts.append(("notifications", u, keep))
+        if upserts or deletes:
+            STORE.write(upserts, deletes)
+            print(f"  AI draft migration: {migrated} drafts, {created} reading items created, "
+                  f"{removed} notifications removed, {len(deletes)} legacy records removed", flush=True)
 
 
 def seed():
@@ -617,6 +693,7 @@ def main():
         LOCAL_SECRET.write_text(secrets.token_urlsafe(32), encoding="utf-8")
     SECRET = LOCAL_SECRET.read_text(encoding="utf-8").strip()
     STORE.backup()
+    migrate_mcp_drafts()
     seed()
     srv = ThreadingHTTPServer((host, port), partial(Handler, directory=str(SITE)))
     print(f"Labsidian{' [DEMO]' if DEMO else ''} → http://{'localhost' if host == '127.0.0.1' else host}:{port}  (data: {DB_PATH.relative_to(ROOT)}, version {STORE.version()})", flush=True)

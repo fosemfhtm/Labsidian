@@ -25,7 +25,6 @@
       "w.dup": "이미 연구실에서 읽은 논문이에요", "w.dupBy": "{names} 님이 읽었어요", "w.dupOpen": "다이어리 보기",
       "w.suggest": "추천 태그", "w.suggestHint": "비슷한 논문들의 태그 + 키워드 규칙 (클릭해서 추가)", "w.similar": "비슷한 논문", "w.forbidden": "내 다이어리만 편집할 수 있어요",
       "w.signin": "로그인이 필요해요", "w.forStudy": "📚 \"{title}\" 스터디에서 같이 읽는 논문의 다이어리예요. 평소 다이어리와 똑같이 쌓여요.", "w.forPick": "📚 \"{title}\" 스터디에 가져온 논문의 다이어리예요. 평소 다이어리와 똑같이 쌓여요.", "w.fromMcp": "내 AI(MCP)가 만든 초안이에요. 논문을 직접 읽고 내용을 확인·수정한 뒤 게시해주세요.",
-      "w.mcpWaiting": "내 AI(MCP)가 만든 초안 {n}개:",
     },
     en: {
       "w.new": "Write diary", "w.edit": "Edit review", "w.sub": "{term} · review #{n} this term",
@@ -43,7 +42,6 @@
       "w.dup": "Someone in the lab already read this paper", "w.dupBy": "Read by {names}", "w.dupOpen": "See reviews",
       "w.suggest": "Suggested tags", "w.suggestHint": "From similar papers' tags + keyword rules (click to add)", "w.similar": "Similar papers", "w.forbidden": "You can only edit your own reviews",
       "w.signin": "Please sign in", "w.forStudy": "📚 Diary entry on the paper read together in the \"{title}\" study — it's a regular entry.", "w.forPick": "📚 Diary entry on the paper you bring to the \"{title}\" study — it's a regular entry.", "w.fromMcp": "Drafted by your AI (MCP). Read the paper, check and edit before publishing.",
-      "w.mcpWaiting": "{n} draft(s) from your AI (MCP):",
     },
   });
 
@@ -52,7 +50,7 @@
   document.querySelector("main").appendChild(view);
 
   let files = [], addedNow = new Set(), study = null, pick = null, fromDraft = false, prePaper = null;
-  let form = null, tags = [], rating = 0, editing = null, mcpDraft = null, saveTimer = null, suggestTimer = null, fromReading = null;
+  let form = null, tags = [], rating = 0, editing = null, saveTimer = null, suggestTimer = null, fromReading = null;
 
   const field = (id, label, input) => `<label class="fld" for="${id}"><span>${label}</span>${input}</label>`;
 
@@ -65,7 +63,6 @@
     pick = study && params.get("pick") ? study.picks?.[me.id] || null : null;   // the related paper I bring
     const studyPaper = pick ? S.studies.pickPaper(pick) : study ? S.studies.paperOf(study) : null;
     prePaper = params.get("paper") ? UI.PA[params.get("paper")] : editing ? UI.PA[editing.paper] : studyPaper;
-    mcpDraft = params.get("mcp") ? S.drafts.mcp().find(d => d.id === params.get("mcp")) || null : null;
     fromReading = !editing && !study && params.get("reading") ? S.reading.get(params.get("reading")) : null;  // #/reading → write it up
     if (!prePaper && fromReading?.paperId) prePaper = UI.PA[fromReading.paperId];
     const myOld = !editing && prePaper ? prePaper.reviews.map(id => UI.R[id]).find(r => r && r.person === me.id) : null;
@@ -80,12 +77,10 @@
           ${editing ? "" : `<div class="lookup"><input id="w-lookup" placeholder="${t("w.lookup.ph")}"><button type="button" class="ui-btn" id="w-fetch">${t("w.fetch")}</button></div>
           <div class="muted" id="w-fetch-status"></div>`}
           <p class="ui-notice info" id="w-restored" hidden>${t("w.restored")} <button type="button" class="ui-btn text" id="w-discard">${t("w.discard")}</button></p>
-          ${mcpDraft ? `<p class="ui-notice info">🤖 ${t("w.fromMcp")}</p>` : ""}
+          ${fromReading?.draft ? `<p class="ui-notice info">${t("w.fromMcp")}</p>` : ""}
           ${fromReading ? `<p class="ui-notice">📚 ${t("w.fromReading")}</p>` : ""}
           ${myOld ? `<p class="ui-notice">${t("w.already", { date: esc(myOld.date) })} <a class="ui-btn text" href="#/write?review=${myOld.id}">${t("w.editMine")}</a></p>` : ""}
           ${study ? `<p class="ui-notice ok">${t(pick ? "w.forPick" : "w.forStudy", { title: esc(study.title) })}</p>` : ""}
-          ${!editing && !mcpDraft && S.drafts.mcp().length ? `<p class="ui-notice info">🤖 ${t("w.mcpWaiting", { n: S.drafts.mcp().length })}
-            ${S.drafts.mcp().map(d => `<a class="ui-btn text" href="#/write?mcp=${d.id}">${esc(d.title || "(untitled)")}</a>`).join(" · ")}</p>` : ""}
           ${field("w-title", t("w.title") + " *", `<input id="w-title" ${editing || study ? "readonly" : ""}>`)}
           <div class="row3">
             ${field("w-venue", t("w.venue"), `<input id="w-venue" ${editing ? "readonly" : ""}>`)}
@@ -135,12 +130,7 @@
     } else {
       set("w-date", /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") || "") ? params.get("date") : S.today());  // from a calendar day
       const d = fromReading ? null : S.drafts.get();
-      if (mcpDraft) {
-        ["title", "venue", "year", "link", "authors", "abstract", "date", "content", "memo"].forEach(k => set("w-" + k, mcpDraft[k]));
-        rating = mcpDraft.rating || 0; tags = [...(mcpDraft.tags || [])]; files = [...(mcpDraft.files || [])];
-        const known = S.findPaper(mcpDraft.title);
-        if (known && !mcpDraft.venue) { set("w-venue", known.venueNorm || known.venue); set("w-authors", known.authors); set("w-link", known.link); }
-      } else if (fromReading && !prePaper) {
+      if (fromReading && !prePaper) {
         ["title", "venue", "year", "link", "authors", "abstract"].forEach(k => set("w-" + k, fromReading[k]));
       } else if (study && !prePaper) {
         set("w-title", pick ? pick.title : study.title); set("w-link", pick ? pick.link : study.link);
@@ -153,14 +143,20 @@
         $("#w-restored", view).hidden = false;
       }
     }
-    if (fromReading) files = [...fromReading.files];  // the PDF saved with it comes along
+    if (fromReading) {
+      files = [...fromReading.files];  // the PDF saved with it comes along
+      if (fromReading.draft) {
+        set("w-content", fromReading.draft.summary); set("w-memo", fromReading.draft.memo);
+        rating = fromReading.draft.rating || 0; tags = [...(fromReading.draft.tags || [])];
+      }
+    }
     paintStars(); paintTags(); paintFiles(); dateHint(); refreshSide();
     wire();
   }
 
   const val = id => ($("#" + id, view)?.value || "").trim();
   const collect = () => ({ title: val("w-title"), venue: val("w-venue"), year: val("w-year"), link: val("w-link"), authors: val("w-authors"),
-    abstract: val("w-abstract"), date: val("w-date") || editing?.date || S.today(), content: $("#w-content", view).value, memo: $("#w-memo", view).value, rating, tags, files, studyId: study?.id || null, pick: !!pick, fromDraft });
+    abstract: val("w-abstract"), date: val("w-date") || editing?.date || S.today(), content: $("#w-content", view).value, memo: $("#w-memo", view).value, rating, tags, files, studyId: study?.id || null, pick: !!pick, fromDraft, readingItemId: fromReading?.id || null });
 
   function paintStars() { view.querySelectorAll("#w-stars button").forEach(b => b.classList.toggle("on", +b.dataset.v <= rating)); }
   const topicLabel = id => { const x = UI.T[id]; return x ? UI.tl(x) : id.slice(2); };
@@ -238,7 +234,7 @@
 
   function changed() {
     clearTimeout(suggestTimer); suggestTimer = setTimeout(refreshSide, 350);
-    if (editing || mcpDraft || study || fromReading || (prePaper && !fromDraft)) return;
+    if (editing || study || fromReading || (prePaper && !fromDraft)) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const at = S.drafts.save(collect());
@@ -328,7 +324,6 @@
         LabReload("#/me", t("w.updated"));
       } else {
         await S.reviews.create(d);
-        if (mcpDraft) S.drafts.takeMcp(mcpDraft.id);
         LabReload(study ? "#/study/" + study.id : "#/me", t("w.done"));
       }
     };

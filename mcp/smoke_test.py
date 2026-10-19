@@ -45,6 +45,13 @@ async def main():
             prompts = (await s.list_prompts()).prompts
             print(f"{len(tools)} tools:", ", ".join(t.name for t in tools))
             print(f"{len(prompts)} prompts:", ", ".join(p.name for p in prompts))
+            schemas = {t.name: getattr(t, "input_schema", None) or getattr(t, "inputSchema", {}) for t in tools}
+            draft_fields = schemas.get("create_draft", {}).get("properties", {})
+            delete_fields = schemas.get("delete_draft", {}).get("properties", {})
+            if "diary_date" in draft_fields or "reading_item_id" not in draft_fields:
+                failed.append("draft tool schema")
+            if "reading_item_id" not in delete_fields or "draft_id" in delete_fields:
+                failed.append("delete draft tool schema")
 
             async def call(tool, expect_ok=True, **args):
                 res = await s.call_tool(tool, args)
@@ -88,15 +95,55 @@ async def main():
             await call("add_comment", review_id=rid, body="(smoke test) 답글", reply_to=c.get("comment_id") if isinstance(c, dict) else "")
             await call("react_to_diary", review_id=rid, kind="like")
             await call("react_to_diary", review_id=rid, kind="like", on=False)
-            item = await call("add_to_reading_list", title="Attention Is All You Need (smoke test)", note="smoke")
+            token = os.urandom(6).hex()
+            title = f"Smoke reading {token}"
+            item = await call("add_to_reading_list", title=title, note="smoke")
             iid = item.get("item_id") if isinstance(item, dict) else None
             await call("update_reading_item", item_id=iid, status="reading")
             pdf = tiny_pdf(os.path.join(tempfile.gettempdir(), "labsidian_smoke.pdf"))
-            d = await call("create_draft", title="Smoke test draft", summary="Problem: x", memo="memo", rating=3, pdf_path=pdf)
+            inbox_before = await call("my_inbox", limit=100)
+            reading_before = await call("my_reading_list")
+            # Explicit target, matching title without an id, and genuinely new paper.
+            explicit = await call("create_draft", title="", summary="Problem: explicit", memo="memo", rating=3,
+                                  reading_item_id=iid, pdf_path=pdf)
+            matched = await call("create_draft", title=title, summary="Problem: replaced", memo="updated memo", rating=4,
+                                 tags=["f:smoke"])
+            fresh = await call("create_draft", title=f"Smoke new draft {token}", summary="Problem: new", memo="new memo")
+            fresh_id = fresh.get("item_id") if isinstance(fresh, dict) else None
+            for label, result, target in (("explicit", explicit, iid), ("matched", matched, iid), ("new", fresh, fresh_id)):
+                if not isinstance(result, dict) or not target or result.get("item_id") != target or result.get("open") != f"{URL.rstrip('/')}/#/write?reading={target}":
+                    failed.append(f"draft {label} target/link")
+            if fresh_id == iid:
+                failed.append("draft new target")
             drafts = await call("my_drafts")
-            if isinstance(drafts, list) and drafts and drafts[0].get("pdfs") != ["labsidian_smoke.pdf"]:
-                failed.append("draft pdf")
-            await call("delete_draft", draft_id=d.get("draft_id") if isinstance(d, dict) else "")
+            saved = next((x for x in drafts if x.get("item_id") == iid), {}) if isinstance(drafts, list) else {}
+            if saved.get("summary") != "Problem: replaced" or saved.get("memo") != "updated memo" or saved.get("rating") != 4 or saved.get("tags") != ["f:smoke"] or saved.get("pdfs") != ["labsidian_smoke.pdf"]:
+                failed.append("draft replacement and PDF")
+            fresh_draft = next((x for x in drafts if x.get("item_id") == fresh_id), {}) if isinstance(drafts, list) else {}
+            if fresh_draft.get("rating") != 0 or fresh_draft.get("tags") != []:
+                failed.append("draft allows empty rating and tags")
+            reading = await call("my_reading_list")
+            saved_item = next((x for x in reading if x.get("id") == iid), {}) if isinstance(reading, list) else {}
+            new_item = next((x for x in reading if x.get("id") == fresh_id), {}) if isinstance(reading, list) else {}
+            if not saved_item.get("hasDraft") or saved_item.get("note") != "smoke" or saved_item.get("status") != "reading":
+                failed.append("draft preserves existing reading state")
+            if not new_item.get("hasDraft") or new_item.get("status") != "read":
+                failed.append("draft new reading state")
+            if not isinstance(reading, list) or not isinstance(reading_before, list) or len(reading) != len(reading_before) + 1:
+                failed.append("draft matching avoids duplicate")
+            await call("delete_draft", reading_item_id=iid)
+            await call("delete_draft", reading_item_id=fresh_id)
+            remaining = await call("my_drafts")
+            if not isinstance(remaining, list) or any(x.get("item_id") in (iid, fresh_id) for x in remaining):
+                failed.append("draft deletion")
+            after_delete = await call("my_reading_list")
+            kept = next((x for x in after_delete if x.get("id") == iid), {}) if isinstance(after_delete, list) else {}
+            if not kept or kept.get("hasDraft") or any(kept.get(k) != saved_item.get(k) for k in ("note", "status", "title", "readAt", "pdfs")):
+                failed.append("draft deletion preserves reading item")
+            if await call("my_inbox", limit=100) != inbox_before:
+                failed.append("draft operations do not notify")
+            await call("create_draft", expect_ok=False, title="", summary="x", memo="memo", rating=3,
+                       reading_item_id=f"missing-{token}")
             g = await call("create_guide", title="Smoke test guide")
             gi = await call("add_guide_item", guide_id=g.get("guide_id"), paper_ref=pid)
             await call("vote_guide_item", guide_id=g.get("guide_id"), item_id=gi.get("item_id") if isinstance(gi, dict) else "")

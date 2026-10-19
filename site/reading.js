@@ -16,6 +16,7 @@
       "rl.empty.reading": "읽기 시작한 논문이 여기 와요", "rl.empty.todo": "링크나 PDF로 논문을 추가해 보세요", "rl.empty.read": "다 읽고 아직 정리 안 한 논문이 여기 와요",
       "rl.nudgeRead": "다 읽고 정리 안 한 논문 {n}편", "rl.nudgeStale": "2주 넘게 안 읽은 논문 {n}편",
       "rl.start": "읽기 시작", "rl.done": "다 읽음", "rl.write": "다이어리 쓰기", "rl.myDiary": "내 다이어리", "rl.attach": "PDF 첨부",
+      "rl.aiDraft": "AI 초안", "rl.reviewDraft": "초안 검토",
       "rl.back": "읽을 예정으로 되돌리기", "rl.remove": "읽을 목록에서 제거", "rl.removeQ": "읽을 목록에서 제거할까요?", "rl.removeMsg": "올린 PDF도 함께 지워지고 되돌릴 수 없어요.", "rl.removeOk": "제거", "rl.note": "메모",
       "rl.notePh": "왜 읽으려는지, 읽으면서 든 생각…", "rl.save": "저장", "rl.editTitle": "제목 편집",
       "rl.labRead": "연구실 {n}명 읽음", "rl.addedAgo": "{d}일 전 추가", "rl.startedAgo": "{d}일째 읽는 중", "rl.readAgo": "{d}일 전에 다 읽음",
@@ -29,6 +30,7 @@
       "rl.empty.reading": "Papers you start reading show up here", "rl.empty.todo": "Add a paper by link or PDF", "rl.empty.read": "Papers you finished but haven't written up show up here",
       "rl.nudgeRead": "{n} read but not written up", "rl.nudgeStale": "{n} waiting for over two weeks",
       "rl.start": "Start reading", "rl.done": "Finished", "rl.write": "Write diary", "rl.myDiary": "My diary", "rl.attach": "Attach PDF",
+      "rl.aiDraft": "AI draft", "rl.reviewDraft": "Review draft",
       "rl.back": "Back to 'to read'", "rl.remove": "Remove from Reading List", "rl.removeQ": "Remove from your reading list?", "rl.removeMsg": "The uploaded PDF is deleted too, and this can't be undone.", "rl.removeOk": "Remove", "rl.note": "Note",
       "rl.notePh": "Why you want to read it, thoughts while reading…", "rl.save": "Save", "rl.editTitle": "Edit Title",
       "rl.labRead": "{n} in the lab read it", "rl.addedAgo": "added {d}d ago", "rl.startedAgo": "reading for {d}d", "rl.readAgo": "finished {d}d ago",
@@ -78,6 +80,7 @@
           <button class="ui-btn text" data-act="title" title="${t("rl.editTitle")}">✎</button>`}</div>
         ${meta ? `<div class="muted rl-meta">${esc(meta)}</div>` : ""}
         <div class="rl-badges">${x.readers.length ? `<span class="rl-lab">${UI.avStack(x.readers, 4)} ${t("rl.labRead", { n: x.readers.length })}</span>` : ""}
+          ${x.draft ? `<span class="ui-pill accent">${t("rl.aiDraft")}</span>` : ""}
           <span class="muted">${when}</span></div>
         ${x.note ? `<div class="rl-note">${esc(x.note)}</div>` : ""}
         <div class="rl-note-edit" hidden><textarea rows="3" placeholder="${t("rl.notePh")}">${esc(x.note)}</textarea>
@@ -90,7 +93,7 @@
         ${st === "todo" ? `<button class="ui-btn small" data-act="reading">${t("rl.start")}</button>` : ""}
         ${st === "reading" ? `<button class="ui-btn small" data-act="read">${t("rl.done")}</button>` : ""}
         ${st === "written" ? `<a class="ui-btn small" href="#/write?review=${esc(x.written)}">✎ ${t("rl.myDiary")}</a>`
-          : `<a class="ui-btn small ${st === "read" ? "primary" : ""}" href="#/write?reading=${encodeURIComponent(x.id)}">✎ ${t("rl.write")}</a>`}
+          : `<a class="ui-btn small ${st === "read" ? "primary" : ""}" href="#/write?reading=${encodeURIComponent(x.id)}">✎ ${t(x.draft ? "rl.reviewDraft" : "rl.write")}</a>`}
         <button class="ui-btn small plain" data-act="note" title="${t("rl.note")}">💬</button>
         ${st === "reading" || st === "read" ? `<button class="ui-btn small plain" data-act="todo" title="${t("rl.back")}">↺</button>` : ""}
         <button class="ui-btn small plain" data-act="del" title="${t("rl.remove")}">🗑</button>
