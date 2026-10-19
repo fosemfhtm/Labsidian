@@ -68,7 +68,11 @@ mcp = FastMCP("labsidian", instructions=(
     "every paper they read (a summary + a critical memo), and the site lays the lab's papers out as a map. "
     "In Korean, call these 다이어리 (never 리뷰). Use the read tools to find papers, diaries, people and interests; "
     "to translate a diary, fetch it with get_paper and translate it yourself. Write tools act as the member, and "
-    "never publish a diary — create_draft saves a draft on a reading-list item for them to check and publish. When a paper "
+    "never publish a diary — create_draft saves a draft on a reading-list item for them to check and publish. "
+    "Diary drafts: the memo is the member's own critique, so start from what they think of the paper — if they "
+    "haven't said, ask for a few lines instead of inventing or mining opinions. Check their factual claims against the "
+    "PDF and report mismatches to them in the chat, separately; the memo only takes the corrections they accept. Show "
+    "the full summary and memo in the chat and call create_draft only after they explicitly approve. When a paper "
     "name matches several papers, a tool lists them: pick one and call again with its id. "
     "Admin tools only work if LABSIDIAN_USER is an admin. Answer in the user's language."
     + ("\n\nThe member's writing style for diary drafts (summary and memo) — follow it in every draft you write and "
@@ -509,9 +513,10 @@ def _attach_pdf(path):
 def create_draft(title: str, summary: str, memo: str, rating: int = 0, tags: list[str] | None = None, link: str = "",
                  venue: str = "", authors: str = "", year: str = "", abstract: str = "",
                  pdf_path: str = "", reading_item_id: str = "") -> dict:
-    """Save a diary draft on my reading list (never published automatically). Write summary and memo in my writing
-    style (writing_style) and check them against it first. summary = Problem/Method/Result/Contribution,
-    memo = critique (required by lab rules). tags: ids from list_tags (or "f:keyword"). rating 1–5, or 0 to leave unrated.
+    """Save a diary draft on my reading list (never published automatically). Call it only after I approved the
+    summary and memo you showed me in the chat. Write them in my writing style (writing_style) and check them
+    against it first. summary = Problem/Method/Results/Contributions, memo = my critique (required by lab rules).
+    tags: ids from list_tags (or "f:keyword"). rating 1–5, or 0 to leave unrated.
     reading_item_id selects my existing item; its details fill in fields left empty. Otherwise a matching reading item
     is reused, or a new read item is created. Calling again replaces that item's draft, not the reading note.
     pdf_path attaches a local PDF to the item; existing attachments stay with it. The member opens the returned link,
@@ -1138,12 +1143,13 @@ def diary_from_pdf(paper: str = "") -> str:
     return ("Help me write my Labsidian paper diary. " + (f"The paper: {paper}. " if paper else
             "Look at my_reading_list and take the paper I'm reading (else the one I finished most recently); ask me if unsure. ") +
             "Get the PDF (download_pdf for a reading-list PDF, or read the file / link I gave), read it, and check get_paper / "
-            "search_papers for diaries lab members already wrote on it or close papers. Then show me a draft in my writing "
-            "style (writing_style; follow every rule and run its self-check) — "
-            "summary = Problem / Method / Result (/ Contribution), memo = a short critical take (data, assumptions, would it work "
-            "for our problems), a 1–5 rating and tags from list_tags. After I say OK, call create_draft with reading_item_id "
-            "for an existing item, or the paper details and pdf_path for a new one. Give me its reading-item link to check "
-            "and publish; I choose the diary date there. The draft stays on the reading item and sends no notification.")
+            "search_papers for diaries lab members already wrote on it or close papers. Ask me what I thought of the paper "
+            "if I haven't said (a few lines are enough). Then show me the whole draft in the chat, in my writing style "
+            "(writing_style; follow every rule): summary = Problem / Method / Results / Contributions, memo = my critique "
+            "built from what I said, a 1–5 rating and tags from list_tags. Report separately any of my claims the PDF "
+            "doesn't support. Only after I say OK, call create_draft with reading_item_id for an existing item, or the "
+            "paper details and pdf_path for a new one. Give me its reading-item link to check and publish; I choose the "
+            "diary date there. The draft stays on the reading item and sends no notification.")
 
 
 @mcp.prompt()
