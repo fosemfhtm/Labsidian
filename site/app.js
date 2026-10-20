@@ -2,6 +2,18 @@
 (() => {
   const D = window.LAB;
   const { t, lang } = window.I18N;
+  I18N.extend({
+    ko: {
+      "pm.edit": "편집…", "pm.title": "논문 정보 편집", "pm.help": "모든 독자가 보는 논문 정보예요. 확인한 사실만 저장해 주세요. 칸을 비우면 원래 정보로 돌아가요.",
+      "pm.paperTitle": "논문 제목", "pm.authors": "저자", "pm.venue": "저널·학회", "pm.year": "연도", "pm.link": "링크",
+      "pm.save": "저장", "pm.cancel": "취소", "pm.saved": "논문 정보를 저장했어요", "pm.failed": "저장하지 못했어요. 입력을 확인하고 다시 시도해 주세요.",
+    },
+    en: {
+      "pm.edit": "Edit…", "pm.title": "Edit paper info", "pm.help": "Every reader sees this shared paper information. Save only confirmed facts. Clear a field to restore its original value.",
+      "pm.paperTitle": "Paper title", "pm.authors": "Authors", "pm.venue": "Venue", "pm.year": "Year", "pm.link": "Link",
+      "pm.save": "Save", "pm.cancel": "Cancel", "pm.saved": "Paper information saved", "pm.failed": "Could not save. Check the fields and try again.",
+    },
+  });
   // lookups by id; filled by index() and refilled in place whenever the store rebuilds window.LAB
   const P = {}, T = {}, PA = {}, R = {};
   const CL = Object.fromEntries((D.clusters || []).map(c => [c.id, c]));
@@ -140,6 +152,7 @@
     const long = !opts.full && r.content.length > 380;
     return `<div class="review ${opts.full ? "full" : ""} ${mine ? "mine" : ""}" id="rv-${r.id}" data-review="${r.id}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
+      <div class="kv">${esc(PA[r.paper]?.venueNorm || PA[r.paper]?.venue || "")}${PA[r.paper]?.year ? ` · ${PA[r.paper].year}` : ""}</div>
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b>${stars(r.rating)}
         <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>${regBadge(r)}
         ${mine ? `<span class="ui-pill accent">${t("rv.mine")}</span>` : ""}
@@ -421,6 +434,41 @@
         ${others.length ? `<div class="m st-with-h">${t("d.studyWith")}</div>${others.map(pickLink).join("")}` : ""}`;
     }).join("")}</div>`;
   }
+  function editPaperInfo(p) {
+    const fields = [["title", "pm.paperTitle", 300], ["authors", "pm.authors", 500], ["venue", "pm.venue", 200], ["year", "pm.year", 4], ["link", "pm.link", 500]];
+    const modal = LabModal(`<form><h2 id="paper-meta-title">${t("pm.title")}</h2>
+      <p class="sub">${t("pm.help")}</p>
+      ${fields.map(([f, label, max]) => `<label for="pm-${f}">${t(label)}<input class="ui-input" id="pm-${f}" name="${f}" maxlength="${max}" ${f === "year" ? 'inputmode="numeric" pattern="[0-9]{4}"' : ""}
+        value="${esc((f === "venue" ? p.venueNorm || p.venue : p[f]) || "")}"></label>`).join("")}
+      <p class="err" role="alert"></p><div class="modal-foot">
+        <button type="button" class="ui-btn" data-close>${t("pm.cancel")}</button>
+        <button type="submit" class="ui-btn prominent">${t("pm.save")}</button></div></form>`);
+    modal.querySelector('[role="dialog"]').setAttribute("aria-labelledby", "paper-meta-title");
+    const form = modal.querySelector("form");
+    form.querySelector("input").focus();
+    modal.addEventListener("keydown", e => {
+      if (e.key === "Escape") { e.preventDefault(); modal.remove(); }
+      if (e.key === "Tab") {
+        const controls = [...form.querySelectorAll("input, button:not(:disabled)")], first = controls[0], last = controls.at(-1);
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const button = form.querySelector('[type="submit"]');
+      button.disabled = true; button.classList.add("is-loading");
+      try {
+        await Store.papers.update(p.id, Object.fromEntries(fields.map(([f]) => [f, form.elements[f].value])));
+        LabReload("#/paper/" + p.id, t("pm.saved"));
+      } catch (error) {
+        console.warn("paper metadata save failed", error);
+        form.querySelector(".err").textContent = t("pm.failed");
+        form.querySelector("input").focus();
+        button.disabled = false; button.classList.remove("is-loading");
+      }
+    };
+  }
   function paperPage(id) {
     const v = pageView("paper"), p = PA[id];
     if (!p) { v.innerHTML = `<div class="ui-empty">404</div>`; return; }
@@ -441,6 +489,7 @@
           ${p.x != null ? `<button class="ui-btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
           ${window.Store ? `${readingBtn(p)}
           ${writeBtn(p)}` : ""}
+          ${(() => { const me = window.Store?.auth.current(); return me && (me.role === "admin" || p.readers.includes(me.id)) ? `<button class="ui-btn" id="paper-meta-edit">${t("pm.edit")}</button>` : ""; })()}
         </div>
       </div>
       <div class="dp-grid">
@@ -456,6 +505,7 @@
           ${refs.length ? `<div class="ui-card"><h3>${t("d.citesIn")}</h3><div class="mini-list">${refs.map(x => miniPaper(x)).join("")}</div></div>` : ""}
         </aside>
       </div>`;
+    $("#paper-meta-edit")?.addEventListener("click", () => editPaperInfo(p));
     // open every comment thread on the full page
     p.reviews.forEach(r => window.LabSocial?.openThread(r, null, v));
   }

@@ -83,11 +83,12 @@
           ${study ? `<p class="ui-notice ok">${t(pick ? "w.forPick" : "w.forStudy", { title: esc(study.title) })}</p>` : ""}
           ${field("w-title", t("w.title") + " *", `<input id="w-title" ${editing || study ? "readonly" : ""}>`)}
           <div class="row3">
-            ${field("w-venue", t("w.venue"), `<input id="w-venue" ${editing ? "readonly" : ""}>`)}
-            ${field("w-year", t("w.year"), `<input id="w-year" inputmode="numeric" ${editing ? "readonly" : ""}>`)}
-            ${field("w-link", t("w.link"), `<input id="w-link" ${editing ? "readonly" : ""}>`)}
+            ${field("w-venue", t("w.venue"), `<input id="w-venue" maxlength="200">`)}
+            ${field("w-year", t("w.year"), `<input id="w-year" inputmode="numeric" maxlength="4" pattern="[0-9]{4}">`)}
+            ${field("w-link", t("w.link"), `<input id="w-link" maxlength="500">`)}
           </div>
-          ${field("w-authors", t("w.authors"), `<input id="w-authors" ${editing ? "readonly" : ""}>`)}
+          ${field("w-authors", t("w.authors"), `<input id="w-authors" maxlength="500">`)}
+          ${prePaper ? `<p class="ui-notice info">${t("pm.help")}</p>` : ""}
           <details class="fld" ${editing ? "hidden" : ""}><summary>${t("w.abstract")}</summary><textarea id="w-abstract" rows="5"></textarea></details>
           <div class="row2">
             <div class="fld"><span>${t("w.date")}</span><input id="w-date" type="date">
@@ -319,12 +320,20 @@
       if (!d.content.trim() && !d.memo.trim()) return (err.textContent = t("w.need.body"));
       const btn = form.querySelector("button.ui-btn.prominent"); if (btn.disabled) return;
       btn.disabled = true; clearTimeout(saveTimer);
-      if (editing) {
-        await S.reviews.update(editing.id, d);
-        LabReload("#/me", t("w.updated"));
-      } else {
-        await S.reviews.create(d);
-        LabReload(study ? "#/study/" + study.id : "#/me", t("w.done"));
+      try {
+        const paper = editing ? UI.PA[editing.paper] : study && prePaper ? prePaper :
+          window.LAB.allPapers.find(p => p.key === S.normTitle(d.title));
+        const metadata = paper ? Object.fromEntries(["venue", "year", "link", "authors"]
+          .filter(f => String(d[f] || "") !== String((f === "venue" ? paper.venueNorm || paper.venue : paper[f]) || ""))
+          .map(f => [f, d[f]])) : {};
+        if (editing) await S.reviews.update(editing.id, d);
+        else await S.reviews.create(d);
+        if (paper && Object.keys(metadata).length) await S.papers.update(paper.id, metadata);
+        LabReload(editing ? "#/me" : study ? "#/study/" + study.id : "#/me", t(editing ? "w.updated" : "w.done"));
+      } catch (error) {
+        console.warn("diary save failed", error);
+        err.textContent = t("pm.failed");
+        btn.disabled = false;
       }
     };
     $("#w-del", view)?.addEventListener("click", async () => {

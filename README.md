@@ -204,6 +204,7 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 | `create_draft` `my_drafts` `delete_draft` `writing_style` | 읽을 목록의 논문에 다이어리 **초안** 저장하기(PDF 첨부 가능) · 초안이 있는 논문 목록·초안 삭제 · 내 문체 규칙(`LABSIDIAN_STYLE`) 보기. 별도 보관함이나 알림 없이 읽을 목록에서 검토 후 게시해요(자동 게시 없음) |
 | `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기(로컬 PDF 첨부, 이미 읽은 논문은 "다 읽음"으로 바로), 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
 | `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
+| `update_paper_info` | 논문을 읽고 다이어리를 쓴 멤버나 관리자가 제목·저자·학회/저널·연도·링크의 확인된 사실 오류를 수정해요. 연구실 모두가 보는 공용 정보이며, 빈 값(생략한 인자의 기본값 포함)은 해당 항목을 원본으로 되돌려요 |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |
 | `open_study` `join_study` `add_study_question` `vote_study_question` `draft_study_notes` | 스터디 열기(리딩 그룹이면 날짜·장소·발표 차례·후보 논문이 사이트처럼 채워짐) · 참가 · 질문 올리기·👍 · 정리 노트 **초안** |
 | `list_guides` `get_guide` `create_guide` `add_guide_item` `vote_guide_item` | 핵심 논문 가이드 보기(누가 읽었는지·내 진행·다룬 스터디·정기 모임 회차), 만들기, 링크·제목으로 논문 추가, 👍 |
@@ -223,6 +224,10 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 결과의 `item_id`와 `open`(`#/write?reading=…`)으로 작성 화면을 열어 확인하고 게시해요. 다이어리 날짜는 게시할 때 직접 정해요(`diary_date` 인자는 없어요).
 `my_reading_list`의 `hasDraft`로 초안 유무를 확인하고, `my_drafts`로 초안이 있는 항목을 모아 볼 수 있어요.
 `delete_draft(reading_item_id=…)`는 초안만 삭제하고 읽을 목록 항목·읽기 상태·메모·PDF는 남겨요. 초안을 저장하거나 삭제해도 알림은 보내지 않아요.
+
+`update_paper_info(paper_ref, title='', authors='', venue='', year='', link='')`는 논문 id나 제목으로 공용 논문 정보를 수정해요.
+내 다이어리만 바꾸는 작업이 아니므로 확인된 사실 오류에만 사용해요. 다섯 항목을 모두 보내며, 빈 값이나 생략한 인자는 원본 값으로 돌아가요.
+기존에 수정한 값을 유지하려면 `get_paper`에서 현재 값을 확인하고 함께 보내요.
 
 > Labsidian 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(기본은 이 컴퓨터의 8765, 데모는 8766). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
 > 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_reading_group_session`(리딩 그룹 다음 모임).

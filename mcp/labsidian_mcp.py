@@ -20,7 +20,7 @@ Backend contract — what a hosted DB version has to provide (the tools only use
   DB.apply(op)    one command {"op": <name>, "actor": <user id>, ...}; the backend applies it as that user and
                   enforces roles itself (here: POST /api/ops → site/store.js applyOp run headless; hosted: an RPC /
                   edge function that takes the actor from the login token instead of trusting "actor").
-  ops: draft · draft.delete · comment · react · inbox.read · reading.add · reading.update
+  ops: draft · draft.delete · comment · react · inbox.read · reading.add · reading.update · paper.meta
        study.create · study.join · study.question · study.questionVote · study.notesDraft
        guide.create · guide.update · guide.addItem · guide.vote
        admin: tag.merge · tag.rename · tag.create · quota.set · term.save · user.role · user.disable · offday.save ·
@@ -507,6 +507,20 @@ def _attach_pdf(path):
     if len(data) > PDF_LIMIT:
         raise ToolError(f"{os.path.basename(path)} is over 20 MB (the site's limit)")
     return {"id": DB.put_file(data, "application/pdf"), "name": os.path.basename(path), "type": "application/pdf", "size": len(data), "kind": "pdf"}
+
+
+@mcp.tool()
+def update_paper_info(paper_ref: str, title: str = "", authors: str = "", venue: str = "", year: str = "", link: str = "") -> dict:
+    """Correct a lab paper's shared facts as me (paper_ref = id or title from search_papers).
+    This changes lab-wide metadata that all readers see, not just my diary or reading list.
+    Only make confirmed factual corrections. Allowed for an existing reader of the paper or an admin.
+    All five fields are sent: an empty value (including an omitted argument's default) resets that field to its
+    original base value. To keep an existing correction, pass its current value from get_paper."""
+    u = me()
+    p = paper(paper_ref)
+    return _done(DB.apply({"op": "paper.meta", "actor": u["id"], "paperId": p["id"],
+                           "title": title, "authors": authors, "venue": venue, "year": year, "link": link,
+                           "summary": p["title"][:60]}), {"open": f"{SITE}/#/paper/{p['id']}"})
 
 
 @mcp.tool()

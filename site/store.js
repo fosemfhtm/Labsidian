@@ -56,7 +56,7 @@
   const empty = () => ({
     version: 1, users: {}, reviews: {}, reviewEdits: {}, comments: {}, reactions: {}, reading: {},
     notifications: {}, drafts: {}, tagOps: [], terms: null, log: [], seq: 1, studies: {}, studyQs: {},
-    paperTags: {}, clusterNames: {},  // admin corrections: a paper's domain/method tags · a map region's name
+    paperTags: {}, paperMeta: {}, clusterNames: {},  // shared paper corrections · map region names
     offDays: {},  // the lab's weekdays off (public holidays, shutdowns, conferences): no diary owed
     guides: {},   // core-paper guides the lab curates together (docs/PEOPLE_TOPICS_GUIDES.md)
   });
@@ -66,7 +66,7 @@
   // the headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
   const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "studies", "studyQs",
-    "paperTags", "clusterNames", "offDays", "guides"];
+    "paperTags", "paperMeta", "clusterNames", "offDays", "guides"];
   const recordsOf = d => {
     const m = new Map();
     Object.entries(d).forEach(([k, v]) => {
@@ -342,6 +342,7 @@
       const papers = [], byKey = {}, byId = {}, fresh = [];
       ORIG.papers.forEach(p => {
         const q = { ...p, reviews: [], key: normTitle(p.title), free: [] };
+        Object.assign(q, db.paperMeta[p.id] || {});
         const fix = db.paperTags[p.id];  // set by an admin (or their AI): replaces the keyword-rule tags
         if (fix) Object.assign(q, { domains: fix.domains, methods: fix.methods, tagsFixed: true });
         papers.push(q); byKey[q.key] = q; byId[q.id] = q;
@@ -356,6 +357,7 @@
             p = { id: "np_" + key.slice(0, 40), key, title: m.title || "(untitled)", link: m.link || "", venue: m.venue || "", venueNorm: m.venue || "",
               venueType: /arxiv/i.test(m.venue || "") ? "preprint" : "", authors: m.authors || "", year: m.year ? +m.year : null, abstract: m.abstract || "",
               citations: null, refs: [], reviews: [], domains: [], methods: [], free: [], fresh: true };
+            Object.assign(p, db.paperMeta[p.id] || {});
             const fix = db.paperTags[p.id];
             if (fix) Object.assign(p, { domains: fix.domains, methods: fix.methods, tagsFixed: true });
             papers.push(p); byKey[key] = p; byId[p.id] = p; fresh.push(p);
@@ -1391,6 +1393,12 @@
       };
     },
     findPaper(title) { const key = normTitle(title); return key.length > 8 ? SEED.allPapers.find(p => p.key === key) || null : null; },
+    papers: {
+      async update(id, fields) {
+        const me = requireUser();
+        return applyOp({ ...fields, op: "paper.meta", actor: me.id, paperId: id });
+      },
+    },
 
     // my AI (MCP) tokens — kept by the server (hashed), so only there; the token itself comes back once, from create
     tokens: {
@@ -1438,7 +1446,7 @@
   const OPS = new Set(["draft", "draft.delete", "comment", "react", "inbox.read", "reading.add", "study.question", "study.questionVote",
     "study.notesDraft", "study.create", "study.join",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
-    "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
+    "paper.meta", "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
@@ -1569,6 +1577,33 @@
         }
         log("cluster.name", `${c.id} → ${ko || en || "(auto)"}`); save(); buildDataset();
       }
+      if (op.op === "paper.meta") {
+        const p = SEED.allPapers.find(x => x.id === op.paperId);
+        if (!p) throw new Error("paper.missing");
+        const reader = p.reviews.some(id => reviewById(id)?.person === op.actor) ||
+          Object.values(db.reviews).some(r => r.paper === p.id && r.person === op.actor);
+        if (actor.role !== "admin" && !reader) throw new Error("forbidden");
+        const patch = {};
+        for (const [field, limit] of Object.entries({ title: 300, venue: 200, authors: 500, year: 4, link: 500 })) {
+          if (!(field in op)) continue;
+          const value = String(op[field] ?? "").trim();
+          if (value.length > limit || (field === "year" && value && !/^\d{4}$/.test(value))) throw new Error("paper.meta.invalid");
+          patch[field] = value;
+        }
+        const meta = { ...(db.paperMeta[p.id] || {}) };
+        for (const [field, value] of Object.entries(patch)) {
+          if (!value) delete meta[field];
+          else meta[field] = field === "year" ? +value : value;
+          if (field === "venue") {
+            if (value) meta.venueNorm = value;
+            else delete meta.venueNorm;
+          }
+        }
+        if (["title", "venue", "authors", "year", "link"].some(f => f in meta)) db.paperMeta[p.id] = { ...meta, by: op.actor, at: now() };
+        else delete db.paperMeta[p.id];
+        log("paper.meta", p.title.slice(0, 60)); save(); buildDataset();
+        res = { paperId: p.id };
+      }
       if (op.op === "paper.tags") {
         const p = SEED.allPapers.find(x => x.id === op.paperId); if (!p) throw new Error("paper.missing");
         const ids = (op.tags || []).map(cleanTag).filter(Boolean);
@@ -1583,7 +1618,7 @@
     return res;
   }
   const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
-    "offday.save", "offday.remove"]);
+    "paper.meta", "offday.save", "offday.remove"]);
   if (HEADLESS) { window.__LABSIDIAN_HEADLESS__({ applyOp, snapshot, db: () => db }); return; }
 
   // ---------------------------------------------------------------- server sync: changes made elsewhere (MCP, other tabs)
