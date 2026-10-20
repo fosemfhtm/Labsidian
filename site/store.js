@@ -1463,6 +1463,7 @@
     let res = {};
     try {
       if (op.op === "draft") {
+        const data = op.data || {}, rating = cleanRating(data.rating);
         const list = (db.reading[op.actor] ||= []);
         let item = op.itemId ? list.find(x => (x.id || "rd_" + x.paperId) === op.itemId) : null;
         if (op.itemId && !item) throw new Error("reading.missing");
@@ -1475,7 +1476,6 @@
             const id = await Store.reading.add({ title: op.title, venue: op.venue, authors: op.authors, year: op.year,
               link: op.link, abstract: op.abstract, files: op.files, status: "read", source: "mcp" });
             item = list.find(x => (x.id || "rd_" + x.paperId) === id);
-        const data = op.data || {}, rating = cleanRating(data.rating);
           }
         }
         item.id ||= "rd_" + item.paperId;

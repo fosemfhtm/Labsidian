@@ -71,7 +71,7 @@
   function item(x) {
     const st = stateOf(x), pdf = x.files.find(f => f.kind === "pdf");
     const au = x.authors ? x.authors.split(",").map(s => s.trim()).filter(Boolean) : [];
-    const meta = [au.slice(0, 3).join(", ") + (au.length > 3 ? " et al." : ""), x.venue, x.year].filter(Boolean).join(" · ");
+    const meta = [au.slice(0, 3).join(", ") + (au.length > 3 ? " et al." : ""), S.paperCitation(x)].filter(Boolean).join(" · ");
     const [k, at] = st === "read" ? ["read", x.readAt] : st === "reading" ? ["started", x.startedAt] : ["added", x.addedAt];
     const when = ago(at) ? t(`rl.${k}Ago`, { d: ago(at) }) : t(`rl.${k}Today`);
     return `<div class="ui-row two ruled rl-item rl-st- ${st}" data-id="${esc(x.id)}">

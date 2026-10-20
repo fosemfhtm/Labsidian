@@ -21,7 +21,7 @@ papers.forEach(p => {
   p._first = first?.person;
 });
 const reviewDates = [...new Set(D.reviews.map(r => r.date))].sort();
-const years = papers.map(p => p.year).filter(Boolean);
+const years = papers.map(p => window.Store.paperYear(p)).filter(Boolean);
 const YMIN = Math.min(...years, 2000), YMAX = Math.max(...years, 2026);
 
 const venueCount = {};
@@ -86,7 +86,7 @@ function yearColor(y) {
   return toHex(a.map((v, j) => v + (b[j] - v) * f));
 }
 function paperColor(p) {
-  if (state.colorBy === "year") return yearColor(p.year);
+  if (state.colorBy === "year") return yearColor(window.Store.paperYear(p));
   if (state.colorBy === "venue") return venueColor[p.venueNorm] || THEME.other;
   return P[p._first]?.color ? hex(P[p._first].color) : THEME.other;
 }
@@ -94,13 +94,13 @@ function paperColor(p) {
 // ---------------- filters ----------------
 function matches(p) {
   if (matchCache.has(p.id)) return matchCache.get(p.id);
-  const s = state;
+  const s = state, year = window.Store.paperYear(p);
   const ok = (!s.people.size || p.readers.some(r => s.people.has(r))) &&
     (!s.tags.size || p.domains.some(d => s.tags.has(d))) &&
     (!s.methods.size || p.methods.some(m => s.methods.has(m))) &&
     (!s.venues.size || s.venues.has(p.venueNorm)) &&
     (!s.vtypes.size || s.vtypes.has(p.venueType)) &&
-    (p.year ? p.year >= s.yearMin && p.year <= s.yearMax : s.yearUnknown) &&
+    (year ? year >= s.yearMin && year <= s.yearMax : s.yearUnknown) &&
     (!s.minRating || p.rating >= s.minRating) &&
     (!s.sharedOnly || p.readers.length > 1);
   matchCache.set(p.id, ok);

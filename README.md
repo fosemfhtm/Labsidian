@@ -226,9 +226,13 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 `my_reading_list`의 `hasDraft`로 초안 유무를 확인하고, `my_drafts`로 초안이 있는 항목을 모아 볼 수 있어요.
 `delete_draft(reading_item_id=…)`는 초안만 삭제하고 읽을 목록 항목·읽기 상태·메모·PDF는 남겨요. 초안을 저장하거나 삭제해도 알림은 보내지 않아요.
 
-`update_paper_info(paper_ref, title='', authors='', venue='', year='', link='', reset=[])`는 논문 id나 제목으로 공용 논문 정보를 수정해요.
+`update_paper_info(paper_ref, title='', authors='', venue='', year='', link='', reset=[], preprint_venue='', preprint_year='')`는 논문 id나 제목으로 공용 논문 정보를 수정해요.
 내 다이어리만 바꾸는 작업이 아니므로 확인된 사실 오류에만 사용해요. 값을 준 항목만 바뀌고 나머지는 그대로예요.
-원본 값으로 되돌릴 항목은 `reset=["year"]`처럼 이름으로 적어요.
+`venue`·`year`는 정식 출판 학회/저널·연도이고, 선택 항목 `preprint_venue`·`preprint_year`는 프리프린트 출처·연도예요. 프리프린트 연도는 네 자리 문자열(예: `"2023"`)로 보내요.
+프리프린트 연도만 있고 출처가 비어 있으면 표시할 때만 `arXiv`를 사용해요. 기존 출판 정보를 프리프린트로 추측하거나 옮기지 않아요.
+예를 들어 `update_paper_info("논문 제목", preprint_year="2023")`은 다른 항목을 그대로 두고 프리프린트 연도만 바꿔요. 기존 출판 정보가 KDD·2025라면 함께 `KDD 2025 · arXiv 2023`으로 표시해요. 한쪽 정보만 있으면 그 정보만 표시해요.
+원본 값으로 되돌릴 항목은 `reset=["year", "preprint_year"]`처럼 이름으로 적어요. `reset`은 `title`, `authors`, `venue`, `year`, `link`, `preprint_venue`, `preprint_year`를 받아요.
+`search_papers` 등 논문 요약·`get_paper`·`my_reading_list` 결과에는 기존 `venue`·`year`와 별도로 `preprintVenue`·`preprintYear`, 함께 표시하는 문자열 `citation`이 있어요. 검색에도 출판·프리프린트 출처와 연도가 포함돼요.
 
 > Labsidian 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(기본은 이 컴퓨터의 8765, 데모는 8766). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
 > 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_reading_group_session`(리딩 그룹 다음 모임).

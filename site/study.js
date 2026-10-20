@@ -134,7 +134,7 @@
     return `<div id="shared-list">${list.map(p => `
       <div class="ui-card shared-item">
         <h3 data-open="paper:${p.id}">${esc(p.title)}</h3>
-        <div class="pr-meta"><span>${esc(p.venueNorm || p.venue)}</span>${UI.stars(p.rating)}${UI.topicIds(p).map(UI.tag).join("")}
+        <div class="pr-meta"><span>${esc(S.paperCitation(p))}</span>${UI.stars(p.rating)}${UI.topicIds(p).map(UI.tag).join("")}
           <a class="ui-btn text" href="#/study/new?paper=${p.id}">📚 ${t("st.candOpen")}</a></div>
         <div class="rev-cols">${p.reviews.map(r => UI.reviewHtml(UI.R[r])).join("")}</div>
       </div>`).join("")}</div>`;
@@ -396,7 +396,7 @@
             <button class="ui-btn text" data-act="close">${st.closed ? t("st.reopen") : t("st.close")}</button>
             <button class="ui-btn text destructive" data-act="delete">${t("st.delete")}</button></div></details>` : ""}</div>
         <h1>${p ? `<a href="#/paper/${p.id}">${esc(st.title)}</a>` : esc(st.title)}</h1>
-        <div class="st-meta">${p ? `<span>${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</span>` : ""}
+        <div class="st-meta">${p ? `<span>${esc(S.paperCitation(p))}</span>` : ""}
           ${pdf ? `<a class="ui-btn small" data-fid="${esc(pdf.id)}" target="_blank" rel="noopener">${t("d.pdf")}</a>` : ""}
           ${httpUrl(st.link) ? `<a class="ui-btn small" href="${esc(st.link)}" target="_blank" rel="noopener noreferrer">🔗 ${t("w.link")}</a>` : ""}
           ${UI.avStack(st.members, 6)}<span class="m">${t("st.members", { n: st.members.length })}</span>

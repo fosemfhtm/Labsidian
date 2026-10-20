@@ -87,6 +87,10 @@
             ${field("w-year", t("w.year"), `<input id="w-year" inputmode="numeric" maxlength="4" pattern="[0-9]{4}">`)}
             ${field("w-link", t("w.link"), `<input id="w-link" maxlength="500">`)}
           </div>
+          <div class="row2">
+            ${field("w-preprintVenue", t("pm.preprintVenue"), `<input id="w-preprintVenue" maxlength="200" placeholder="${t("pm.preprintDefault")}">`)}
+            ${field("w-preprintYear", t("pm.preprintYear"), `<input id="w-preprintYear" inputmode="numeric" maxlength="4" pattern="[0-9]{4}">`)}
+          </div>
           ${field("w-authors", t("w.authors"), `<input id="w-authors" maxlength="500">`)}
           ${prePaper ? `<p class="ui-notice info">${t("pm.help")}</p>` : ""}
           <details class="fld" ${editing ? "hidden" : ""}><summary>${t("w.abstract")}</summary><textarea id="w-abstract" rows="5"></textarea></details>
@@ -126,20 +130,22 @@
     if (editing) {
       const p = UI.PA[editing.paper];
       set("w-title", p.title); set("w-venue", p.venueNorm || p.venue); set("w-year", p.year || ""); set("w-link", p.link); set("w-authors", p.authors);
+      set("w-preprintVenue", p.preprintVenue || ""); set("w-preprintYear", p.preprintYear || "");
       set("w-date", editing.date); set("w-content", editing.content); set("w-memo", editing.memo);
       rating = editing.rating; tags = [...(editing.tags || [])]; files = [...(editing.files || [])];
     } else {
       set("w-date", /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") || "") ? params.get("date") : S.today());  // from a calendar day
       const d = fromReading ? null : S.drafts.get();
       if (fromReading && !prePaper) {
-        ["title", "venue", "year", "link", "authors", "abstract"].forEach(k => set("w-" + k, fromReading[k]));
+        ["title", "venue", "year", "preprintVenue", "preprintYear", "link", "authors", "abstract"].forEach(k => set("w-" + k, fromReading[k]));
       } else if (study && !prePaper) {
         set("w-title", pick ? pick.title : study.title); set("w-link", pick ? pick.link : study.link);
       } else if (prePaper) {
         set("w-title", prePaper.title); set("w-venue", prePaper.venueNorm || prePaper.venue); set("w-year", prePaper.year || "");
+        set("w-preprintVenue", prePaper.preprintVenue || ""); set("w-preprintYear", prePaper.preprintYear || "");
         set("w-link", prePaper.link); set("w-authors", prePaper.authors); set("w-abstract", prePaper.abstract || "");
       } else if (d) {
-        ["title", "venue", "year", "link", "authors", "abstract", "date", "content", "memo"].forEach(k => set("w-" + k, d[k]));
+        ["title", "venue", "year", "preprintVenue", "preprintYear", "link", "authors", "abstract", "date", "content", "memo"].forEach(k => set("w-" + k, d[k]));
         rating = d.rating || 0; tags = d.tags || []; files = d.files || []; fromDraft = true;
         $("#w-restored", view).hidden = false;
       }
@@ -157,6 +163,7 @@
 
   const val = id => ($("#" + id, view)?.value || "").trim();
   const collect = () => ({ title: val("w-title"), venue: val("w-venue"), year: val("w-year"), link: val("w-link"), authors: val("w-authors"),
+    preprintVenue: val("w-preprintVenue"), preprintYear: val("w-preprintYear"),
     abstract: val("w-abstract"), date: val("w-date") || editing?.date || S.today(), content: $("#w-content", view).value, memo: $("#w-memo", view).value, rating, tags, files, studyId: study?.id || null, pick: !!pick, fromDraft, readingItemId: fromReading?.id || null });
 
   function paintStars() { UI.paintRatingInput($("#w-stars", view), rating); }
@@ -323,7 +330,7 @@
       try {
         const paper = editing ? UI.PA[editing.paper] : study && prePaper ? prePaper :
           window.LAB.allPapers.find(p => p.key === S.normTitle(d.title));
-        const metadata = paper ? Object.fromEntries(["venue", "year", "link", "authors"]
+        const metadata = paper ? Object.fromEntries(["venue", "year", "preprintVenue", "preprintYear", "link", "authors"]
           .filter(f => String(d[f] || "") !== String((f === "venue" ? paper.venueNorm || paper.venue : paper[f]) || ""))
           .map(f => [f, d[f]])) : {};
         if (editing) await S.reviews.update(editing.id, d);

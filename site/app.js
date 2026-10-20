@@ -6,11 +6,13 @@
     ko: {
       "pm.edit": "편집…", "pm.title": "논문 정보 편집", "pm.help": "모든 독자가 보는 논문 정보예요. 확인한 사실만 저장해 주세요. 칸을 비우면 원래 정보로 돌아가요.",
       "pm.paperTitle": "논문 제목", "pm.authors": "저자", "pm.venue": "저널·학회", "pm.year": "연도", "pm.link": "링크",
+      "pm.preprintVenue": "먼저 공개된 곳", "pm.preprintYear": "공개 연도", "pm.preprintDefault": "arXiv",
       "pm.save": "저장", "pm.cancel": "취소", "pm.saved": "논문 정보를 저장했어요", "pm.failed": "저장하지 못했어요. 입력을 확인하고 다시 시도해 주세요.",
     },
     en: {
       "pm.edit": "Edit…", "pm.title": "Edit paper info", "pm.help": "Every reader sees this shared paper information. Save only confirmed facts. Clear a field to restore its original value.",
       "pm.paperTitle": "Paper title", "pm.authors": "Authors", "pm.venue": "Venue", "pm.year": "Year", "pm.link": "Link",
+      "pm.preprintVenue": "Preprint Venue", "pm.preprintYear": "Preprint Year", "pm.preprintDefault": "arXiv",
       "pm.save": "Save", "pm.cancel": "Cancel", "pm.saved": "Paper information saved", "pm.failed": "Could not save. Check the fields and try again.",
     },
   });
@@ -34,7 +36,7 @@
     Object.keys(paperTopicCount).forEach(k => delete paperTopicCount[k]);
     D.papers.forEach(p => topicIds(p).forEach(x => (paperTopicCount[x] = (paperTopicCount[x] || 0) + 1)));
     new Set([...D.papers, ...(D.allPapers || [])]).forEach(p => {
-      p._hay = (p.title + " " + p.authors + " " + p.venue + " " + p.venueNorm + " " +
+      p._hay = (p.title + " " + p.authors + " " + p.venue + " " + p.venueNorm + " " + Store.paperCitation(p) + " " +
         p.reviews.filter(r => !window.Store?.studies.hidden(R[r])).map(r => R[r].content + " " + R[r].memo).join(" ")).toLowerCase();
       p._last = p.reviews.map(r => R[r].date).sort().pop();
     });
@@ -171,7 +173,7 @@
     const long = !opts.full && r.content.length > 380;
     return `<div class="review ${opts.full ? "full" : ""} ${mine ? "mine" : ""}" id="rv-${r.id}" data-review="${r.id}">
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
-      <div class="kv">${esc(PA[r.paper]?.venueNorm || PA[r.paper]?.venue || "")}${PA[r.paper]?.year ? ` · ${PA[r.paper].year}` : ""}</div>
+      <div class="kv">${esc(Store.paperCitation(PA[r.paper]))}</div>
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b>${stars(r.rating)}
         <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>${regBadge(r)}
         ${mine ? `<span class="ui-pill accent">${t("rv.mine")}</span>` : ""}
@@ -343,7 +345,7 @@
     return `
       <h2>${esc(p.title)}</h2>
       <div class="kv">${esc(p.authors)}</div>
-      <div class="kv near">${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</div>
+      <div class="kv near">${esc(Store.paperCitation(p))}</div>
       ${p.link ? `<div class="kv near">${linkHtml(p.link)}</div>` : ""}
       <div class="tags-row">${topicIds(p).map(tag).join("")}</div>
       ${cc ? `<div class="tags-row"><span class="ui-tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
@@ -413,7 +415,7 @@
       <div class="paper-row" data-open="paper:${p.id}">
         <div class="pr-title">${esc(p.title)}</div>
         <div class="pr-right"><div class="readers">${p.readers.map(id => avatar(id)).join("")}</div>${stars(p.rating)}</div>
-        <div class="pr-meta"><span>${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}</span><span>${esc(p._last)}</span>${topicIds(p).map(tag).join("")}</div>
+        <div class="pr-meta"><span>${esc(Store.paperCitation(p))}</span><span>${esc(p._last)}</span>${topicIds(p).map(tag).join("")}</div>
       </div>`).join("") || `<div class="ui-empty">${t("papers.empty")}</div>`;
     if (list.length > paperLimit) {
       $("#paper-list").insertAdjacentHTML("beforeend", `<button class="ui-btn plain load-more" id="more">${t("papers.more", { n: list.length - paperLimit })}</button>`);
@@ -427,7 +429,7 @@
     $("#shared-list").innerHTML = list.map(p => `
       <div class="ui-card shared-item">
         <h3 data-open="paper:${p.id}">${esc(p.title)}</h3>
-        <div class="pr-meta"><span>${esc(p.venueNorm || p.venue)}</span>${stars(p.rating)}${topicIds(p).map(tag).join("")}</div>
+        <div class="pr-meta"><span>${esc(Store.paperCitation(p))}</span>${stars(p.rating)}${topicIds(p).map(tag).join("")}</div>
         <div class="rev-cols">${p.reviews.map(r => reviewHtml(R[r])).join("")}</div>
       </div>`).join("");
   }
@@ -454,10 +456,11 @@
     }).join("")}</div>`;
   }
   function editPaperInfo(p) {
-    const fields = [["title", "pm.paperTitle", 300], ["authors", "pm.authors", 500], ["venue", "pm.venue", 200], ["year", "pm.year", 4], ["link", "pm.link", 500]];
+    const fields = [["title", "pm.paperTitle", 300], ["authors", "pm.authors", 500], ["venue", "pm.venue", 200], ["year", "pm.year", 4],
+      ["preprintVenue", "pm.preprintVenue", 200], ["preprintYear", "pm.preprintYear", 4], ["link", "pm.link", 500]];
     const modal = LabModal(`<form><h2 id="paper-meta-title">${t("pm.title")}</h2>
       <p class="sub">${t("pm.help")}</p>
-      ${fields.map(([f, label, max]) => `<label for="pm-${f}">${t(label)}<input class="ui-input" id="pm-${f}" name="${f}" maxlength="${max}" ${f === "year" ? 'inputmode="numeric" pattern="[0-9]{4}"' : ""}
+      ${fields.map(([f, label, max]) => `<label for="pm-${f}">${t(label)}<input class="ui-input" id="pm-${f}" name="${f}" maxlength="${max}" ${["year", "preprintYear"].includes(f) ? 'inputmode="numeric" pattern="[0-9]{4}"' : ""} ${f === "preprintVenue" ? `placeholder="${t("pm.preprintDefault")}"` : ""}
         value="${esc((f === "venue" ? p.venueNorm || p.venue : p[f]) || "")}"></label>`).join("")}
       <p class="err" role="alert"></p><div class="modal-foot">
         <button type="button" class="ui-btn" data-close>${t("pm.cancel")}</button>
@@ -500,7 +503,7 @@
           ${c ? `<span class="ui-tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
         <h1>${esc(p.title)}</h1>
         <div class="kv">${esc(p.authors)}</div>
-        <div class="kv">${esc(p.venueNorm || p.venue)}${p.year ? ` · ${p.year}` : ""}${p.citations != null ? ` · ${t("d.cites")} ${p.citations}` : ""}</div>
+        <div class="kv">${esc(Store.paperCitation(p))}${p.citations != null ? ` · ${t("d.cites")} ${p.citations}` : ""}</div>
         ${p.link ? `<div class="kv">${linkHtml(p.link)}</div>` : ""}
         <div class="tags-row">${topicIds(p).map(tag).join("")}${(p.free || []).map(tag).join("")}</div>
         <div class="btn-row">

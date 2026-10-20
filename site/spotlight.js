@@ -47,7 +47,7 @@
     return groups;
   }
   const paperItem = (p, inReview) => ({ kind: "paper", go: `#/paper/${p.id}`, title: p.title,
-    sub: [p.venueNorm || p.venue, p.year, t("sp.reviews", { n: p.reviews.length }), inReview ? t("sp.inReview") : ""].filter(Boolean).join(" · ") });
+    sub: [S.paperCitation(p), t("sp.reviews", { n: p.reviews.length }), inReview ? t("sp.inReview") : ""].filter(Boolean).join(" · ") });
 
   let box = null, results = [], active = 0;
   function open(initial = "") {

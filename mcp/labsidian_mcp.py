@@ -151,8 +151,8 @@ class ServerBackend:
             d["U"] = {u["id"]: u for u in d["users"]}
             for p in d["papers"]:
                 p["_key"] = norm_title(p["title"])
-                # fields for search_papers: a hit in the title counts most, then authors/venue and abstract, then diaries
-                p["_f"] = {"title": p["title"].lower(), "meta": ((p.get("authors") or "") + " " + (p.get("venueNorm") or p.get("venue") or "")).lower(),
+                # search_papers ranks title first, then authors/publication/preprint metadata and abstract, then diaries
+                p["_f"] = {"title": p["title"].lower(), "meta": ((p.get("authors") or "") + " " + paper_citation(p)).lower(),
                            "abstract": (p.get("abstract") or "").lower(),
                            "diaries": " ".join(d["R"][r]["content"] + " " + d["R"][r]["memo"] for r in p["reviews"] if r in d["R"] and not self._blind(d, d["R"][r])).lower()}
                 p["_hay"] = " ".join(p["_f"].values())
@@ -274,9 +274,18 @@ def file_list(fs):
     return [{"file_id": f["id"], "name": f.get("name"), "kind": f.get("kind"), "size": f.get("size")} for f in fs or [] if f.get("id")]
 
 
+def paper_citation(p):
+    """Published and optional preprint metadata as plain display text, without inferring stored values."""
+    published = " ".join(str(v) for v in (p.get("venueNorm") or p.get("venue"), p.get("year")) if v)
+    preprint = " ".join(str(v) for v in (p.get("preprintVenue") or ("arXiv" if p.get("preprintYear") else ""),
+                                        p.get("preprintYear")) if v)
+    return " · ".join(v for v in (published, preprint) if v)
+
+
 def brief(p):
     d = DB.data()
     return {"id": p["id"], "title": p["title"], "venue": p.get("venueNorm") or p.get("venue", ""), "year": p.get("year"),
+            "preprintVenue": p.get("preprintVenue"), "preprintYear": p.get("preprintYear"), "citation": paper_citation(p),
             "rating": p.get("rating"), "readers": [d["P"].get(r, {}).get("name", r) for r in p.get("readers", [])],
             "tags": [tag_label(t) for t in paper_tags(p)], "open": f"{SITE}/#/paper/{p['id']}"}
 
@@ -322,9 +331,9 @@ def whoami() -> dict:
 
 @mcp.tool()
 def search_papers(query: str = "", person_name: str = "", tag: str = "", min_rating: float = 0, term: str = "", limit: int = 15) -> list:
-    """Search the lab's papers. query matches title/authors/venue/abstract/diary text (every word must match
-    somewhere); results are ranked by where the words hit — title first, then authors/venue and abstract, then
-    diaries — and then by how many members read the paper. Without a query: most-read first.
+    """Search the lab's papers. query matches title/authors/publication and preprint venues and years/abstract/diary
+    text (every word must match somewhere); results rank title first, then metadata and abstract, then diaries,
+    and then by how many members read the paper. Without a query: most-read first.
     person_name: only papers this member wrote a diary on. tag: tag id or label (e.g. "d:safety", "강화학습").
     term: e.g. "2026H1"."""
     d = DB.data()
@@ -511,19 +520,22 @@ def _attach_pdf(path):
 
 @mcp.tool()
 def update_paper_info(paper_ref: str, title: str = "", authors: str = "", venue: str = "", year: str = "", link: str = "",
-                      reset: list[str] | None = None) -> dict:
+                      reset: list[str] | None = None, preprint_venue: str = "", preprint_year: str = "") -> dict:
     """Correct a lab paper's shared facts as me (paper_ref = id or title from search_papers).
     This changes lab-wide metadata that all readers see, not just my diary or reading list.
     Only make confirmed factual corrections. Allowed for an existing reader of the paper or an admin.
-    Only the fields given are changed; the others stay as they are. reset: field names (title, authors, venue, year,
-    link) to put back to their original value."""
+    Only the fields given are changed; the others stay as they are. venue/year describe publication;
+    preprint_venue/preprint_year describe an optional preprint (year: four digits; display venue defaults to arXiv).
+    reset: field names (title, authors, venue, year, link, preprint_venue, preprint_year) to restore original values."""
     u = me()
     p = paper(paper_ref)
-    given = {"title": title, "authors": authors, "venue": venue, "year": year, "link": link}
+    given = {"title": title, "authors": authors, "venue": venue, "year": year, "link": link,
+             "preprint_venue": preprint_venue, "preprint_year": preprint_year}
     bad = [f for f in reset or [] if f not in given]
     if bad:
         raise ToolError(f"reset: unknown field(s) {bad}")
-    fields = {k: v for k, v in given.items() if v} | {k: "" for k in reset or []}
+    names = {"preprint_venue": "preprintVenue", "preprint_year": "preprintYear"}
+    fields = {names.get(k, k): v for k, v in given.items() if v} | {names.get(k, k): "" for k in reset or []}
     if not fields:
         raise ToolError("nothing to change")
     return _done(DB.apply({"op": "paper.meta", "actor": u["id"], "paperId": p["id"], **fields,
@@ -628,6 +640,7 @@ def my_reading_list(status: str = "") -> list:
     if status and status not in ("todo", "reading", "read", "written"):
         raise ToolError("status: todo | reading | read | written")
     return [{"id": x["id"], "status": state(x), "title": x["title"], "authors": x.get("authors"), "venue": x.get("venue"), "year": x.get("year"),
+             "preprintVenue": x.get("preprintVenue"), "preprintYear": x.get("preprintYear"), "citation": paper_citation(x),
              "link": x.get("link"), "note": x.get("note"), "addedAt": x.get("addedAt"), "readAt": x.get("readAt"), "pdfs": file_list(x.get("files")),
              "hasDraft": bool(x.get("draft")), "labPaper": x.get("paperId"), "readInLabBy": [_name(r) for r in x.get("readers") or []]}
             for x in items if not status or state(x) == status]

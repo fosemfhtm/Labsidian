@@ -127,7 +127,7 @@
   // ---------------- one guide
   function itemRow(g, it, canManage, me) {
     const p = S.guides.paperOf(it), title = S.guides.titleOf(it), done = me && S.guides.wroteBy(it, me.id);
-    const meta = p ? [p.authors?.split(",").slice(0, 3).join(","), p.venueNorm || p.venue, p.year].filter(Boolean).join(" · ") : [it.meta?.authors, it.meta?.venue, it.meta?.year].filter(Boolean).join(" · ");
+    const meta = p ? [p.authors?.split(",").slice(0, 3).join(","), S.paperCitation(p)].filter(Boolean).join(" · ") : [it.meta?.authors, S.paperCitation(it.meta || {})].filter(Boolean).join(" · ");
     const link = p?.link || it.meta?.link || "", studies = S.guides.studiesFor(it), voted = me && (it.votes || []).includes(me.id);
     const inReading = me && (p ? S.reading.has(p.id) : S.reading.list().some(x => S.normTitle(x.title) === it.key));
     const sameSec = g.items.filter(x => x.section === it.section).length;
