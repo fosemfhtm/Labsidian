@@ -458,7 +458,7 @@
 :where([data-ui]) .ui-rating-star.full { color: var(--star); }
 :where([data-ui]) .ui-rating-star.half::after { content: "★"; position: absolute; inset: 0; width: 50%; overflow: hidden; color: var(--star); }
 :where([data-ui]) .ui-rating-number { margin-inline-start: var(--s-1); color: var(--label-2); font: var(--t-callout); font-variant-numeric: tabular-nums; }
-:where([data-ui]) .ui-rating-input { cursor: pointer; border-radius: var(--r-control); }
+:where([data-ui]) .ui-rating-input { cursor: pointer; border-radius: var(--r-control); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 :where([data-ui]) .ui-rating-input .ui-rating-star { width: var(--hit); height: var(--hit); text-align: center; line-height: var(--hit); font-size: var(--fs-title1); }
 :where([data-ui]) .ui-rating-input .ui-rating-star.half::after { text-align: left; text-indent: calc((var(--hit) - 1em) / 2); }
 :where([data-ui]) .ui-rating-input:focus-visible { outline: calc(var(--s-1) / 2) solid var(--accent); outline-offset: var(--s-1); }

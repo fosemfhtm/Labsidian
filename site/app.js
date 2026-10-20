@@ -67,19 +67,33 @@
   const starUnits = n => [1, 2, 3, 4, 5].map(i => `<span class="ui-rating-star ${n >= i ? "full" : n >= i - .5 ? "half" : ""}" data-v="${i}" aria-hidden="true">★</span>`).join("");
   const stars = n => `<span class="ui-rating" role="img" aria-label="${esc(ratingLabel(n))}">${starUnits(Math.round(n * 2) / 2)}<span class="ui-rating-number" aria-hidden="true">${ratingText(n)}</span></span>`;
   const ratingInput = (id, n = 0) => `<div class="ui-rating-input" id="${id}" role="slider" tabindex="0" aria-label="${t("rating.label")}" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${n}" aria-valuetext="${esc(ratingLabel(n))}">${starUnits(n)}<span class="ui-rating-number" aria-hidden="true">${ratingText(n)}</span></div>`;
+  const paintRatingStars = (el, n) => {
+    el.querySelectorAll("[data-v]").forEach(s => s.className = `ui-rating-star ${n >= +s.dataset.v ? "full" : n >= +s.dataset.v - .5 ? "half" : ""}`);
+    el.querySelector(".ui-rating-number").textContent = ratingText(n);
+  };
   const paintRatingInput = (el, n) => {
     el.setAttribute("aria-valuenow", n); el.setAttribute("aria-valuetext", ratingLabel(n));
-    el.innerHTML = starUnits(n) + `<span class="ui-rating-number" aria-hidden="true">${ratingText(n)}</span>`;
+    paintRatingStars(el, n);
   };
+  // pointer: hovering previews the value under the cursor, pressing (and dragging) sets it — left half of a star = .5
   const wireRatingInput = (el, change) => {
-    const set = n => { paintRatingInput(el, n); change(n); };
-    el.onclick = e => {
-      const star = e.target.closest("[data-v]"); if (!star) return;
-      const box = star.getBoundingClientRect();
-      set(+star.dataset.v - (e.clientX < box.left + box.width / 2 ? .5 : 0)); el.focus();
+    const now = () => +el.getAttribute("aria-valuenow");
+    const set = n => { if (n !== now()) { paintRatingInput(el, n); change(n); } else paintRatingStars(el, n); };
+    const valueAt = x => {
+      const s = [...el.querySelectorAll("[data-v]")], a = s[0].getBoundingClientRect(), b = s.at(-1).getBoundingClientRect();
+      const w = (b.right - a.left) / s.length, k = Math.min(s.length - 1, Math.max(0, Math.floor((x - a.left) / w)));
+      return k + ((x - a.left) / w - k < .5 ? .5 : 1);
     };
+    let dragging = false;
+    el.onpointerdown = e => {
+      if (!e.target.closest("[data-v]")) return;
+      dragging = true; el.setPointerCapture(e.pointerId); set(valueAt(e.clientX)); el.focus();
+    };
+    el.onpointermove = e => dragging ? set(valueAt(e.clientX)) : e.pointerType === "mouse" && paintRatingStars(el, valueAt(e.clientX));
+    el.onpointerup = el.onpointercancel = () => { dragging = false; };
+    el.onpointerleave = () => { if (!dragging) paintRatingStars(el, now()); };
     el.onkeydown = e => {
-      const n = +el.getAttribute("aria-valuenow");
+      const n = now();
       const next = { ArrowLeft: n - .5, ArrowDown: n - .5, ArrowRight: n + .5, ArrowUp: n + .5, Home: 0, End: 5 }[e.key];
       if (next == null) return;
       e.preventDefault(); set(Math.max(0, Math.min(5, next)));
