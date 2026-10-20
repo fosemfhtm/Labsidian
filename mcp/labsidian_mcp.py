@@ -510,16 +510,23 @@ def _attach_pdf(path):
 
 
 @mcp.tool()
-def update_paper_info(paper_ref: str, title: str = "", authors: str = "", venue: str = "", year: str = "", link: str = "") -> dict:
+def update_paper_info(paper_ref: str, title: str = "", authors: str = "", venue: str = "", year: str = "", link: str = "",
+                      reset: list[str] | None = None) -> dict:
     """Correct a lab paper's shared facts as me (paper_ref = id or title from search_papers).
     This changes lab-wide metadata that all readers see, not just my diary or reading list.
     Only make confirmed factual corrections. Allowed for an existing reader of the paper or an admin.
-    All five fields are sent: an empty value (including an omitted argument's default) resets that field to its
-    original base value. To keep an existing correction, pass its current value from get_paper."""
+    Only the fields given are changed; the others stay as they are. reset: field names (title, authors, venue, year,
+    link) to put back to their original value."""
     u = me()
     p = paper(paper_ref)
-    return _done(DB.apply({"op": "paper.meta", "actor": u["id"], "paperId": p["id"],
-                           "title": title, "authors": authors, "venue": venue, "year": year, "link": link,
+    given = {"title": title, "authors": authors, "venue": venue, "year": year, "link": link}
+    bad = [f for f in reset or [] if f not in given]
+    if bad:
+        raise ToolError(f"reset: unknown field(s) {bad}")
+    fields = {k: v for k, v in given.items() if v} | {k: "" for k in reset or []}
+    if not fields:
+        raise ToolError("nothing to change")
+    return _done(DB.apply({"op": "paper.meta", "actor": u["id"], "paperId": p["id"], **fields,
                            "summary": p["title"][:60]}), {"open": f"{SITE}/#/paper/{p['id']}"})
 
 
