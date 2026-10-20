@@ -163,6 +163,14 @@
 
   // ---------------------------------------------------------------- helpers
   const normTitle = t => (t || "").toLowerCase().replace(/ﬁ/g, "fi").replace(/ﬂ/g, "fl").replace(/[^0-9a-z가-힣]+/g, "");
+  const paperYear = p => p?.year || p?.preprintYear || null;
+  const paperCitation = p => {
+    if (!p) return "";
+    const published = [p.venueNorm || p.venue, p.year].filter(Boolean).join(" ");
+    const preprint = p.preprintVenue || p.preprintYear
+      ? [p.preprintVenue || "arXiv", p.preprintYear].filter(Boolean).join(" ") : "";
+    return [published, preprint].filter(Boolean).join(" · ");
+  };
   const slug = s => s.trim().toLowerCase().replace(/[^0-9a-z가-힣]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   const termOf = date => { const [y, m] = date.split("-").map(Number); return `${y}H${m <= 6 ? 1 : 2}`; };
   async function hash(pw, salt) {
@@ -346,7 +354,7 @@
     function makePapers(reviews) {
       const papers = [], byKey = {}, byId = {}, fresh = [];
       ORIG.papers.forEach(p => {
-        const q = { ...p, reviews: [], key: normTitle(p.title), free: [] };
+        const q = { preprintVenue: "", preprintYear: null, ...p, reviews: [], key: normTitle(p.title), free: [] };
         Object.assign(q, db.paperMeta[p.id] || {});
         const fix = db.paperTags[p.id];  // set by an admin (or their AI): replaces the keyword-rule tags
         if (fix) Object.assign(q, { domains: fix.domains, methods: fix.methods, tagsFixed: true });
@@ -361,6 +369,7 @@
             const m = r.meta || {};
             p = { id: "np_" + key.slice(0, 40), key, title: m.title || "(untitled)", link: m.link || "", venue: m.venue || "", venueNorm: m.venue || "",
               venueType: /arxiv/i.test(m.venue || "") ? "preprint" : "", authors: m.authors || "", year: m.year ? +m.year : null, abstract: m.abstract || "",
+              preprintVenue: m.preprintVenue || "", preprintYear: m.preprintYear ? +m.preprintYear : null,
               citations: null, refs: [], reviews: [], domains: [], methods: [], free: [], fresh: true };
             Object.assign(p, db.paperMeta[p.id] || {});
             const fix = db.paperTags[p.id];
@@ -598,7 +607,7 @@
     mock: !SERVER,
     server: SERVER,
     demo: DEMO,
-    today, termOf, normTitle,
+    today, termOf, normTitle, paperCitation, paperYear,
     auth: {
       current,
       async signIn(name, password) {
@@ -679,7 +688,8 @@
       async create(data) {
         const me = requireUser();
         const id = uid("r_");
-        const meta = { title: data.title.trim(), link: data.link || "", venue: data.venue || "", authors: data.authors || "", year: data.year || "", abstract: data.abstract || "" };
+        const meta = { title: data.title.trim(), link: data.link || "", venue: data.venue || "", authors: data.authors || "", year: data.year || "",
+          preprintVenue: data.preprintVenue || "", preprintYear: data.preprintYear || "", abstract: data.abstract || "" };
         const st = data.studyId && db.studies[data.studyId];
         const target = st ? (data.pick ? st.picks?.[me.id] : st) : null;
         const key = target ? target.paperKey : normTitle(meta.title);
@@ -693,7 +703,8 @@
           ...(data.studyId && db.studies[data.studyId] ? { studyId: data.studyId } : {}),
           ...(existing ? { paper: existing.id } : {}),
           paperKey: existing?.key || normTitle(meta.title),
-          meta: existing?.fresh ? { title: existing.title, link: existing.link, venue: existing.venue, authors: existing.authors, year: existing.year || "", abstract: existing.abstract } : meta,
+          meta: existing?.fresh ? { title: existing.title, link: existing.link, venue: existing.venue, authors: existing.authors, year: existing.year || "",
+            preprintVenue: existing.preprintVenue || "", preprintYear: existing.preprintYear || "", abstract: existing.abstract } : meta,
         };
         if (existing) existing.readers.filter(r => r !== me.id).forEach(r => notify(r, { type: "sameRead", reviewId: id, paperId: existing.id }));
         if (data.fromDraft) delete db.drafts[me.id];   // only the general draft this form was restored from
@@ -1239,6 +1250,7 @@
             addedAt: x.at, startedAt: x.startedAt || null, readAt: x.readAt || null, source: x.source || (x.paperId ? "lab" : "self"),
             title: p?.title || x.title || "(untitled)", link: p?.link || x.link || "", authors: p?.authors || x.authors || "",
             venue: p?.venueNorm || p?.venue || x.venue || "", year: p?.year || x.year || "", abstract: p?.abstract || x.abstract || "",
+            preprintVenue: p ? p.preprintVenue || "" : x.preprintVenue || "", preprintYear: p ? p.preprintYear || "" : x.preprintYear || "",
             readers: p ? p.readers.filter(r => r !== u) : [], written: written?.id || null, draft: x.draft || null,
           };
         });
@@ -1589,22 +1601,22 @@
           Object.values(db.reviews).some(r => r.paper === p.id && r.person === op.actor);
         if (actor.role !== "admin" && !reader) throw new Error("forbidden");
         const patch = {};
-        for (const [field, limit] of Object.entries({ title: 300, venue: 200, authors: 500, year: 4, link: 500 })) {
+        for (const [field, limit] of Object.entries({ title: 300, venue: 200, authors: 500, year: 4, preprintVenue: 200, preprintYear: 4, link: 500 })) {
           if (!(field in op)) continue;
           const value = String(op[field] ?? "").trim();
-          if (value.length > limit || (field === "year" && value && !/^\d{4}$/.test(value))) throw new Error("paper.meta.invalid");
+          if (value.length > limit || (["year", "preprintYear"].includes(field) && value && !/^\d{4}$/.test(value))) throw new Error("paper.meta.invalid");
           patch[field] = value;
         }
         const meta = { ...(db.paperMeta[p.id] || {}) };
         for (const [field, value] of Object.entries(patch)) {
           if (!value) delete meta[field];
-          else meta[field] = field === "year" ? +value : value;
+          else meta[field] = ["year", "preprintYear"].includes(field) ? +value : value;
           if (field === "venue") {
             if (value) meta.venueNorm = value;
             else delete meta.venueNorm;
           }
         }
-        if (["title", "venue", "authors", "year", "link"].some(f => f in meta)) db.paperMeta[p.id] = { ...meta, by: op.actor, at: now() };
+        if (["title", "venue", "authors", "year", "preprintVenue", "preprintYear", "link"].some(f => f in meta)) db.paperMeta[p.id] = { ...meta, by: op.actor, at: now() };
         else delete db.paperMeta[p.id];
         log("paper.meta", p.title.slice(0, 60)); save(); buildDataset();
         res = { paperId: p.id };
