@@ -96,8 +96,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .pr-right { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .readers { display: flex; gap: 3px; }
 .readers .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); }
-.stars { color: var(--star); letter-spacing: 1px; font-size: var(--fs-callout); white-space: nowrap; }
-.stars .off { color: var(--separator); }
 
 /* shared */
 .shared-item { margin-bottom: 18px; }

@@ -95,8 +95,6 @@ body:has(#drawer.open) .legend { right: 548px; }
 .rv-memo::before { font-size: var(--fs-subhead); letter-spacing: .06em; }
 .rv-files .rv-pdf, .att.pdf { background: var(--fill-4); border: 0; border-radius: var(--r-control); }
 .stat { background: var(--fill-4); }
-.stars .off, .star-input button { color: var(--label-4); }
-.star-input button.on { color: var(--star); }
 .avatar { color: var(--on-color); font-weight: 600; text-shadow: var(--text-shadow-on-color); }
 .bar-row .track, .sim-row .track { background: var(--fill-3); }
 .spark i { background: var(--fill); }

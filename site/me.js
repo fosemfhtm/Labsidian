@@ -300,7 +300,7 @@
         children.push(new Paragraph({ text: `${y}년 ${m}월 ${d}일`, heading: HeadingLevel.HEADING_2 }),
           new Paragraph({ children: [new TextRun({ text: me.name, bold: true })] }),
           kv("논문", p.title), kv("Link", p.link), kv("저널", p.venueNorm || p.venue), kv("저자", p.authors),
-          kv("Rating", "✯".repeat(r.rating)), ...multi("내용", r.content), ...multi("Memo", r.memo), new Paragraph(""));
+          kv("Rating", r.rating ? `${"✯".repeat(Math.floor(r.rating))}${r.rating % 1 ? "½" : ""} (${UI.ratingText(r.rating)})` : "0"), ...multi("내용", r.content), ...multi("Memo", r.memo), new Paragraph(""));
       });
       const blob = await Packer.toBlob(new Document({ sections: [{ children }] }));
       const a = document.createElement("a");

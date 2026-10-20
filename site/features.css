@@ -111,10 +111,6 @@ details.fld summary { cursor: pointer; }
 .write-form input[readonly] { color: var(--text-2); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .row3 { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 12px; }
-.star-input { display: flex; gap: 2px; }
-.star-input button { background: none; border: 0; font-size: var(--fs-title1); line-height: 1; color: var(--separator); cursor: pointer; padding: 0 2px; }
-.star-input button.on { color: var(--star); }
-.star-input button:hover { transform: scale(1.1); }
 .tag-input { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--bg-2); border: 1px solid transparent; border-radius: var(--r-control); padding: 6px; }
 .tag-input .chips { display: contents; }
 .write-form .tag-input input { flex: 1; min-width: 160px; border: 0; background: transparent; padding: 4px; }

@@ -119,7 +119,8 @@
 | 전역 `input/textarea/select` 규칙 + 문맥별 규칙 ~15개 (`.modal input`, `.write-form input`, `.tbl input`, `.pop input`, `.cm-form textarea`, `.rv-filters`, `.p-search`…) | `.ui-field` 하나. 문맥별 규칙은 폭만 남긴다 |
 | `.fld > span` 라벨 | `.ui-label` |
 | `.p-search`, `#search` | `.ui-search` |
-| `.tag-input`, `.drop`, `.star-input` | 그대로 둠 — 입력창과 같은 바탕·둥글기 (태그 입력은 `.ui-chip` + 입력창) |
+| `.tag-input`, `.drop` | 그대로 둠 — 입력창과 같은 바탕·둥글기 (태그 입력은 `.ui-chip` + 입력창) |
+| `.star-input` | `.ui-rating-input` (§8) |
 
 ---
 
@@ -182,8 +183,8 @@
 
 ## 8. 별점
 
-- 표시: ★ 5개, 채운 별 `--star`, 빈 별 `--label-4`. 숫자가 중요하면 옆에 "4.0"을 Callout으로.
-- 입력: 별 버튼 5개, 각 28×28 누르기 영역, 키보드 ←→.
+- 표시: `.ui-rating` 안에 ★ 5개, 채운 별 `--star`, 빈 별 `--label-4`. 반 별은 왼쪽 절반을 채워요. 숫자는 소수 첫째 자리까지 표시하되 정수의 `.0`은 생략해요. 평균은 표시할 때만 소수 첫째 자리로 반올림해요.
+- 입력: `.ui-rating-input`은 `role="slider"`인 한 개의 Tab 정지점이에요. 별마다 데스크톱 28×28, 터치 44×44 누르기 영역을 두고 왼쪽 절반은 0.5점, 오른쪽은 1점으로 골라요. ←↓ / →↑는 0.5점씩 이동하고 Home은 미평가(0), End는 5점이에요. `aria-valuenow`와 번역된 `aria-valuetext`로 현재 값을 알려요.
 - 별점은 다이어리의 신호로 강조하지 않는다 (가져온 다이어리의 73%가 기본값 3점 — PEOPLE_TOPICS_GUIDES.md).
 
 ---

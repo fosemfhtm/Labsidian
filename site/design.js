@@ -18,7 +18,7 @@
     ["caption1", "Caption 1", "10/13", "아바타 이니셜"], ["caption2", "Caption 2", "10/13 Medium", "MEMO (최소 크기)"]];
   const av = (n, c, size = 28) => `<span class="sp-av" style="width:${size}px;height:${size}px;background:rgb(var(--${c}))">${n.slice(-2)}</span>`;
 
-  function gallery() {
+  function gallery(theme) {
     return `
     <section><h2 class="t-title2">글자 · Typography</h2>
       <p class="t-callout c-2">데스크톱은 macOS 텍스트 스타일, 폰(760px 이하)은 같은 이름이 iOS 크기로 바뀌어요. 글꼴: Apple 기기는 SF + Apple SD Gothic Neo, 그 외 Pretendard.</p>
@@ -72,6 +72,8 @@
         <div class="span2"><label class="ui-label">Memo (critic)</label><textarea class="ui-field" rows="3" placeholder="한계, 가정, 내 연구와의 연결…"></textarea></div>
       </div>
       <div class="sp-row"><label class="ui-check"><input type="checkbox" checked>먼저 쓰고 보기</label><label class="ui-check"><input type="checkbox">각자 관련 논문 1편씩</label></div>
+      <div class="sp-row">${window.LabUI.stars(3.5)}
+        ${window.LabUI.ratingInput("sp-rating-" + theme, 3.5)}</div>
     </section>
 
     <section><h2 class="t-title2">목록 · Inset grouped list</h2>
@@ -102,7 +104,7 @@
 
     <section><h2 class="t-title2">리뷰 카드 (콘텐츠 층 — 유리 없음)</h2>
       <article class="ui-card sp-review">
-        <div class="sp-rv-head">${av("예시", "red", 36)}<div class="grow"><div class="t-headline">예시 멤버</div><div class="t-footnote c-2"><span class="sp-stars">★★★★<span>★</span></span> · 2026-09-25 · <span class="ui-pill warn">7일 늦게 등록</span></div></div>
+        <div class="sp-rv-head">${av("예시", "red", 36)}<div class="grow"><div class="t-headline">예시 멤버</div><div class="t-footnote c-2">${window.LabUI.stars(4.5)} · 2026-09-25 · <span class="ui-pill warn">7일 늦게 등록</span></div></div>
           <button class="ui-btn plain icon" aria-label="더 보기">${I("ellipsis")}</button></div>
         <a class="t-headline sp-paper" href="javascript:void 0">STAGE: A Stream-Centric Generative World Model for Long-Horizon Driving-Scene Simulation</a>
         <p class="t-body">긴 구간 생성에서 장면 전체를 매 프레임 다시 만드는 대신, 스트림 단위로 상태를 이어 붙여 일관성을 유지한다.</p>
@@ -161,7 +163,7 @@
   const mode = { view: "side", contrast: "normal", transparency: "normal" };
   function panel(theme) {
     return `<div class="sp-panel" data-ui data-theme="${theme}" data-contrast="${mode.contrast === "more" ? "more" : ""}" data-transparency="${mode.transparency === "reduce" ? "reduce" : ""}">
-      <div class="sp-panel-h t-footnote c-2">${{ light: "라이트", dark: "다크", auto: "자동 (기기 설정)" }[theme]}${mode.contrast === "more" ? " · 고대비" : ""}</div>${gallery()}</div>`;
+      <div class="sp-panel-h t-footnote c-2">${{ light: "라이트", dark: "다크", auto: "자동 (기기 설정)" }[theme]}${mode.contrast === "more" ? " · 고대비" : ""}</div>${gallery(theme)}</div>`;
   }
   function render() {
     const themes = mode.view === "side" ? ["light", "dark"] : [mode.view];
@@ -174,6 +176,7 @@
       </div>
       <div class="sp-panels ${themes.length > 1 ? "two" : ""}">${themes.map(panel).join("")}</div>`;
     view.querySelectorAll(".sp-controls .ui-seg button").forEach(b => (b.onclick = () => { mode[b.closest(".ui-seg").dataset.k] = b.dataset.v; render(); }));
+    view.querySelectorAll(".ui-rating-input").forEach(el => window.LabUI.wireRatingInput(el, () => {}));
     view.querySelectorAll('[data-demo="seg"] button').forEach(b => (b.onclick = () => b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b))));
     view.querySelectorAll('[data-demo="chip"]').forEach(b => (b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true")));
     view.querySelectorAll('[data-demo="todo"]').forEach(b => (b.onclick = () => { b.classList.toggle("done"); const c = b.querySelector(".ui-done"); c.classList.toggle("checked", b.classList.contains("done")); c.textContent = b.classList.contains("done") ? "✓" : ""; }));

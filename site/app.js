@@ -60,9 +60,28 @@
     return `<span class="st-avs">${shown.map(u => `<span class="${cls(u)}">${avatar(u)}</span>`).join("")}${rest.length
       ? `<span class="av-more" title="${esc(rest.map(u => P[u]?.name || u).join(", "))}">+${rest.length}</span>` : ""}</span>`;
   };
-  const stars = n => {
-    const full = Math.round(n);
-    return `<span class="stars">${"★".repeat(full)}<span class="off">${"★".repeat(Math.max(0, 5 - full))}</span></span>`;
+  const ratingText = n => String(Number(Number(n || 0).toFixed(1)));
+  const ratingLabel = n => n ? t("rating.value", { n: ratingText(n) }) : t("rating.unrated");
+  const starUnits = n => [1, 2, 3, 4, 5].map(i => `<span class="ui-rating-star ${n >= i ? "full" : n >= i - .5 ? "half" : ""}" data-v="${i}" aria-hidden="true">★</span>`).join("");
+  const stars = n => `<span class="ui-rating" role="img" aria-label="${esc(ratingLabel(n))}">${starUnits(Math.round(n * 2) / 2)}<span class="ui-rating-number" aria-hidden="true">${ratingText(n)}</span></span>`;
+  const ratingInput = (id, n = 0) => `<div class="ui-rating-input" id="${id}" role="slider" tabindex="0" aria-label="${t("rating.label")}" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${n}" aria-valuetext="${esc(ratingLabel(n))}">${starUnits(n)}<span class="ui-rating-number" aria-hidden="true">${ratingText(n)}</span></div>`;
+  const paintRatingInput = (el, n) => {
+    el.setAttribute("aria-valuenow", n); el.setAttribute("aria-valuetext", ratingLabel(n));
+    el.innerHTML = starUnits(n) + `<span class="ui-rating-number" aria-hidden="true">${ratingText(n)}</span>`;
+  };
+  const wireRatingInput = (el, change) => {
+    const set = n => { paintRatingInput(el, n); change(n); };
+    el.onclick = e => {
+      const star = e.target.closest("[data-v]"); if (!star) return;
+      const box = star.getBoundingClientRect();
+      set(+star.dataset.v - (e.clientX < box.left + box.width / 2 ? .5 : 0)); el.focus();
+    };
+    el.onkeydown = e => {
+      const n = +el.getAttribute("aria-valuenow");
+      const next = { ArrowLeft: n - .5, ArrowDown: n - .5, ArrowRight: n + .5, ArrowUp: n + .5, Home: 0, End: 5 }[e.key];
+      if (next == null) return;
+      e.preventDefault(); set(Math.max(0, Math.min(5, next)));
+    };
   };
   const tag = tid => {
     const x = T[tid];
@@ -335,7 +354,7 @@
         ${writeBtn(p)}` : ""}
       </div>
       <div class="stat-row">
-        <div class="stat"><b>${p.rating ? p.rating.toFixed(1) : "-"}</b><span>${t("d.avg")}</span></div>
+        <div class="stat"><b>${p.rating ? ratingText(p.rating) : "-"}</b><span>${t("d.avg")}</span></div>
         <div class="stat"><b>${p.readers.length}</b><span>${t("d.readers")}</span></div>
         <div class="stat"><b>${p.citations ?? "-"}</b><span>${t("d.cites")}</span></div>
         <div class="stat"><b>${esc(p.firstDate.slice(5).replace("-", "/"))}</b><span>${t("d.firstRead")}</span></div>
@@ -495,7 +514,7 @@
       <div class="dp-grid">
         <div class="dp-main">
           ${p.abstract ? `<div class="ui-card"><h3>${t("d.abstract")}</h3><p class="abstract-full">${esc(p.abstract)}</p></div>` : ""}
-          <h3 class="dp-sec">${t("d.reviews", { n: p.reviews.length })} · ${stars(p.rating)} ${p.rating ? p.rating.toFixed(1) : ""}</h3>
+          <h3 class="dp-sec">${t("d.reviews", { n: p.reviews.length })} · ${stars(p.rating)}</h3>
           <div class="dp-reviews">${p.reviews.map(r => reviewHtml(R[r], { full: true })).join("")}</div>
         </div>
         <aside class="dp-side">
@@ -594,7 +613,7 @@
   // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
   const papersTabs = on => `<div class="ui-seg page-tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
     .map(([k, href, key]) => `<a href="${href}" aria-current="${on === k ? "page" : "false"}">${t(key)}</a>`).join("")}</div>`;
-  window.LabUI = { openDrawer, closeDrawer, esc, stars, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
+  window.LabUI = { openDrawer, closeDrawer, esc, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
     buzz, papersTabs, paperTopicCount, topicDetail,
     rerender, P, T, PA, R, CL, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place

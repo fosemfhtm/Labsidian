@@ -531,17 +531,19 @@ def update_paper_info(paper_ref: str, title: str = "", authors: str = "", venue:
 
 
 @mcp.tool()
-def create_draft(title: str, summary: str, memo: str, rating: int = 0, tags: list[str] | None = None, link: str = "",
+def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: list[str] | None = None, link: str = "",
                  venue: str = "", authors: str = "", year: str = "", abstract: str = "",
                  pdf_path: str = "", reading_item_id: str = "") -> dict:
     """Save a diary draft on my reading list (never published automatically). Call it only after I approved the
     summary and memo you showed me in the chat. Write them in my writing style (writing_style) and check them
     against it first. summary = Problem/Method/Results/Contributions, memo = my critique (required by lab rules).
-    tags: ids from list_tags (or "f:keyword"). rating 1–5, or 0 to leave unrated.
+    tags: ids from list_tags (or "f:keyword"). rating 0.5–5 in 0.5 steps, or 0 to leave unrated.
     reading_item_id selects my existing item; its details fill in fields left empty. Otherwise a matching reading item
     is reused, or a new read item is created. Calling again replaces that item's draft, not the reading note.
     pdf_path attaches a local PDF to the item; existing attachments stay with it. The member opens the returned link,
     checks the draft and chooses the diary date when publishing. Saving a draft does not send a notification."""
+    if not math.isfinite(rating) or not 0 <= rating <= 5 or rating * 2 % 1:
+        raise ToolError("rating must be 0 (unrated) or 0.5..5 in 0.5 steps")
     u = me()
     d = DB.data()
     files = []
@@ -553,8 +555,6 @@ def create_draft(title: str, summary: str, memo: str, rating: int = 0, tags: lis
         title, link, authors, venue, year = title or x["title"], link or x.get("link") or "", authors or x.get("authors") or "", venue or x.get("venue") or "", year or str(x.get("year") or "")
     if pdf_path:
         files.append(_attach_pdf(pdf_path))
-    if int(rating) != 0 and not (1 <= int(rating) <= 5):
-        raise ToolError("rating must be 0 (unrated) or 1..5")
     if not memo.strip():
         raise ToolError("memo (critique) is required — lab rule since May 2024")
     bad = [t for t in (tags or []) if t not in d["T"] and not t.startswith("f:")]
@@ -563,7 +563,7 @@ def create_draft(title: str, summary: str, memo: str, rating: int = 0, tags: lis
     tags = [t if not t.startswith("f:") else "f:" + re.sub(r"[^0-9a-z가-힣_-]+", "-", t[2:].lower()).strip("-")[:40] for t in (tags or [])]
     op = DB.apply({"op": "draft", "actor": u["id"], "itemId": reading_item_id, "summary": title[:60],
                    "title": title, "link": link, "venue": venue, "authors": authors, "year": year, "abstract": abstract,
-                   "files": files, "data": {"summary": summary, "memo": memo, "rating": int(rating), "tags": tags or []}})
+                   "files": files, "data": {"summary": summary, "memo": memo, "rating": float(rating), "tags": tags or []}})
     return _done(op, {"pdfs": [f["name"] for f in files], "open": f"{SITE}/#/write?reading={op['result']['itemId']}"})
 
 
@@ -1167,7 +1167,7 @@ def diary_from_pdf(paper: str = "") -> str:
             "search_papers for diaries lab members already wrote on it or close papers. Ask me what I thought of the paper "
             "if I haven't said (a few lines are enough). Then show me the whole draft in the chat, in my writing style "
             "(writing_style; follow every rule): summary = Problem / Method / Results / Contributions, memo = my critique "
-            "built from what I said, a 1–5 rating and tags from list_tags. Report separately any of my claims the PDF "
+            "built from what I said, a 0.5–5 rating in 0.5 steps and tags from list_tags. Report separately any of my claims the PDF "
             "doesn't support. Only after I say OK, call create_draft with reading_item_id for an existing item, or the "
             "paper details and pdf_path for a new one. Give me its reading-item link to check and publish; I choose the "
             "diary date there. The draft stays on the reading item and sends no notification.")

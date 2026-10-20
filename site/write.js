@@ -94,7 +94,7 @@
             <div class="fld"><span>${t("w.date")}</span><input id="w-date" type="date">
               <div class="date-quick">${[["-7", "w.prevWeek"], ["0", "w.today"], ["7", "w.nextWeek"]].map(([d, k]) => `<button type="button" class="ui-btn small" data-shift="${d}">${t(k)}</button>`).join("")}</div>
               <em class="hint" id="w-date-hint" title="${t("w.dateHint")}"></em></div>
-            <div class="fld"><span>${t("w.rating")} *</span><div class="star-input" id="w-stars">${[1, 2, 3, 4, 5].map(i => `<button type="button" data-v="${i}">★</button>`).join("")}</div></div>
+            <div class="fld"><span>${t("w.rating")} *</span>${UI.ratingInput("w-stars")}</div>
           </div>
           ${field("w-content", t("w.content"), `<textarea id="w-content" class="grow" rows="10" placeholder="${t("w.content.ph")}"></textarea>`)}
           ${field("w-memo", t("w.memo"), `<textarea id="w-memo" class="grow" rows="6" placeholder="${t("w.memo.ph")}"></textarea><em class="hint">${t("w.memoHint")}</em>`)}
@@ -159,7 +159,7 @@
   const collect = () => ({ title: val("w-title"), venue: val("w-venue"), year: val("w-year"), link: val("w-link"), authors: val("w-authors"),
     abstract: val("w-abstract"), date: val("w-date") || editing?.date || S.today(), content: $("#w-content", view).value, memo: $("#w-memo", view).value, rating, tags, files, studyId: study?.id || null, pick: !!pick, fromDraft, readingItemId: fromReading?.id || null });
 
-  function paintStars() { view.querySelectorAll("#w-stars button").forEach(b => b.classList.toggle("on", +b.dataset.v <= rating)); }
+  function paintStars() { UI.paintRatingInput($("#w-stars", view), rating); }
   const topicLabel = id => { const x = UI.T[id]; return x ? UI.tl(x) : id.slice(2); };
   const topicColor = id => UI.T[id]?.color || "rgb(var(--gray2))";
   function paintTags() {
@@ -268,7 +268,7 @@
       new ResizeObserver(() => { if (el.clientWidth && el.clientWidth !== w) { w = el.clientWidth; grow(); } }).observe(el);
       el.addEventListener("input", grow);
     });
-    $("#w-stars", view).onclick = e => { const b = e.target.closest("button"); if (!b) return; rating = +b.dataset.v; paintStars(); changed(); };
+    UI.wireRatingInput($("#w-stars", view), n => { rating = n; changed(); });
     $("#w-tags", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
     $("#w-suggest", view).onclick = e => { const c = e.target.closest("[data-add]"); if (c) addTag(c.dataset.add); };
     $("#w-discard", view)?.addEventListener("click", () => { files.forEach(f => S.files.remove(f.id).catch(() => {})); S.drafts.clear(); render(new URLSearchParams()); });

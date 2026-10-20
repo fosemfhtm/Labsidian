@@ -52,6 +52,11 @@
     "#b2ccd6", "#addb67", "#7fdbca", "#e2b93d", "#ff9cac", "#a6accd", "#ffd580", "#80cbc4"];
   // design-lint: on
 
+  const cleanRating = value => {
+    if (value === undefined) return 0;
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 5 || !Number.isInteger(value * 2)) throw new Error("rating.invalid");
+    return value;
+  };
   // ---------------------------------------------------------------- persistence
   const empty = () => ({
     version: 1, users: {}, reviews: {}, reviewEdits: {}, comments: {}, reactions: {}, reading: {},
@@ -683,7 +688,7 @@
         // date = diary date (the week it counts for, may be earlier/later than today); createdAt = when it was posted
         const date = isDate(data.date) ? data.date : today();
         db.reviews[id] = {
-          id, person: me.id, date, term: termOf(date), rating: +data.rating || 0,
+          id, person: me.id, date, term: termOf(date), rating: cleanRating(data.rating),
           content: data.content || "", memo: data.memo || "", tags: (data.tags || []).map(cleanTag).filter(Boolean), files: cleanFiles(data.files), createdAt: now(),
           ...(data.studyId && db.studies[data.studyId] ? { studyId: data.studyId } : {}),
           ...(existing ? { paper: existing.id } : {}),
@@ -704,7 +709,7 @@
         const r = reviewById(id); if (!r) throw new Error("review.missing");
         if (r.person !== me.id && me.role !== "admin") throw new Error("forbidden");
         const fields = ["rating", "content", "memo", "tags", "date", "files"];
-        const clean = Object.fromEntries(fields.filter(f => f in patch).map(f => [f, f === "rating" ? +patch[f] : patch[f]]));
+        const clean = Object.fromEntries(fields.filter(f => f in patch).map(f => [f, f === "rating" ? cleanRating(patch[f]) : patch[f]]));
         if ("tags" in clean) clean.tags = (clean.tags || []).map(cleanTag).filter(Boolean);
         if ("date" in clean) { if (!isDate(clean.date)) delete clean.date; else clean.term = termOf(clean.date); }
         if ("files" in clean) {
@@ -1470,6 +1475,7 @@
             const id = await Store.reading.add({ title: op.title, venue: op.venue, authors: op.authors, year: op.year,
               link: op.link, abstract: op.abstract, files: op.files, status: "read", source: "mcp" });
             item = list.find(x => (x.id || "rd_" + x.paperId) === id);
+        const data = op.data || {}, rating = cleanRating(data.rating);
           }
         }
         item.id ||= "rd_" + item.paperId;
@@ -1480,8 +1486,7 @@
         }
         const files = cleanFiles(op.files), ids = new Set((item.files || []).map(f => f.id));
         item.files = [...(item.files || []), ...files.filter(f => !ids.has(f.id) && ids.add(f.id))];
-        const data = op.data || {};
-        item.draft = { summary: data.summary || "", memo: data.memo || "", rating: +data.rating || 0,
+        item.draft = { summary: data.summary || "", memo: data.memo || "", rating,
           tags: (data.tags || []).map(cleanTag).filter(Boolean), at: op.at || now() };
         res = { itemId: item.id };
       }

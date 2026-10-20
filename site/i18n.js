@@ -2,6 +2,7 @@
 (() => {
   const DICT = {
     ko: {
+      "rating.label": "별점", "rating.value": "{n}점", "rating.unrated": "미평가",
       "nav.home": "홈", "nav.study": "스터디", "nav.graph": "그래프", "nav.people": "사람", "nav.papers": "논문", "nav.shared": "함께 읽은 논문",
       "search.ph": "논문·저자·키워드 검색  ( / )",
       // graph panel
@@ -48,6 +49,7 @@
       "close": "닫기", "unknownPerson": "미상", "d.back": "뒤로", "d.fullPage": "크게 보기",
     },
     en: {
+      "rating.label": "Rating", "rating.value": "{n} stars", "rating.unrated": "Unrated",
       "nav.home": "Home", "nav.study": "Study", "nav.graph": "Graph", "nav.people": "People", "nav.papers": "Papers", "nav.shared": "Read together",
       "search.ph": "Search papers, authors, keywords  ( / )",
       "g.find": "Find in graph", "g.find.ph": "Title, author…", "g.colorBy": "Color by",
