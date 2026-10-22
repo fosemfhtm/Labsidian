@@ -1,16 +1,21 @@
-"""Smoke test: start the MCP server over stdio like Claude/Codex would and call its tools.
+"""Smoke test: call the same tools over stdio or Streamable HTTP.
 
     .venv/Scripts/python mcp/smoke_test.py [user name]            read tools + rejected writes (demo lab: python scripts/serve.py 8766 --demo)
     .venv/Scripts/python mcp/smoke_test.py 한서윤 --writes        + every write tool, chained on the ids they return (demo lab only)
     LABSIDIAN_URL=http://localhost:8765 .venv/Scripts/python mcp/smoke_test.py <your name>   (real lab: read-only calls + rejected writes)
+    LABSIDIAN_TOKEN=<token> python mcp/smoke_test.py --http https://lab.example/mcp
+    LABSIDIAN_TOKEN_2=<another member's token> enables concurrent two-user identity checks in HTTP mode.
 
 Exits non-zero when a call that should work fails, or one that should fail works.
 """
 import asyncio
+import argparse
 import json
 import os
 import sys
 import tempfile
+import urllib.request
+from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
@@ -18,12 +23,17 @@ from unittest.mock import patch
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 import labsidian_mcp
 
 SERVER = Path(__file__).with_name("labsidian_mcp.py")
-ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
-WRITES = "--writes" in sys.argv
-URL = os.environ.get("LABSIDIAN_URL", "http://localhost:8766")
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("user", nargs="?", default="한서윤")
+parser.add_argument("--writes", action="store_true")
+parser.add_argument("--http", metavar="URL")
+options = parser.parse_args()
+WRITES = options.writes
+URL = os.environ.get("LABSIDIAN_URL", options.http.removesuffix("/mcp") if options.http else "http://localhost:8766").rstrip("/")
 failed = []
 
 
@@ -36,13 +46,67 @@ def tiny_pdf(path):
     return path
 
 
+@asynccontextmanager
+async def connection(params=None, token=None):
+    if options.http:
+        credential = os.environ["LABSIDIAN_TOKEN"] if token is None else token
+        headers = {"Authorization": f"Bearer {credential}"} if credential else {}
+        async with streamablehttp_client(options.http, headers=headers) as (r, w, _):
+            yield r, w
+    else:
+        async with stdio_client(params) as streams:
+            yield streams
+
+
+async def check_http_identities():
+    token = os.environ.get("LABSIDIAN_TOKEN", "")
+    if not token:
+        sys.exit("--http requires LABSIDIAN_TOKEN")
+    for credential in ("", "invalid-smoke-token"):
+        async with connection(token=credential) as (r, w), ClientSession(r, w) as session:
+            await session.initialize()
+            result = await session.call_tool("whoami", {})
+            if not result.isError or "AI 연결" not in str(result.content):
+                raise AssertionError("HTTP accepted missing/invalid token or omitted sign-in guidance")
+    second = os.environ.get("LABSIDIAN_TOKEN_2", "")
+    if not second:
+        print("SKIP two-user HTTP check: set LABSIDIAN_TOKEN_2 to another member's token")
+        return
+
+    async def check(credential):
+        req = urllib.request.Request(URL + "/api/whoami",
+                                     headers={"Authorization": f"Bearer {credential}"})
+        def expected_user():
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return json.load(response)["user"]["id"]
+        expected = await asyncio.to_thread(expected_user)
+        async with connection(token=credential) as (r, w), ClientSession(r, w) as session:
+            await session.initialize()
+            for _ in range(3):
+                result = await session.call_tool("whoami", {})
+                if result.isError:
+                    raise AssertionError("HTTP whoami rejected a valid member")
+                actual = json.loads(result.content[0].text)["user"]["id"]
+                if actual != expected:
+                    raise AssertionError("HTTP identity leaked between members")
+                await asyncio.sleep(0)
+        return expected
+
+    users = await asyncio.gather(check(token), check(second))
+    if users[0] == users[1]:
+        raise AssertionError("two-user check needs tokens belonging to different members")
+    print("ok: concurrent HTTP callers retain their own identities")
+
+
 async def main(tmpdir):
     target = urlparse(URL)
     if WRITES and (target.scheme != "http" or target.hostname not in ("localhost", "127.0.0.1", "::1") or target.port != 8766 or target.path not in ("", "/") or target.query or target.fragment):
         sys.exit("--writes only runs against the demo lab (LABSIDIAN_URL=http://localhost:8766)")
+    if options.http:
+        await check_http_identities()
     # A quiet lab still needs fresh computed next dates after midnight, without repeated same-day snapshots.
     backend = labsidian_mcp.ServerBackend()
-    with patch.object(backend, "call") as request, patch.object(labsidian_mcp, "date") as clock, patch.object(labsidian_mcp, "TOKEN", ""):
+    with patch.object(backend, "call") as request, patch.object(labsidian_mcp, "date") as clock, patch.object(labsidian_mcp, "identity", return_value={"id": ""}):
         request.side_effect = lambda path: {"version": 1, "snapshot": {k: [] for k in ("people", "papers", "reviews", "topics", "users")}}
         clock.today.side_effect = [date(2030, 1, 1), date(2030, 1, 1), date(2030, 1, 2)]
         first = backend.data()
@@ -50,6 +114,53 @@ async def main(tmpdir):
             failed.append("snapshot refreshes only on a new day")
         if sum(args.args == ("/api/snapshot",) for args in request.call_args_list) != 2:
             failed.append("snapshot same-day cache")
+    # Shared snapshot, private search index: an author's blind-study text must not leak to another viewer.
+    snapshot = {"people": [], "topics": [], "users": [{"id": "a", "name": "A"}, {"id": "b", "name": "B"}],
+                "papers": [{"id": "p", "title": "Paper", "reviews": ["r"]}],
+                "reviews": [{"id": "r", "paper": "p", "person": "a", "studyId": "s", "content": "secretword", "memo": ""}],
+                "studies": [{"id": "s", "blind": True, "paperId": "p", "members": ["a", "b"]}]}
+    backend = labsidian_mcp.ServerBackend()
+    with patch.object(backend, "call", side_effect=lambda path: {"version": 1, "snapshot": snapshot}), \
+            patch.object(labsidian_mcp, "identity") as viewer:
+        viewer.return_value = {"id": "a"}
+        author = backend.data()
+        viewer.return_value = {"id": "b"}
+        other = backend.data()
+        assert "secretword" in author["PA"]["p"]["_hay"]
+        assert "secretword" not in other["PA"]["p"]["_hay"]
+        viewer.return_value = {"id": "a"}
+        assert backend.data() is author
+        assert "_f" not in snapshot["papers"][0]
+    with patch.object(labsidian_mcp, "HTTP_MODE", True), \
+            patch.object(labsidian_mcp, "mcp") as server, \
+            patch.dict(os.environ, {"LABSIDIAN_TOKEN": "local-admin", "LABSIDIAN_USER": "admin"}):
+        server.get_context.return_value.request_context.request.headers = {}
+        try:
+            labsidian_mcp.auth_headers()
+        except labsidian_mcp.ToolError as error:
+            assert "AI 연결" in str(error)
+        else:
+            raise AssertionError("HTTP inherited local admin credentials")
+        server.get_context.return_value.request_context.request.headers = {"authorization": "Bearer member"}
+        assert labsidian_mcp.auth_headers() == {"Authorization": "Bearer member"}
+        try:
+            labsidian_mcp._attach_pdf("local.pdf")
+        except labsidian_mcp.ToolError as error:
+            assert "use pdf_upload_link" in str(error)
+        else:
+            raise AssertionError("HTTP accepted server-local pdf_path")
+    with patch.object(labsidian_mcp.DB, "file_info", return_value=100):
+        assert labsidian_mcp._uploaded_pdf("f1", r"C:\papers\example.pdf") == {
+            "id": "f1", "name": "example.pdf", "type": "application/pdf", "size": 100, "kind": "pdf"}
+    with patch.object(labsidian_mcp.DB, "call", return_value={"user": {"style": "member rules"}}), \
+            patch.object(labsidian_mcp, "STYLE", "local rules"):
+        assert labsidian_mcp.writing_style()["style"] == "member rules"
+    with patch.object(labsidian_mcp.DB, "call", return_value={"user": {"style": ""}}), \
+            patch.object(labsidian_mcp, "STYLE", "local rules"), patch.object(labsidian_mcp, "HTTP_MODE", True):
+        assert labsidian_mcp.writing_style()["style"] == ""
+    with patch.object(labsidian_mcp.DB, "call", return_value={"user": None}), \
+            patch.object(labsidian_mcp, "STYLE", "local rules"), patch.object(labsidian_mcp, "HTTP_MODE", False):
+        assert labsidian_mcp.writing_style()["style"] == "local rules"
     term = {"id": "2030H1", "start": "2030-01-01", "end": "2030-06-30"}
     paper = {"id": "p0", "title": "Example paper", "_key": "examplepaper"}
     with patch.object(labsidian_mcp.DB, "data", return_value={"terms": [term], "PA": {"p0": paper}, "papers": [paper]}):
@@ -70,10 +181,10 @@ async def main(tmpdir):
             else:
                 raise AssertionError("invalid MCP input accepted")
     # tests talk to the demo lab's server unless LABSIDIAN_URL says otherwise, so they never write into real data
-    env = {**os.environ, "LABSIDIAN_URL": URL, "LABSIDIAN_USER": ARGS[0] if ARGS else "한서윤",
+    env = {**os.environ, "LABSIDIAN_URL": URL, "LABSIDIAN_USER": options.user,
            "LABSIDIAN_DOWNLOADS": os.path.join(tmpdir, "downloads"), "PYTHONIOENCODING": "utf-8"}
     params = StdioServerParameters(command=sys.executable, args=[str(SERVER)], env=env)
-    async with stdio_client(params) as (r, w):
+    async with connection(params) as (r, w):
         async with ClientSession(r, w) as s:
             await s.initialize()
             tools = (await s.list_tools()).tools
@@ -101,7 +212,11 @@ async def main(tmpdir):
                     return text
 
             # ---- reads
-            await call("whoami")
+            identity = await call("whoami")
+            public = identity.get("server", URL).rstrip("/")
+            if WRITES and options.http and public != URL:
+                sys.exit("--writes requires the HTTP MCP server's public URL to equal the demo LABSIDIAN_URL")
+            await call("writing_style")
             hits = await call("search_papers", query="graph forecasting", limit=1)
             empty = await call("search_papers", query="no-such-paper-" + os.urandom(12).hex())
             if not isinstance(hits, list) or len(hits) != 1 or empty != []:
@@ -117,7 +232,7 @@ async def main(tmpdir):
             for notification in inbox if isinstance(inbox, list) else []:
                 if notification.get("type") in ("groupSession", "groupJoin"):
                     group_id = notification.get("group_id")
-                    if not group_id or notification.get("open") != f"{URL.rstrip('/')}/#/group/{group_id}":
+                    if not group_id or notification.get("open") != f"{public}/#/group/{group_id}":
                         failed.append("regular-study notification target")
             await call("my_drafts")
             await call("list_guides")
@@ -145,6 +260,14 @@ async def main(tmpdir):
             iid = item.get("item_id") if isinstance(item, dict) else None
             await call("update_reading_item", item_id=iid, status="reading")
             pdf = tiny_pdf(os.path.join(tmpdir, "labsidian_smoke.pdf"))
+            attachment = {"pdf_path": pdf}
+            if options.http:
+                upload = await call("pdf_upload_link")
+                req = urllib.request.Request(upload["url"], data=Path(pdf).read_bytes(),
+                                             headers={"Content-Type": "application/pdf"}, method="PUT")
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    assert json.load(response)["ok"]
+                attachment = {"pdf_file_id": upload["file_id"], "pdf_name": Path(pdf).name}
             oversized = os.path.join(tmpdir, "oversized.pdf")
             with open(oversized, "wb") as f:
                 f.write(b"%PDF-1.4\n")
@@ -158,14 +281,14 @@ async def main(tmpdir):
             reading_before = await call("my_reading_list")
             # Explicit target, matching title without an id, and genuinely new paper.
             explicit = await call("create_draft", title="", summary="Problem: explicit", memo="memo", rating=3,
-                                  reading_item_id=iid, pdf_path=pdf, tags=["m:dl"])
+                                  reading_item_id=iid, **attachment, tags=["m:dl"])
             matched = await call("create_draft", title=title, summary="Problem: replaced", memo="updated memo", rating=4,
                                  tags=["m:dl", "f:smoke"])
             await call("create_draft", expect_ok=False, title=title, summary="x", memo="memo", tags=["f:smoke"])  # no field/method tag
             fresh = await call("create_draft", title=f"Smoke new draft {token}", summary="Problem: new", memo="new memo", tags=["m:dl"])
             fresh_id = fresh.get("item_id") if isinstance(fresh, dict) else None
             for label, result, target in (("explicit", explicit, iid), ("matched", matched, iid), ("new", fresh, fresh_id)):
-                if not isinstance(result, dict) or not target or result.get("item_id") != target or result.get("open") != f"{URL.rstrip('/')}/#/write?reading={target}":
+                if not isinstance(result, dict) or not target or result.get("item_id") != target or result.get("open") != f"{public}/#/write?reading={target}":
                     failed.append(f"draft {label} target/link")
             if fresh_id == iid:
                 failed.append("draft new target")
@@ -186,9 +309,15 @@ async def main(tmpdir):
             if attached:
                 first = await call("download_pdf", file_id=attached[0]["file_id"])
                 second = await call("download_pdf", file_id=attached[0]["file_id"])
-                paths = [x.get("path") for x in (first, second) if isinstance(x, dict)]
-                if len(paths) != 2 or paths[0] == paths[1] or any(Path(p).read_bytes() != Path(pdf).read_bytes() for p in paths):
-                    failed.append("PDF downloads preserve duplicate filenames")
+                if options.http:
+                    for download in (first, second):
+                        with urllib.request.urlopen(download["url"], timeout=30) as response:
+                            assert response.read() == Path(pdf).read_bytes()
+                        assert download["name"] == Path(pdf).name and download["bytes"] == Path(pdf).stat().st_size
+                else:
+                    paths = [x.get("path") for x in (first, second) if isinstance(x, dict)]
+                    if len(paths) != 2 or paths[0] == paths[1] or any(Path(p).read_bytes() != Path(pdf).read_bytes() for p in paths):
+                        failed.append("PDF downloads preserve duplicate filenames")
             else:
                 failed.append("draft attachment available to download")
             if not saved_item.get("hasDraft") or saved_item.get("note") != "smoke" or saved_item.get("status") != "reading":

@@ -27,6 +27,8 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
   POST /api/ops                one MCP command, applied right away as its actor → {ok, id, version, result} | {ok: false, error}
   GET  /api/ops?limit=N        recent commands with their result — admin (also: SELECT * FROM ops in the .db file)
   GET|PUT|DELETE /api/files/<id>   attachments (PDF · images)
+  POST /api/files/link {id} · POST /api/files/upload-link {} — ten-minute signed download / one-use PDF upload URLs
+  A member's user.style is private writing guidance (at most 20000 characters); /api/whoami includes their own.
   Local MCP authentication cannot write browser state, import data, or manage personal tokens.
 
 Tables: records(coll, id, value) — one row per user / review / comment / member's notifications …, coll "_meta" for the
@@ -52,7 +54,7 @@ from functools import partial
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from build_site import norm_title
 
@@ -146,9 +148,10 @@ def public_user(u):
     return {"id": u["id"], "name": u["name"], "role": u.get("role"), "mustChange": bool(u.get("mustChange"))}
 
 
-def without_secrets(db):
-    """what a browser gets: no hashes, no temporary passwords — pw is only true (has a password) or null"""
-    db["users"] = {i: {**{k: v for k, v in u.items() if k not in ("pw", "tempPw")}, "pw": True if u.get("pw") else None}
+def without_secrets(db, me=None):
+    """Browser state: password presence only, and writing guidance only for its author."""
+    db["users"] = {i: {**{k: v for k, v in u.items() if k not in ("pw", "tempPw") and (k != "style" or i == me)},
+                       "pw": True if u.get("pw") else None}
                    for i, u in (db.get("users") or {}).items()}
     return db
 
@@ -470,6 +473,13 @@ def guard(me, upserts, deletes):
             if not admin:  # a member's own account: colour and the like, not their role
                 for k in ("role", "disabled", "mustChange", "quota"):
                     value[k] = old.get(k)
+            if id_ != me:
+                value.pop("style", None)
+                if old and "style" in old:
+                    value["style"] = old["style"]
+            elif "style" in value:
+                text = value["style"]
+                value["style"] = text.strip() if isinstance(text, str) and len(text.strip()) <= 20000 else (old or {}).get("style", "")
             if id_ == me:
                 value["role"], value["disabled"] = old.get("role"), old.get("disabled")  # nobody locks themselves out
             value = {k: v for k, v in value.items() if v is not None or k == "pw"}
@@ -517,6 +527,22 @@ class Handler(SimpleHTTPRequestHandler):
 
     def file_id(self):
         return unquote(urlparse(self.path).path[len("/api/files/"):])
+
+    def file_signature(self, kind, id_, exp):
+        return hmac.new(SECRET.encode(), f"{kind}\n{id_}\n{exp}".encode(), hashlib.sha256).hexdigest()
+
+    def file_link(self, kind, id_):
+        exp = str(int(time.time()) + 600)
+        return f"/api/files/{quote(id_, safe='')}?exp={exp}&sig={self.file_signature(kind, id_, exp)}"
+
+    def signed_file(self, kind):
+        q = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+        try:
+            exp, sig = q["exp"], q["sig"]
+            return (len(exp) == len(sig) == 1 and int(exp[0]) > time.time() and bool(SECRET)
+                    and hmac.compare_digest(sig[0], self.file_signature(kind, self.file_id(), exp[0])))
+        except (KeyError, ValueError, TypeError):
+            return False
 
     def cookie(self):
         c = SimpleCookie()
@@ -600,13 +626,18 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/api/login-info":
             return self.send_json({"demo": DEMO})
         who = self.who()
-        if not who:
+        signed = "exp" in q or "sig" in q
+        if signed and u.path.startswith("/api/files/"):
+            if not self.signed_file("get"):
+                return self.send_json({"error": "forbidden"}, 403)
+        elif not who:
             return self.send_json({"error": "signin"}, 401)
-        elif u.path == "/api/whoami":
-            return self.send_json({"user": public_user(STORE.user(who))} if who != LOCAL else {"user": None, "local": True})
+        if u.path == "/api/whoami":
+            return self.send_json({"user": {**public_user(STORE.user(who)), "style": STORE.user(who).get("style", "")}}
+                                  if who != LOCAL else {"user": None, "local": True})
         elif u.path == "/api/state":
             seed()
-            return self.send_json({"version": STORE.version(), "db": without_secrets(STORE.db()), "seedOnly": STORE.seed_only(),
+            return self.send_json({"version": STORE.version(), "db": without_secrets(STORE.db(), who), "seedOnly": STORE.seed_only(),
                                    "me": who if who != LOCAL else None})
         elif u.path == "/api/version":
             return self.send_json({"version": STORE.version()})
@@ -631,7 +662,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json([{**json.loads(b), "status": s, "error": e, "version": v} for b, s, e, v in rows])
         elif u.path.startswith("/api/files/"):
             row = STORE.con.execute("SELECT type, data FROM files WHERE id=?", (self.file_id(),)).fetchone()
-            if not row:
+            if not row or row[1] is None:
                 return self.send_error(404)
             self.send_response(200)
             mime = (row[0] or "").split(";")[0].lower()
@@ -677,6 +708,15 @@ class Handler(SimpleHTTPRequestHandler):
             label = str(req.get("label") or "").strip()[:60]
             token = STORE.new_session(who, "mcp", label)
             return self.send_json({"token": token, **next(x for x in STORE.tokens(who) if x["id"] == sha(token)[:16])})
+        if u.path == "/api/files/link":
+            id_ = req.get("id")
+            if not isinstance(id_, str) or not STORE.con.execute("SELECT 1 FROM files WHERE id=? AND data IS NOT NULL", (id_,)).fetchone():
+                return self.send_error(404)
+            return self.send_json({"url": self.file_link("get", id_)})
+        if u.path == "/api/files/upload-link":
+            id_ = "f_" + secrets.token_hex(16)
+            STORE.con.execute("INSERT INTO files VALUES (?,NULL,NULL)", (id_,))
+            return self.send_json({"id": id_, "url": self.file_link("put", id_)})
         if u.path == "/api/state":
             ups, dels = req.get("upserts") or [], req.get("deletes") or []
             if not valid_records(ups, 3) or not valid_records(dels, 2):
@@ -700,7 +740,7 @@ class Handler(SimpleHTTPRequestHandler):
             migrate_outbox()
             if LEGACY.exists():
                 LEGACY.rename(LEGACY.with_name("live_snapshot.migrated.json"))
-            return self.send_json({"version": STORE.version(), "db": without_secrets(STORE.db())})
+            return self.send_json({"version": STORE.version(), "db": without_secrets(STORE.db(), who)})
         if u.path == "/api/ops":
             if any(not isinstance(req.get(k), str) or not req[k] for k in ("id", "op")) or not isinstance(req.get("actor", ""), str):
                 return self.send_json({"ok": False, "error": "op needs id and op"}, 400)
@@ -747,20 +787,37 @@ class Handler(SimpleHTTPRequestHandler):
     def do_PUT(self):
         if not self.same_origin():
             return
-        if not self.path.startswith("/api/files/"):
+        u = urlparse(self.path)
+        if not u.path.startswith("/api/files/"):
             return self.send_error(404)
+        signed = any(k in parse_qs(u.query, keep_blank_values=True) for k in ("exp", "sig"))
         with STORE.lock:
-            if not self.who():
+            if signed:
+                if not self.signed_file("put"):
+                    return self.send_json({"error": "forbidden"}, 403)
+            elif not self.who():
                 return self.send_json({"error": "signin"}, 401)
+        if signed and self.headers.get("Content-Type", "").lower() != "application/pdf":
+            return self.send_json({"error": "PDF required"}, 415)
         try:
-            data = self.body(MAX_FILE)
+            data = self.body(20 * 1024 * 1024 if signed else MAX_FILE)
         except ValueError:
             return self.send_error(413)
+        if signed and not data.startswith(b"%PDF"):
+            return self.send_json({"error": "PDF required"}, 415)
         with STORE.lock:
-            if not self.who():
-                return self.send_json({"error": "signin"}, 401)
-            STORE.con.execute("INSERT OR REPLACE INTO files VALUES (?,?,?)", (self.file_id(), self.headers.get("Content-Type"), data))
-        self.send_json({"ok": True})
+            if signed:
+                if not self.signed_file("put"):
+                    return self.send_json({"error": "forbidden"}, 403)
+                n = STORE.con.execute("UPDATE files SET type='application/pdf', data=? WHERE id=? AND data IS NULL",
+                                      (data, self.file_id())).rowcount
+                if not n:
+                    return self.send_json({"error": "upload already used or removed"}, 409)
+            else:
+                if not self.who():
+                    return self.send_json({"error": "signin"}, 401)
+                STORE.con.execute("INSERT OR REPLACE INTO files VALUES (?,?,?)", (self.file_id(), self.headers.get("Content-Type"), data))
+        return self.send_json({"ok": True, "id": self.file_id(), "size": len(data)} if signed else {"ok": True})
 
     def do_DELETE(self):
         if not self.same_origin():

@@ -1,4 +1,8 @@
 """Isolated server regressions; no lab data or running server required."""
+import io
+import json
+from contextlib import contextmanager
+from email.message import Message
 import tempfile
 import threading
 import unittest
@@ -10,6 +14,125 @@ import serve
 
 
 class ServerTests(unittest.TestCase):
+    @contextmanager
+    def file_handler(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = serve.Store(Path(tmp) / "test.db")
+            h = serve.Handler.__new__(serve.Handler)
+            h.headers = Message()
+            h.who = lambda: None
+            h.same_origin = lambda: True
+            h.send_json = lambda body, status=200: (status, body)
+            h.send_error = lambda status: (status, None)
+            h.send_response = lambda status: None
+            h.send_header = lambda *args: None
+            h.end_headers = lambda: None
+            h.command = "GET"
+            h.wfile = io.BytesIO()
+            try:
+                with patch.object(serve, "STORE", store), patch.object(serve, "SECRET", "test secret"):
+                    yield h, store
+            finally:
+                store.con.close()
+
+    def test_signed_download_scope_expiry_and_auth(self):
+        with self.file_handler() as (h, store):
+            store.con.execute("INSERT INTO files VALUES (?,?,?)", ("pdf", "application/pdf", b"%PDF-test"))
+            h.path = "/api/files/link"
+            self.assertEqual(h._post({"id": "pdf"})[0], 401)
+            h.who = lambda: "member"
+            self.assertEqual(h._post({"id": "missing"})[0], 404)
+            with patch.object(serve.time, "time", return_value=1000):
+                url = h._post({"id": "pdf"})[1]["url"]
+            h.who = lambda: None
+            with patch.object(serve.time, "time", return_value=1001):
+                h.path = url
+                self.assertIsNone(h._get())
+                self.assertEqual(h.wfile.getvalue(), b"%PDF-test")
+                h.command = "HEAD"
+                h.wfile = io.BytesIO()
+                self.assertIsNone(h._get())
+                self.assertEqual(h.wfile.getvalue(), b"")
+                for bad in (url + "bad", url.replace("/pdf?", "/other?"), url.replace("exp=1600", "exp=1601")):
+                    h.path = bad
+                    self.assertEqual(h._get()[0], 403)
+                h.path = url
+                self.assertEqual(h.do_PUT()[0], 403)
+                self.assertEqual(h.do_DELETE()[0], 401)
+                query = url.split("?", 1)[1]
+                for path in ("/api/state", "/api/whoami", "/api/snapshot"):
+                    h.path = path + "?" + query
+                    self.assertEqual(h._get()[0], 401)
+                    self.assertEqual(h._post({})[0], 401)
+            h.path = url
+            with patch.object(serve.time, "time", return_value=1600):
+                self.assertEqual(h._get()[0], 403)
+
+    def test_signed_upload_pdf_limit_and_single_use(self):
+        with self.file_handler() as (h, store):
+            h.path = "/api/files/upload-link"
+            self.assertEqual(h._post({})[0], 401)
+            h.who = lambda: "member"
+            link = h._post({})[1]
+            h.path = link["url"]
+            h.who = lambda: None
+            self.assertEqual(h._get()[0], 403)
+
+            def put(data, mime="application/pdf", length=None):
+                h.headers = Message()
+                h.headers["Content-Type"] = mime
+                h.headers["Content-Length"] = str(len(data) if length is None else length)
+                h.rfile = io.BytesIO(data)
+                return h.do_PUT()
+
+            self.assertEqual(put(b"%PDF-test", "text/plain")[0], 415)
+            self.assertEqual(put(b"not PDF")[0], 415)
+            self.assertEqual(put(b"%PDF", length=20 * 1024 * 1024 + 1)[0], 413)
+            self.assertEqual(put(b"%PDF-test"), (200, {"ok": True, "id": link["id"], "size": 9}))
+            self.assertEqual(put(b"%PDF-replace")[0], 409)
+            self.assertEqual(store.con.execute("SELECT data FROM files WHERE id=?", (link["id"],)).fetchone()[0], b"%PDF-test")
+            store.con.execute("DELETE FROM files WHERE id=?", (link["id"],))
+            self.assertEqual(put(b"%PDF-recreate")[0], 409)
+            h.path = "/api/files/upload-link"
+            h.who = lambda: "member"
+            with patch.object(serve.time, "time", return_value=1000):
+                h.path = h._post({})[1]["url"]
+            h.who = lambda: None
+            with patch.object(serve.time, "time", return_value=1601):
+                self.assertEqual(put(b"%PDF-expired")[0], 403)
+
+    def test_style_guard_whoami_and_snapshot_privacy(self):
+        with self.file_handler() as (h, store):
+            alice = {"id": "alice", "name": "Alice", "role": "member", "style": "private Alice"}
+            bob = {"id": "bob", "name": "Bob", "role": "member", "style": "private Bob"}
+            admin = {"id": "admin", "name": "Admin", "role": "admin"}
+            store.write([("users", u["id"], u) for u in (alice, bob, admin)], [])
+            h.who = lambda: "alice"
+            h.path = "/api/state"
+            h._post({"upserts": [["users", "alice", {**alice, "style": "  own guidance  "}],
+                                 ["users", "bob", {**bob, "style": "stolen"}]]})
+            self.assertEqual(store.user("alice")["style"], "own guidance")
+            self.assertEqual(store.user("bob")["style"], "private Bob")
+            for invalid in (None, 4, "x" * 20001):
+                h._post({"upserts": [["users", "alice", {**alice, "style": invalid}]]})
+                self.assertEqual(store.user("alice")["style"], "own guidance")
+            h.who = lambda: "admin"
+            h._post({"upserts": [["users", "bob", {**bob, "style": "admin replacement"}]]})
+            h._post({"upserts": [["users", "bob", {"id": "bob", "name": "Bob", "role": "member"}]]})
+            self.assertEqual(store.user("bob")["style"], "private Bob")
+            h.path = "/api/whoami"
+            self.assertEqual(h._get()[1]["user"]["style"], "")
+            h.who = lambda: "alice"
+            self.assertEqual(h._get()[1]["user"]["style"], "own guidance")
+            state = serve.without_secrets(store.db(), "alice")
+            self.assertEqual(state["users"]["alice"]["style"], "own guidance")
+            self.assertNotIn("style", state["users"]["bob"])
+            h.path = "/api/snapshot"
+            with patch.object(serve, "seed"):
+                response = h._get()[1]
+            self.assertNotIn('"style"', json.dumps(response))
+            self.assertNotIn("private Bob", json.dumps(response))
+
     def test_record_boundary(self):
         self.assertFalse(serve.valid_records([["_meta", "users", {}]], 3))
         self.assertFalse(serve.valid_records([["reviews", "r"]], 3))

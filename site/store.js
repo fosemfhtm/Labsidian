@@ -521,7 +521,7 @@
   // ---------------------------------------------------------------- session
   let actingAs = null; // set while applying an MCP op on behalf of its author
   function session() { if (actingAs) return actingAs; if (SERVER) return state?.me || null; try { return localStorage.getItem(SESSION); } catch (e) { return null; } }
-  const current = () => { const id = session(); const u = id && db.users[id]; return u && !u.disabled ? publicUser(u) : null; };
+  const current = () => { const id = session(); const u = id && db.users[id]; return u && !u.disabled ? { ...publicUser(u), style: u.style || "" } : null; };
   const publicUser = u => ({ id: u.id, name: u.name, role: u.role, mustChange: !!u.mustChange });
   const requireUser = (allowed = true) => {
     const u = current();
@@ -638,6 +638,11 @@
         return publicUser(u);
       },
       async signOut() { if (SERVER) await LabServerAuth.signOut(); else localStorage.removeItem(SESSION); },
+      async setStyle(text) {
+        const me = requireUser();
+        if (typeof text !== "string" || text.trim().length > 20000) throw new Error("style");
+        db.users[me.id].style = text.trim(); save();
+      },
       async changePassword(oldPw, newPw) {
         const me = requireUser(), u = db.users[me.id];
         if (SERVER) {  // checked and hashed on the server; this copy only learns that there is a password now

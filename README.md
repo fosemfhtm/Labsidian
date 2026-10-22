@@ -171,39 +171,100 @@ python scripts/serve.py 8765 --host 0.0.0.0     # 학교망에서 http://<서버
 
 ## 내 Claude · Codex 연결 (MCP)
 
-각자 자기 AI를 Labsidian에 연결해서 말로 시키는 방식이에요.
+각자 자기 Claude Code·Codex·omp를 연결해서 말로 시키는 방식이에요. **멤버 컴퓨터에는 Python이나 저장소를 설치하지 않아요.**
+
+1. 사이트의 **내 페이지 → AI 연결 → 새 토큰…**에서 개인 토큰을 만들어요.
+2. Claude Code 탭의 명령을 복사해 터미널에 한 번 붙여넣어요. 서버 주소와 토큰이 이미 채워져 있어요.
+
+```bash
+claude mcp add --transport http labsidian https://<도메인>/mcp --header "Authorization: Bearer <토큰>"
+```
+
+토큰은 만들 때 **한 번만** 보여요. 명령을 다른 사람에게 보내거나 공개 저장소에 올리지 마세요. 쓰지 않는 토큰은 같은 화면에서 삭제해요.
+서버는 토큰 주인으로 요청을 처리하고, 관리자 작업에는 관리자 계정 토큰이 필요해요.
+
+**Codex**는 같은 화면의 Codex 탭을 복사해 `~/.codex/config.toml`에 넣어요.
+
+```toml
+[mcp_servers.labsidian]
+url = "https://<도메인>/mcp"
+http_headers = { Authorization = "Bearer <토큰>" }
+```
+
+**omp**는 Claude Code 설정을 가져올 수 있으므로 위 명령만으로도 연결할 수 있어요. 직접 설정하려면 omp 탭의 내용을 `~/.omp/agent/mcp.json`에 넣어요. 기존 `mcpServers`가 있으면 `labsidian` 항목만 추가해요.
+
+```json
+{"mcpServers":{"labsidian":{"type":"http","url":"https://<도메인>/mcp","headers":{"Authorization":"Bearer <토큰>"}}}}
+```
+
+**다이어리 작성 규칙**도 내 페이지 → AI 연결에서 저장해요. AI가 초안을 쓸 때 `writing_style`로 내 규칙을 받아 따라요.
+내용은 본인에게만 보여요.
+
+### 연구실 서버 설정
+
+관리자가 서버에만 MCP 패키지를 설치하고, 사이트 서버와 별도 프로세스로 실행해요.
 
 ```bash
 pip install mcp
+LABSIDIAN_URL=http://127.0.0.1:8765 LABSIDIAN_PUBLIC_URL=https://<도메인> python mcp/labsidian_mcp.py --http
 ```
 
-MCP 서버는 내 컴퓨터에서 돌고, 개인 토큰으로 연구실 서버에 로그인해요. 토큰은 사이트의 **내 페이지 → AI 연결**에서 직접 만들어요.
-만들 때 한 번만 보여 주고, 아래 명령이 주소와 토큰까지 채워진 채로 나와요. 쓰지 않는 토큰은 거기서 삭제해요.
-(관리자는 서버에서 `python scripts/serve.py --token <이름>`으로도 만들 수 있어요.)
+`--http`는 `127.0.0.1:8767`의 `/mcp`에서 stateless Streamable HTTP를 제공해요.
+`LABSIDIAN_URL`은 `scripts/serve.py` 주소이고, `LABSIDIAN_PUBLIC_URL`은 멤버가 접속하는 HTTPS 주소예요(기본값은 `LABSIDIAN_URL`).
+`LABSIDIAN_MCP_PORT`로 MCP 포트를 바꿀 수 있어요(기본 8767). `LABSIDIAN_LAB`은 AI가 소개할 연구실 이름이에요.
+HTTP 요청은 매번 `Authorization: Bearer <토큰>`으로 인증해요. HTTP 모드에서는 서버의 `LABSIDIAN_TOKEN`·`LABSIDIAN_USER`·로컬 비밀키로 대신 로그인하지 않아요.
 
-**Claude Code**
+Caddy 예시예요. `/mcp`는 경로를 그대로 MCP 프로세스에 전달하고, 나머지는 사이트로 보내요.
+
+```caddyfile
+<도메인> {
+    handle /mcp {
+        reverse_proxy 127.0.0.1:8767
+    }
+    handle {
+        reverse_proxy 127.0.0.1:8765
+    }
+}
+```
+
+### 로컬·개발용(stdio)
+
+기존처럼 내 컴퓨터에서 실행할 수도 있어요. 이 방식만 Python·`pip install mcp`·저장소가 필요해요.
+토큰을 만든 뒤 화면의 **개발용(내 컴퓨터에서 실행)**을 펼치면 기존 명령이 나와요.
+
 ```bash
 claude mcp add labsidian -e LABSIDIAN_URL=http://<서버 주소>:8765 -e LABSIDIAN_TOKEN=<토큰> -- python <저장소 경로>/mcp/labsidian_mcp.py
 ```
 
-**Codex** (`~/.codex/config.toml`)
-```toml
-[mcp_servers.labsidian]
-command = "python"
-args = ["<저장소 경로>/mcp/labsidian_mcp.py"]
-env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토큰>" }
+`--http` 없이 실행하면 stdio예요. 서버도 같은 컴퓨터에서 직접 띄웠다면 토큰 대신 `LABSIDIAN_USER=<사이트의 멤버 이름>`을 사용할 수 있어요(데모에서는 `한서윤`, `박지호` 등).
+같은 저장소의 `data/.local_secret`이 로컬 실행을 증명해요.
+stdio 전용 설정은 `LABSIDIAN_DOWNLOADS`(`download_pdf`의 로컬 저장 폴더, 기본 임시 폴더), `LABSIDIAN_STYLE`(사이트에 작성 규칙이 없을 때 사용할 내 규칙 파일)이에요.
+
+### 원격 AI에서 PDF 읽고 첨부하기
+
+HTTP 모드의 `download_pdf(file_id=…)`는 서버의 로컬 경로가 아니라 **10분간 유효한 다운로드 URL**을 돌려줘요. AI가 자기 컴퓨터에서 받아 읽어요.
+
+```bash
+curl --fail --location '<download_pdf가 반환한 URL>' --output paper.pdf
 ```
 
-서버는 토큰 주인으로 요청을 처리해요. 관리자 작업용으로는 관리자 계정 토큰으로 한 번 더 등록하면 돼요(예: `claude mcp add labsidian-admin -e LABSIDIAN_TOKEN=<admin 토큰> -- ...`).
-서버를 내 컴퓨터에서 직접 띄웠다면 토큰 없이 `LABSIDIAN_USER=<사이트의 멤버 이름>`만 줘도 돼요(데모에서는 `한서윤`, `박지호` 등). 같은 저장소의 `data/.local_secret`이 이 컴퓨터라는 증명이 돼요.
-선택: `LABSIDIAN_LAB`(연구실 이름 — AI가 소개할 때 씀), `LABSIDIAN_DOWNLOADS`(`download_pdf`가 PDF를 저장할 폴더, 기본은 임시 폴더), `LABSIDIAN_STYLE`(내 문체 규칙 마크다운 파일 — AI가 초안을 쓸 때마다 따르고, 만들기 전에 그 규칙으로 점검해요).
+로컬 PDF를 첨부하려면 `pdf_upload_link()`로 업로드 `url`과 `file_id`를 받아요. URL은 **10분간 한 번만** 쓸 수 있어요.
+
+```bash
+curl --fail --request PUT --header 'Content-Type: application/pdf' --data-binary @paper.pdf '<pdf_upload_link가 반환한 URL>'
+```
+
+업로드가 성공하면 `file_id`를 `create_draft`나 `add_to_reading_list`의 `pdf_file_id`로 전달해요. 파일 이름은 `pdf_name`으로 지정할 수 있어요. PDF는 20 MB 이하이고 실제 PDF여야 해요.
+서명 URL에는 토큰을 추가할 필요가 없어요. URL을 아는 사람은 만료 전까지 해당 파일을 받거나 업로드할 수 있으므로 공유하지 마세요.
+
+### 할 수 있는 일
 
 | 도구 | 하는 일 |
 |---|---|
 | `search_papers` `get_paper` `get_person` `similar_papers` `recommend_papers` `lab_progress` `list_tags` `whoami` | 읽기 — 논문·다이어리·댓글·관심사·작성률 조회. 검색은 제목에 맞는 논문부터 (번역은 `get_paper`로 받아서 AI가 직접) |
 | `my_inbox` | 내 알림 — 답하는 데 필요한 id까지 함께(질문이면 `add_comment(..., reply_to=…)`로 바로 답글), 읽음 처리 |
-| `create_draft` `my_drafts` `delete_draft` `writing_style` | 읽을 목록의 논문에 다이어리 **초안** 저장하기(PDF 첨부 가능) · 초안이 있는 논문 목록·초안 삭제 · 내 문체 규칙(`LABSIDIAN_STYLE`) 보기. 별도 보관함이나 알림 없이 읽을 목록에서 검토 후 게시해요(자동 게시 없음) |
-| `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` | 읽을 목록 보기, 링크·제목으로 논문 담기(로컬 PDF 첨부, 이미 읽은 논문은 "다 읽음"으로 바로), 상태(읽는 중·다 읽음)·메모 바꾸기 · 올려 둔 PDF를 로컬 파일로 꺼내 AI가 읽기 |
+| `create_draft` `my_drafts` `delete_draft` `writing_style` | 읽을 목록의 논문에 다이어리 **초안** 저장하기(PDF 첨부 가능) · 초안이 있는 논문 목록·초안 삭제 · 내 작성 규칙 보기(HTTP는 내 페이지에서 저장). 별도 보관함이나 알림 없이 읽을 목록에서 검토 후 게시해요(자동 게시 없음) |
+| `my_reading_list` `add_to_reading_list` `update_reading_item` `download_pdf` `pdf_upload_link` | 읽을 목록 보기, 링크·제목으로 논문 담기(PDF 첨부, 이미 읽은 논문은 "다 읽음"으로 바로), 상태(읽는 중·다 읽음)·메모 바꾸기 · PDF 다운로드·업로드(HTTP는 서명 URL, stdio는 기존 로컬 파일 방식) |
 | `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
 | `update_paper_info` | 논문을 읽고 다이어리를 쓴 멤버나 관리자가 제목·저자·학회/저널·연도·링크의 확인된 사실 오류를 수정해요. 연구실 모두가 보는 공용 정보이며, 준 항목만 바뀌고 `reset`에 적은 항목은 원본으로 돌아가요 |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |

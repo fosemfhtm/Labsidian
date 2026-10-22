@@ -33,6 +33,22 @@ for (const op of ["tag.merge", "tag.rename", "quota.set", "user.role", "user.dis
 }
 await assert.rejects(admin({ op: "cluster.name" }), /unknown op/);
 const member = boot({}, "bob");
+assert.equal(member.store.auth.current().style, "");
+await member.store.auth.setStyle("  private member guidance  ");
+assert.equal(member.store.auth.current().style, "private member guidance");
+assert.equal(member.db().users.bob.style, "private member guidance");
+assert.equal(member.db().users.alice.style, undefined);
+await assert.rejects(member.store.auth.setStyle("x".repeat(20001)), /style/);
+await assert.rejects(member.store.auth.setStyle(null), /style/);
+assert.equal(member.store.auth.current().style, "private member guidance");
+await member.store.auth.setStyle("x".repeat(20000));
+assert.equal(member.store.auth.current().style.length, 20000);
+assert.ok(!JSON.stringify(member.snapshot()).includes('"style"'));
+assert.equal(member.store.users.get("bob").style, undefined);
+assert.ok((await member.store.users.list()).every(u => !("style" in u)));
+await member.store.auth.setStyle("  ");
+assert.equal(member.store.auth.current().style, "");
+await assert.rejects(boot({}, null).store.auth.setStyle("anonymous"), /auth/);
 const memberTag = await member.applyOp({ actor: "bob", op: "tag.create", axis: "domain", label: "Member field" });
 assert.ok(member.snapshot().topics.some(t => t.id === memberTag.tagId));
 await assert.rejects(member.applyOp({ actor: "bob", op: "tag.create", axis: "free", label: "Invalid" }), /tag.axis/);

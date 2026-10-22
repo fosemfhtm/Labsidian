@@ -319,4 +319,69 @@ vm.runInContext("function openNotif(d) {" + notifSource.split("  function openNo
 notifContext.payload = { group: notifId, type: "groupSession" };
 vm.runInContext("openNotif(payload)", notifContext);
 assert.equal(notifLocation.hash, "#/study/new?group=" + encodeURIComponent(notifId));
+// AI connection snippets carry the current origin/token; switching also changes what Copy copies.
+const meSource = load("me.js"), aiNodes = new Map();
+const aiNode = selector => {
+  if (!aiNodes.has(selector)) aiNodes.set(selector, { innerHTML: "", textContent: "", value: "", disabled: false });
+  return aiNodes.get(selector);
+};
+const clients = ["claude", "codex", "omp"].map(client => ({
+  dataset: { client }, setAttribute(key, value) { this[key] = value; },
+}));
+const copies = ["token", "snippet", "cmd"].map(copy => ({ dataset: { copy } }));
+const aiModal = { querySelectorAll: selector => selector === "[data-client]" ? clients : copies };
+let copied;
+aiNode("#ai-form").label = { value: "Laptop", focus() {} };
+const aiContext = vm.createContext({ $: aiNode, t: key => key, esc: String,
+  location: { origin: "https://lab.example" }, LabModal: () => aiModal,
+  S: { tokens: { create: async () => ({ token: "secret-token" }) } },
+  LabCopy: text => { copied = text; }, aiTokens() {}, setTimeout() {}, console });
+vm.runInContext("function newToken() {" + meSource.split("  function newToken() {")[1]
+  .split("  // calendar cells:")[0] + "\nnewToken();", aiContext);
+await aiNode("#ai-form").onsubmit({ preventDefault() {} });
+assert.equal(aiNode("#ai-snippet").textContent,
+  'claude mcp add --transport http labsidian https://lab.example/mcp --header "Authorization: Bearer secret-token"');
+assert.equal(clients[0]["aria-pressed"], "true");
+clients[1].onclick(); copies[1].onclick();
+assert.equal(copied, '[mcp_servers.labsidian]\nurl = "https://lab.example/mcp"\nhttp_headers = { Authorization = "Bearer secret-token" }');
+clients[2].onclick(); copies[1].onclick();
+assert.deepEqual(JSON.parse(copied), { mcpServers: { labsidian: { type: "http",
+  url: "https://lab.example/mcp", headers: { Authorization: "Bearer secret-token" } } } });
+assert.equal(clients[0]["aria-pressed"], "false");
+copies[0].onclick(); assert.equal(copied, "secret-token");
+copies[2].onclick(); assert.ok(copied.startsWith("claude mcp add labsidian -e LABSIDIAN_URL=https://lab.example"));
+assert.ok(aiNode(".modal").innerHTML.includes("<details><summary>me.aiDev</summary>"));
+// Writing rules use the shared single-flight helper, report failures, and survive token list refreshes.
+let styleReady = false, styleCalls = 0, resolveStyle, failStyle = false;
+const styleNodes = new Map();
+const styleNode = selector => {
+  if (selector === "#me-style-form" && !styleReady) return null;
+  if (!styleNodes.has(selector)) styleNodes.set(selector, { value: "", textContent: "",
+    querySelector: () => styleNode("submit") });
+  return styleNodes.get(selector);
+};
+const styleBox = styleNode("#me-ai");
+Object.defineProperty(styleBox, "innerHTML", { set(html) { styleReady = true; this.markup = html; } });
+styleBox.querySelectorAll = () => [];
+const styleContext = vm.createContext({ $: styleNode, view: {}, t: key => key, esc: String,
+  UI: { submitOnce: formWindow.LabUI.submitOnce }, newToken() {}, LabToast() {}, console: { warn() {} },
+  S: { auth: { current: () => ({ style: "Existing rules" }), setStyle: text => {
+    assert.equal(text, "New rules"); styleCalls++;
+    return failStyle ? Promise.reject(new Error("private server detail")) : new Promise(resolve => { resolveStyle = resolve; });
+  } }, tokens: { list: async () => [] } } });
+vm.runInContext("async function aiTokens() {" + meSource.split("  async function aiTokens() {")[1]
+  .split("  // shown once:")[0], styleContext);
+await vm.runInContext("aiTokens()", styleContext);
+assert.ok(styleBox.markup.includes("Existing rules"));
+const styleForm = styleNode("#me-style-form");
+styleNode("#me-style").value = "New rules";
+const saveStyle = () => styleForm.onsubmit({ preventDefault() {} });
+const styleSaving = saveStyle(); await saveStyle();
+assert.equal(styleCalls, 1); assert.equal(styleNode("submit").disabled, true);
+resolveStyle(); await styleSaving; assert.equal(styleNode("submit").disabled, false);
+failStyle = true; await saveStyle();
+assert.equal(styleNode("#me-style-err").textContent, "me.aiStyleFail");
+styleNode("#me-style").value = "Unsaved rules";
+await vm.runInContext("aiTokens()", styleContext);
+assert.equal(styleNode("#me-style").value, "Unsaved rules");
 console.log("Frontend cache and lifecycle regressions passed.");

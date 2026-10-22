@@ -491,6 +491,9 @@ details.fld summary { cursor: pointer; }
 .me-reviews > .row-between h3 { margin: 0; }
 .me-ai { margin-top: var(--s-6); }
 .me-ai > .row-between h3 { margin: 0; }
+.me-ai textarea { width: 100%; }
+.me-ai form { margin-top: var(--s-6); }
+.ai-snippet { white-space: pre-wrap; }
 .me-head .sub a { color: var(--link-text); }
 
 /* ---------- interest drift (diaries.js, on the person page): a row per term, or per month of one term ---------- */

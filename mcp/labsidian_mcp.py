@@ -1,11 +1,14 @@
 """Labsidian MCP server — lets each member's own Claude / Codex read the lab's paper diary and act for them.
 
 Run (stdio):  .venv/Scripts/python mcp/labsidian_mcp.py
+Run (HTTP):   python mcp/labsidian_mcp.py --http
+              127.0.0.1:${LABSIDIAN_MCP_PORT:-8767}/mcp, stateless Streamable HTTP behind the public proxy
+              LABSIDIAN_PUBLIC_URL=https://lab.example sets public page and signed PDF links
+              HTTP identity is ONLY the incoming Authorization: Bearer token (내 페이지 → AI 연결).
 Server:       LABSIDIAN_URL=http://localhost:8765          the Labsidian server (scripts/serve.py) — real lab;
               http://localhost:8766 = the demo lab (serve.py --demo), which is where MCP changes get tested;
               the lab's shared server, e.g. https://labsidian.example.ac.kr
-Identity:     LABSIDIAN_TOKEN=<your personal token>       you, on any server (the admin makes one:
-              python scripts/serve.py --token <name>); the server acts as the token's member
+Identity:     LABSIDIAN_TOKEN=<your personal token>       stdio: the token's member, made at 내 페이지 → AI 연결
               LABSIDIAN_USER=<your name as on the site>   instead, only for a server on this machine: this checkout's
               data/.local_secret proves it's local, and the server trusts the name
 
@@ -26,7 +29,8 @@ Backend contract — what a hosted DB version has to provide (the tools only use
        admin: tag.merge · tag.rename · quota.set · term.save · user.role · user.disable · offday.save ·
               offday.remove · paper.tags
   DB.apply answers what it made ({"itemId": …}, {"commentId": …}, {"studyId": …}) so a tool can hand the id back.
-  Files (PDFs): GET / PUT /api/files/<id>.
+  Files (PDFs): GET / PUT /api/files/<id>; signed links via POST /api/files/link and /api/files/upload-link.
+  HTTP PDFs: pdf_upload_link → curl upload → pdf_file_id (+ optional pdf_name); download_pdf → signed URL.
 Words: the site calls a member's write-up of a paper a "diary" (Korean 다이어리, never 리뷰); ids keep the old name
 review_id.
 Every command and its result is kept in the server's ops table (GET /api/ops, or SELECT * FROM ops).
@@ -35,10 +39,14 @@ import json
 import math
 import os
 import re
+import shlex
+import sys
+import threading
 import tempfile
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 import uuid
 from collections import Counter
 from datetime import date
@@ -49,17 +57,18 @@ try:  # mcp >= 2 renamed FastMCP → MCPServer
 except ImportError:
     from mcp.server.fastmcp import FastMCP
     from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.transport_security import TransportSecuritySettings
 
-SITE = os.environ.get("LABSIDIAN_URL", "http://localhost:8765").rstrip("/")
-# the server listens on 127.0.0.1 only; "localhost" would try IPv6 first and wait ~2 s per request on Windows
-API = re.sub(r"//localhost(?=[:/]|$)", "//127.0.0.1", SITE)
-TOKEN = os.environ.get("LABSIDIAN_TOKEN", "").strip()
-ME = "" if TOKEN else os.environ.get("LABSIDIAN_USER", "").strip()   # with a token: whoever the server says it belongs to
+HTTP_MODE = "--http" in sys.argv
+SITE = os.environ.get("LABSIDIAN_PUBLIC_URL", os.environ.get("LABSIDIAN_URL", "http://localhost:8765")).rstrip("/")
+API = re.sub(r"//localhost(?=[:/]|$)", "//127.0.0.1", os.environ.get("LABSIDIAN_URL", "http://localhost:8765").rstrip("/"))
+PORT = int(os.environ.get("LABSIDIAN_MCP_PORT", "8767"))
+SIGN_IN = "Get a personal MCP token at 내 페이지 → AI 연결 and send Authorization: Bearer <token>."
 LOCAL_SECRET = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", ".local_secret")
 LAB = os.environ.get("LABSIDIAN_LAB", "").strip()   # the lab's name, e.g. "KAIST 교통·AI 연구실" (optional)
 # the member's own writing rules for diary drafts (a markdown file); every draft this AI writes follows them
 STYLE_PATH = os.path.expanduser(os.environ.get("LABSIDIAN_STYLE", "").strip().strip('"'))
-STYLE = open(STYLE_PATH, encoding="utf-8").read().strip() if STYLE_PATH and os.path.isfile(STYLE_PATH) else ""
+STYLE = open(STYLE_PATH, encoding="utf-8").read().strip() if not HTTP_MODE and STYLE_PATH and os.path.isfile(STYLE_PATH) else ""
 FILES = os.environ.get("LABSIDIAN_DOWNLOADS") or os.path.join(tempfile.gettempdir(), "labsidian")   # where download_pdf saves
 PDF_LIMIT = 20 * 1024 * 1024   # same as the site (site/store.js FILE_LIMIT)
 
@@ -74,9 +83,13 @@ mcp = FastMCP("labsidian", instructions=(
     "PDF and report mismatches to them in the chat, separately; the memo only takes the corrections they accept. Show "
     "the full summary and memo in the chat and call create_draft only after they explicitly approve. When a paper "
     "name matches several papers, a tool lists them: pick one and call again with its id. "
-    "Admin tools only work if LABSIDIAN_USER is an admin. Answer in the user's language."
-    + ("\n\nThe member's writing style for diary drafts (summary and memo) — follow it in every draft you write and "
-       "check the draft against it before calling create_draft:\n\n" + STYLE if STYLE else "")))
+    "Call writing_style before drafting and follow its rules. For a local PDF in HTTP mode, call pdf_upload_link, "
+    "upload with its curl command, then pass pdf_file_id and pdf_name to create_draft or add_to_reading_list. "
+    "Admin tools only work for an admin member. Answer in the user's language."),
+    host="127.0.0.1", port=PORT, streamable_http_path="/mcp", stateless_http=True, json_response=True,
+    transport_security=TransportSecuritySettings(
+        allowed_hosts=list(dict.fromkeys([urllib.parse.urlsplit(SITE).netloc, f"127.0.0.1:{PORT}", f"localhost:{PORT}"])),
+        allowed_origins=list(dict.fromkeys([SITE, f"http://127.0.0.1:{PORT}", f"http://localhost:{PORT}"]))))
 
 
 # ------------------------------------------------------------------ data
@@ -95,13 +108,29 @@ def norm_title(t):
 
 
 def auth_headers():
-    """a personal token, or — for a server on this machine — the secret it shares with this checkout"""
-    if TOKEN:
-        return {"Authorization": f"Bearer {TOKEN}"}
+    """HTTP callers never inherit the server process's local credentials."""
+    if HTTP_MODE:
+        request = mcp.get_context().request_context.request
+        header = request.headers.get("authorization", "") if request else ""
+        if not re.fullmatch(r"Bearer\s+\S+", header, re.IGNORECASE):
+            raise ToolError(SIGN_IN)
+        return {"Authorization": header}
+    token = os.environ.get("LABSIDIAN_TOKEN", "").strip()
+    if token:
+        return {"Authorization": f"Bearer {token}"}
     if re.match(r"https?://(127\.0\.0\.1|\[::1\])[:/]", API + "/") and os.path.exists(LOCAL_SECRET):
         with open(LOCAL_SECRET, encoding="utf-8") as f:
             return {"X-Lab-Local": f.read().strip()}
     return {}
+
+
+def identity():
+    if HTTP_MODE or os.environ.get("LABSIDIAN_TOKEN", "").strip():
+        user = DB.call("/api/whoami").get("user")
+        if not user or not user.get("id"):
+            raise ToolError(SIGN_IN)
+        return user
+    return {"id": os.environ.get("LABSIDIAN_USER", "").strip()}
 
 
 class ServerBackend:
@@ -110,6 +139,8 @@ class ServerBackend:
 
     def __init__(self):
         self.version, self.day, self.d = None, None, None
+        self.views = {}
+        self.lock = threading.RLock()
 
     def request(self, path, data=None, headers=None, method=None):
         return urllib.request.Request(API + path, data=data, headers={**auth_headers(), **(headers or {})}, method=method)
@@ -122,8 +153,7 @@ class ServerBackend:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code == 401:
-                raise ToolError(f"The Labsidian server at {SITE} didn't accept this MCP server's sign-in — set LABSIDIAN_TOKEN "
-                                "(your admin makes one: python scripts/serve.py --token <your name>)")
+                raise ToolError(SIGN_IN) from e
             try:
                 payload = json.loads(e.read())
             except ValueError:
@@ -134,30 +164,33 @@ class ServerBackend:
             raise ToolError(f"The Labsidian server isn't running at {SITE} — start it with: python scripts/serve.py")
 
     def data(self):
-        global ME
-        if TOKEN and not ME:
-            ME = (self.call("/api/whoami").get("user") or {}).get("id", "")
-        v, day = self.call("/api/version")["version"], date.today()
-        if v != self.version or day != self.day or self.d is None:
-            r = self.call("/api/snapshot")
-            if "snapshot" not in r:
-                raise ToolError(f"Labsidian server: {r.get('error')}")
-            self.version, self.day, d = r["version"], day, r["snapshot"]
-            d["P"] = {p["id"]: p for p in d["people"]}
-            d["PA"] = {p["id"]: p for p in d["papers"]}
-            d["R"] = {r["id"]: r for r in d["reviews"]}
-            d["T"] = {t["id"]: t for t in d["topics"]}
-            d["U"] = {u["id"]: u for u in d["users"]}
-            viewer = next((u["id"] for u in d["users"] if ME and ME.lower() in (u["id"].lower(), u["name"].lower())), "")
-            for p in d["papers"]:
-                p["_key"] = norm_title(p["title"])
-                # search_papers ranks title first, then authors/publication/preprint metadata and abstract, then diaries
-                p["_f"] = {"title": p["title"].lower(), "meta": ((p.get("authors") or "") + " " + paper_citation(p)).lower(),
-                           "abstract": (p.get("abstract") or "").lower(),
-                           "diaries": " ".join(d["R"][r]["content"] + " " + d["R"][r]["memo"] for r in p["reviews"] if r in d["R"] and not _hidden_for(d["R"][r], viewer, d)).lower()}
-                p["_hay"] = " ".join(p["_f"].values())
-            self.d = d
-        return self.d
+        viewer = identity()["id"]
+        with self.lock:
+            v, day = self.call("/api/version")["version"], date.today()
+            if v != self.version or day != self.day or self.d is None:
+                r = self.call("/api/snapshot")
+                if "snapshot" not in r:
+                    raise ToolError(f"Labsidian server: {r.get('error')}")
+                self.version, self.day, self.d = r["version"], day, r["snapshot"]
+                self.views.clear()
+            if viewer not in self.views:
+                d = dict(self.d)
+                d["papers"] = [dict(p) for p in d["papers"]]
+                d["P"] = {p["id"]: p for p in d["people"]}
+                d["PA"] = {p["id"]: p for p in d["papers"]}
+                d["R"] = {r["id"]: r for r in d["reviews"]}
+                d["T"] = {t["id"]: t for t in d["topics"]}
+                d["U"] = {u["id"]: u for u in d["users"]}
+                uid = next((u["id"] for u in d["users"] if viewer.lower() in (u["id"].lower(), u["name"].lower())), "")
+                for p in d["papers"]:
+                    p["_key"] = norm_title(p["title"])
+                    p["_f"] = {"title": p["title"].lower(), "meta": ((p.get("authors") or "") + " " + paper_citation(p)).lower(),
+                               "abstract": (p.get("abstract") or "").lower(),
+                               "diaries": " ".join(d["R"][r]["content"] + " " + d["R"][r]["memo"] for r in p["reviews"]
+                                                  if r in d["R"] and not _hidden_for(d["R"][r], uid, d)).lower()}
+                    p["_hay"] = " ".join(p["_f"].values())
+                self.views[viewer] = d
+            return self.views[viewer]
 
 
     def apply(self, op):
@@ -193,6 +226,19 @@ class ServerBackend:
         except (urllib.error.URLError, OSError):
             raise ToolError(f"The Labsidian server isn't running at {SITE} — start it with: python scripts/serve.py")
 
+    def file_info(self, fid):
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", fid):
+            raise ToolError("invalid file_id")
+        try:
+            with self._http.open(self.request(f"/api/files/{fid}", method="HEAD"), timeout=120) as r:
+                if r.headers.get_content_type() != "application/pdf":
+                    raise ToolError(f"{fid} is not a PDF")
+                return int(r.headers.get("Content-Length", "0"))
+        except urllib.error.HTTPError as e:
+            raise ToolError(SIGN_IN if e.code == 401 else f"couldn't read PDF {fid!r}: HTTP {e.code}") from e
+        except (urllib.error.URLError, OSError) as e:
+            raise ToolError(f"couldn't read PDF {fid!r}: {e}") from e
+
 
 DB = ServerBackend()
 
@@ -210,10 +256,10 @@ def person(name_or_id):
 
 
 def me():
-    DB.data()  # with a token, this learns who "me" is
-    if not ME:
-        raise ToolError("Set LABSIDIAN_TOKEN (or, for a server on this machine, LABSIDIAN_USER = your name as on the site) in this MCP server's env.")
-    return person(ME)
+    uid = identity()["id"]
+    if not uid:
+        raise ToolError("Set LABSIDIAN_TOKEN (or, for a local server, LABSIDIAN_USER = your name on the site).")
+    return person(uid)
 
 
 def require_admin():
@@ -312,7 +358,7 @@ def _validate_dates(message, *values):
 def whoami() -> dict:
     """Who this MCP server acts as, which Labsidian server it talks to and how much is in it."""
     d = DB.data()
-    u = person(ME) if ME else None
+    u = me() if identity()["id"] else None
     return {"user": u and {"id": u["id"], "name": u["name"], "role": u.get("role")}, "server": SITE, "dataVersion": DB.version,
             "papers": len(d["papers"]), "reviews": len(d["reviews"])}
 
@@ -359,7 +405,7 @@ def get_paper(paper_ref: str, include_comments: bool = True) -> dict:
     d = DB.data()
     p = paper(paper_ref)
     reviews = []
-    viewer = me()["id"] if ME else ""
+    viewer = me()["id"] if identity()["id"] else ""
     for rid in p["reviews"]:
         r = d["R"].get(rid)
         if not r:
@@ -491,6 +537,8 @@ def _done(op, extra=None):
 
 def _attach_pdf(path):
     """upload a local PDF for a draft → the attachment the site expects"""
+    if HTTP_MODE:
+        raise ToolError("pdf_path is local-only; use pdf_upload_link, upload the PDF, then pass pdf_file_id.")
     path = os.path.expanduser(path.strip().strip('"'))
     if not os.path.isfile(path):
         raise ToolError(f"no file at {path!r}")
@@ -504,6 +552,24 @@ def _attach_pdf(path):
     if len(data) > PDF_LIMIT:
         raise ToolError(f"{os.path.basename(path)} is over 20 MB (the site's limit)")
     return {"id": DB.put_file(data, "application/pdf"), "name": os.path.basename(path), "type": "application/pdf", "size": len(data), "kind": "pdf"}
+
+
+def _uploaded_pdf(fid, name):
+    size = DB.file_info(fid)
+    if size > PDF_LIMIT:
+        raise ToolError("the file is over 20 MB (the site's limit)")
+    name = re.split(r"[/\\]", name)[-1] or fid + ".pdf"
+    return {"id": fid, "name": name, "type": "application/pdf", "size": size, "kind": "pdf"}
+
+
+@mcp.tool()
+def pdf_upload_link() -> dict:
+    """Get a one-use PDF upload URL (10 minutes, at most 20 MB). Run howto with your local PDF, then pass
+    file_id as pdf_file_id, optionally with pdf_name, to create_draft or add_to_reading_list. Available in both modes."""
+    link = DB.call("/api/files/upload-link", {})
+    url = SITE + link["url"]
+    return {"file_id": link["id"], "url": url,
+            "howto": f"curl -T <local.pdf> -H 'Content-Type: application/pdf' {shlex.quote(url)}"}
 
 
 @mcp.tool()
@@ -533,7 +599,7 @@ def update_paper_info(paper_ref: str, title: str = "", authors: str = "", venue:
 @mcp.tool()
 def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: list[str] | None = None, link: str = "",
                  venue: str = "", authors: str = "", year: str = "", abstract: str = "",
-                 pdf_path: str = "", reading_item_id: str = "") -> dict:
+                 pdf_path: str = "", reading_item_id: str = "", pdf_file_id: str = "", pdf_name: str = "") -> dict:
     """Save a diary draft on my reading list (never published automatically). Call it only after I approved the
     summary and memo you showed me in the chat. Write them in my writing style (writing_style) and check them
     against it first. summary = Problem/Method/Results/Contributions, memo = my critique (required by lab rules).
@@ -541,8 +607,9 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
     paper; when none does, suggest a new one to me and add it with create_tag. rating 0.5–5 in 0.5 steps, or 0 to leave unrated.
     reading_item_id selects my existing item; its details fill in fields left empty. Otherwise a matching reading item
     is reused, or a new read item is created. Calling again replaces that item's draft, not the reading note.
-    pdf_path attaches a local PDF to the item; existing attachments stay with it. The member opens the returned link,
-    checks the draft and chooses the diary date when publishing. Saving a draft does not send a notification."""
+    pdf_file_id attaches an uploaded PDF (get an upload URL with pdf_upload_link first); pdf_name is optional.
+    pdf_path attaches a local PDF in stdio only. Existing attachments stay. Open the returned link to check the
+    draft and choose the diary date when publishing. Saving a draft does not send a notification."""
     if not math.isfinite(rating) or not 0 <= rating <= 5 or rating * 2 % 1:
         raise ToolError("rating must be 0 (unrated) or 0.5..5 in 0.5 steps")
     u = me()
@@ -564,6 +631,8 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
     tags = [t if not t.startswith("f:") else "f:" + re.sub(r"[^0-9a-z가-힣_-]+", "-", t[2:].lower()).strip("-")[:40] for t in (tags or [])]
     if pdf_path:
         files.append(_attach_pdf(pdf_path))
+    if pdf_file_id:
+        files.append(_uploaded_pdf(pdf_file_id, pdf_name))
     op = DB.apply({"op": "draft", "actor": u["id"], "itemId": reading_item_id, "summary": title[:60],
                    "title": title, "link": link, "venue": venue, "authors": authors, "year": year, "abstract": abstract,
                    "files": files, "data": {"summary": summary, "memo": memo, "rating": float(rating), "tags": tags or []}})
@@ -639,16 +708,19 @@ def my_reading_list(status: str = "") -> list[dict]:
 
 
 @mcp.tool()
-def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", note: str = "", pdf_path: str = "", status: str = "") -> dict:
+def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", note: str = "", pdf_path: str = "", status: str = "",
+                        pdf_file_id: str = "", pdf_name: str = "") -> dict:
     """Add a paper to my reading list: a lab paper (paper_ref = id or title from search_papers), or any paper by link /
     DOI / arXiv id (looked up for title, authors, abstract) or just its title. An optional note says why I want to read it.
-    pdf_path = a local PDF to attach (download_pdf and create_draft(reading_item_id=…) pick it up later).
+    pdf_file_id attaches an uploaded PDF (pdf_upload_link first); pdf_name is optional. pdf_path is stdio-only.
     status = todo (default) / reading / read — "read" for a paper I've already read and still have to write up."""
     u = me()
     if status and status not in ("todo", "reading", "read"):
         raise ToolError("status: todo | reading | read")
     source = _paper_input(paper_ref, link, title)
     files = [_attach_pdf(pdf_path)] if pdf_path else []
+    if pdf_file_id:
+        files.append(_uploaded_pdf(pdf_file_id, pdf_name))
     try:
         op = DB.apply({"op": "reading.add", "actor": u["id"], **source, "note": note, "status": status, "files": files})
     except ToolError as e:
@@ -674,15 +746,20 @@ def update_reading_item(item_id: str, status: str = "", note: str | None = None)
 
 @mcp.tool()
 def download_pdf(file_id: str) -> dict:
-    """Save an attached PDF (file_id from my_reading_list, get_paper or get_study) to a local file and return its
-    path, so you can read the paper — e.g. before drafting a diary with create_draft(reading_item_id=…)."""
-    data, mime = DB.get_file(file_id)
-    if "pdf" not in mime and not data.startswith(b"%PDF"):
-        raise ToolError(f"{file_id} is not a PDF ({mime or 'unknown type'})")
+    """Read an attached PDF (file_id from my_reading_list, get_paper or get_study). HTTP returns a public
+    signed URL and curl command (valid 10 minutes); stdio saves locally and returns the path."""
     d = DB.data()
     every = [f for x in (d.get("reading") or {}).values() for i in x for f in i.get("files") or []] + \
             [f for r in d["reviews"] for f in r.get("files") or []] + [f for st in d.get("studies") or [] for f in st.get("files") or []]
     name = next((f.get("name") for f in every if f.get("id") == file_id), None) or file_id + ".pdf"
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name).strip(". ") or "paper.pdf"
+    if HTTP_MODE:
+        url = SITE + DB.call("/api/files/link", {"id": file_id})["url"]
+        size = DB.file_info(file_id)
+        return {"url": url, "name": name, "bytes": size, "howto": f"curl -o {shlex.quote(name)} {shlex.quote(url)}"}
+    data, mime = DB.get_file(file_id)
+    if "pdf" not in mime and not data.startswith(b"%PDF"):
+        raise ToolError(f"{file_id} is not a PDF ({mime or 'unknown type'})")
     try:
         os.makedirs(FILES, exist_ok=True)
         name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name).strip(". ") or "paper"
@@ -744,7 +821,7 @@ def get_study(study_id: str) -> dict:
     d = DB.data()
     st = _study(study_id)
     p = d["PA"].get(st.get("paperId") or "")
-    viewer = me()["id"] if ME else ""
+    viewer = me()["id"] if identity()["id"] else ""
     revs = [d["R"][r] for r in (p or {}).get("reviews", []) if r in d["R"]]
     hidden = [r for r in revs if _hidden_for(r, viewer, d)]
     revs = [r for r in revs if r not in hidden]
@@ -897,7 +974,7 @@ def _tag_id(x):
 def list_guides(tag: str = "") -> list[dict]:
     """Core-paper guides: lists of key papers per topic that the lab curates together (optionally only those with a
     field/method tag). Shows how far I am (papers I wrote a diary on) in each."""
-    d, uid = DB.data(), (me()["id"] if ME else "")
+    d, uid = DB.data(), (me()["id"] if identity()["id"] else "")
     tid = _tag_id(tag) if tag else ""
     mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
     return [{"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"], d), "tags": [tag_label(x, d) for x in g.get("tags") or []],
@@ -910,7 +987,7 @@ def get_guide(guide_id: str) -> dict:
     """One guide by section: every paper with who added it and why, 👍 count, who in the lab read it, whether I wrote
     a diary on it, and the studies that covered it. Good for planning what to read or study next."""
     d, g = DB.data(), _guide(guide_id)
-    uid = me()["id"] if ME else ""
+    uid = me()["id"] if identity()["id"] else ""
     mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
     st = {x["id"]: x for x in d.get("studies") or []}
     sec = lambda sid: [{"item_id": it["id"], "title": it["title"], "paper": brief(d["PA"][it["paperId"]], d) if it.get("paperId") in d["PA"] else {**(it.get("meta") or {}), "inLab": False},
@@ -1118,8 +1195,9 @@ def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
 @mcp.tool()
 def writing_style() -> dict:
     """My writing rules for diary drafts (summary and memo). Follow them in every draft and check the draft against
-    them before create_draft. Empty when I haven't set LABSIDIAN_STYLE."""
-    return {"style": STYLE, "file": STYLE_PATH or None}
+    them before create_draft. Set them on the site's 내 페이지 → AI 연결; stdio also supports LABSIDIAN_STYLE."""
+    style = (DB.call("/api/whoami").get("user") or {}).get("style", "").strip()
+    return {"style": style or (STYLE if not HTTP_MODE else ""), "file": STYLE_PATH if not style and not HTTP_MODE else None}
 
 
 # ------------------------------------------------------------------ prompts (Claude Code shows them as /mcp__labsidian__… commands)
@@ -1134,7 +1212,8 @@ def diary_from_pdf(paper: str = "") -> str:
             "(writing_style; follow every rule): summary = Problem / Method / Results / Contributions, memo = my critique "
             "built from what I said, a 0.5–5 rating in 0.5 steps and tags from list_tags. Report separately any of my claims the PDF "
             "doesn't support. Only after I say OK, call create_draft with reading_item_id for an existing item, or the "
-            "paper details and pdf_path for a new one. Give me its reading-item link to check and publish; I choose the "
+            "paper details for a new one. Attach a PDF with pdf_upload_link, upload it, then pass pdf_file_id and "
+            "pdf_name (stdio also accepts pdf_path). Give me its reading-item link to check and publish; I choose the "
             "diary date there. The draft stays on the reading item and sends no notification.")
 
 
@@ -1168,4 +1247,4 @@ def next_regular_study_session(study: str = "") -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http" if HTTP_MODE else "stdio")
