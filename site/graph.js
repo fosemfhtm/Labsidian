@@ -37,10 +37,10 @@ const state = {
   yearMin: YMIN, yearMax: YMAX, yearUnknown: true, minRating: 0, sharedOnly: false, mode: "dim",
   layers: { links: false, regions: true, labels: true, timeline: false },   // all reader edges at once are a hairball on real data
   physics: { ...DEFAULT_PHYSICS },
-  timeIdx: reviewDates.length - 1, selected: null, depth: 1, hovered: null, find: null,
+  timeIdx: reviewDates.length - 1, selected: null, depth: 1, hovered: null, find: null, area: null,
 };
 try { state.axis = localStorage.getItem("lab.mapAxis") === "method" ? "method" : "domain"; } catch (e) {}
-let focusSet = null, hoverSet = null, matchCache = new Map();
+let focusSet = null, hoverSet = null, areaSet = null, matchCache = new Map();   // areaSet: the clicked tag area's papers + their readers
 let graph, renderer, sim, simById = {}, started = false, visible = false, timeTimer = null;
 
 let flipping = false, axisFrame = 0, finishFlip = null;
@@ -208,7 +208,7 @@ function applyPhysics() {
 function nodeReducer(node, data) {
   const res = { ...data };
   if (!nodeOn(node, data)) { res.hidden = true; return res; }
-  const active = focusSet || hoverSet || state.find;
+  const active = focusSet || hoverSet || areaSet || state.find;
   if (data.kind === "person") {
     res.zIndex = 3; res.borderColor = toHex(BG);
     const filteredOut = state.people.size && !state.people.has(node.slice(2));
@@ -321,7 +321,7 @@ function computeTagAreas() {
       for (let i = 1; i < ring.length; i++) area += ring[i - 1][0] * ring[i][1] - ring[i][0] * ring[i - 1][1];
       if (members.length < Math.max(2, pts.length * 0.05) || Math.abs(area) / 2 < 24) return null;
       const total = members.reduce((s, i) => s + weights[i], 0);
-      return { rings: poly.map(r => r.map(([x, y]) => [x + x0, y + y0])), count: members.length,
+      return { rings: poly.map(r => r.map(([x, y]) => [x + x0, y + y0])), count: members.length, size: Math.abs(area) / 2,
         x: x0 + members.reduce((s, i) => s + pts[i][0] * weights[i], 0) / total,
         y: y0 + members.reduce((s, i) => s + pts[i][1] * weights[i], 0) / total };
     }).filter(Boolean).sort((a, b) => b.count - a.count);
@@ -332,7 +332,19 @@ function computeTagAreas() {
     if (blobs.length) areas.push({ id, blobs: blobs.slice(0, 1), ...blobs[0] });
   });
   areas = areas.sort((a, b) => b.count - a.count);
+  if (state.area) setArea(areas.some(a => a.id === state.area) ? state.area : null);   // data changed: same area, fresh papers
   buildLabels();
+}
+// the tag area under a viewport point; where areas overlap, the smallest (most specific) one
+function areaAt(point) {
+  const g = renderer.viewportToGraph(point);
+  return areas.filter(a => inside([g.x, g.y], a.rings[0])).sort((a, b) => a.size - b.size)[0]?.id || null;
+}
+// a clicked area lights up with its papers (and their readers); the rest of the map turns gray
+function setArea(id) {
+  state.area = id;
+  areaSet = id ? new Set(papers.filter(p => axisTags(p).some(k => tagId(k) === id)).flatMap(p => [p.id, ...p.readers.map(r => "u:" + r)])) : null;
+  renderer?.refresh();
 }
 function drawOverlay() {
   if (!renderer || !visible) return;
@@ -345,7 +357,7 @@ function drawOverlay() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   if (flipping) return;
-  const dimAll = !!(focusSet || state.find);
+  const dimAll = !!(focusSet || state.find), picked = !dimAll && state.area;
   const zr = renderer.getCamera().ratio;
   if (state.layers.regions) {
     ctx.globalAlpha = Math.max(0.7, Math.min(1, zr / 0.55));   // zoomed in, the region you're in stays visible
@@ -358,15 +370,15 @@ function drawOverlay() {
         });
         ctx.closePath();
       });
-      const col = hex(T[id].color);
-      ctx.fillStyle = col + (dimAll ? "0a" : "40"); ctx.fill("evenodd");
-      if (!dimAll) { ctx.strokeStyle = col + "80"; ctx.lineWidth = 1; ctx.stroke(); }   // the edge makes each area readable where they meet
+      const col = hex(T[id].color), on = picked === id;
+      ctx.fillStyle = col + (dimAll || (picked && !on) ? "0a" : on ? "66" : "40"); ctx.fill("evenodd");
+      if (!dimAll && (!picked || on)) { ctx.strokeStyle = col + (on ? "d9" : "80"); ctx.lineWidth = on ? 2 : 1; ctx.stroke(); }   // the edge makes each area readable where they meet
     }));
     ctx.globalAlpha = 1;
   }
-  placeLabels(w, h, dimAll);
+  placeLabels(w, h, dimAll, picked);
 }
-function placeLabels(w, h, dimAll) {
+function placeLabels(w, h, dimAll, picked) {
   const placed = [];
   const fits = (x, y, w2, h2) => {
     if (x < 0 || y < 0 || x + w2 > w || y + h2 > h) return false;
@@ -389,7 +401,7 @@ function placeLabels(w, h, dimAll) {
     const y = [0, -1, 1, -2, 2].map(k => v.y - bh / 2 + k * (bh + 6)).find(yy => fits(x, yy, bw, bh));
     if (y == null) { div.style.display = "none"; return; }
     div.style.transform = `translate(${x}px, ${y}px)`;
-    div.classList.toggle("faded", dimAll);
+    div.classList.toggle("faded", dimAll || (!!picked && div.dataset.id !== picked));
   });
 }
 function buildLabels() {
@@ -399,6 +411,7 @@ function buildLabels() {
 labelLayer.onclick = e => {
   const button = e.target.closest("[data-id]"); if (!button || flipping) return;
   const area = areas.find(a => a.id === button.dataset.id);
+  setArea(area.id);
   zoomTo(area.x, area.y, 0.32);
   UI.openDrawer("topic", area.id, { fromGraph: true });
 };
@@ -411,6 +424,7 @@ function flipAxis(axis) {
   graph.forEachNode((id, { x, y }) => { starts.set(id, { x, y }); cy += y; });
   cy /= nodes.length;
   state.axis = axis;
+  setArea(null);   // the clicked area belongs to the old axis
   try { localStorage.setItem("lab.mapAxis", axis); } catch (e) {}
   const spots = peopleAnchors();
   nodes.forEach(n => {
@@ -834,7 +848,11 @@ function start() {
   const wasDrag = initDrag();
   initWheelZoom();
   renderer.on("clickNode", ({ node }) => { if (!wasDrag()) select(node, { openDrawer: true }); });
-  renderer.on("clickStage", () => { if (state.selected) { select(null); UI.closeDrawer(); } });
+  renderer.on("clickStage", ({ event }) => {
+    if (state.selected) { select(null); UI.closeDrawer(); return; }
+    const id = state.layers.regions && !flipping ? areaAt(event) : null;
+    setArea(id && id !== state.area ? id : null);   // clicking the lit area again (or empty space) clears it
+  });
   initUI();
   buildSim();
   // settle the layout off-screen in one go, then draw once — animating ~200 ticks pinned a phone's CPU for seconds
