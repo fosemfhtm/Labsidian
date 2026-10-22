@@ -6,6 +6,7 @@
     python scripts/serve.py [port] --host 0.0.0.0   listen on the network too (default 127.0.0.1 only)
     python scripts/serve.py --reset-password <name> [--demo]   a temporary password for a member (also: the first admin)
     python scripts/serve.py --token <name> [--demo]            a personal MCP token (LABSIDIAN_TOKEN) for a member
+    python scripts/serve.py --backup [--demo]                  today's copy in data/_backup (cron; the server also does it at start)
 Needs Node.js (MCP ops run the site's own store.js headless: scripts/store_worker.mjs).
 
 Sign-in happens here, not in the browser: /api/login checks the password and sets a session cookie; until then
@@ -869,6 +870,8 @@ def main():
     STORE = Store(DB_PATH)
     if "--reset-password" in args or "--token" in args:
         return cli(args)
+    if "--backup" in args:
+        return STORE.backup()
     port = int(args[0]) if args else 8765
     LOCAL_SECRET.parent.mkdir(parents=True, exist_ok=True)
     if not LOCAL_SECRET.exists():
