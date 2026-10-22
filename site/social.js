@@ -57,7 +57,7 @@
       return `<div class="cm ${c.kind} ${c.resolved ? "resolved" : ""} ${c.id === focusId ? "flash" : ""}" data-cid="${c.id}">
         ${UI.avatar(c.author)}
         <div class="cm-main">
-          <div class="cm-head"><b>${esc(UI.P[c.author]?.name || c.author)}</b>
+          <div class="cm-head"><b>${esc(UI.personName(c.author))}</b>
             ${c.kind !== "comment" ? `<span class="kind">${KIND_ICON[c.kind]} ${t("s.kind." + c.kind)}</span>` : ""}
             ${c.resolved ? `<span class="kind ok">✓ ${t("s.resolved")}</span>` : ""}
             <span class="muted">${window.LabAgo(c.at)}</span></div>

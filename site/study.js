@@ -103,7 +103,7 @@
   view.id = "view-study"; view.className = "view page wide";
   document.querySelector("main").appendChild(view);
 
-  const name = id => esc(UI.P[id]?.name || id);
+  const name = id => esc(UI.personName(id));
   const fmtAt = iso => new Date(iso).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const dday = st => {
     if (st.closed) return `<span class="ui-pill">${t("st.done")}</span>`;
@@ -178,7 +178,7 @@
       if (q.length < 2) { pop.hidden = true; return; }
       const hits = Object.values(UI.PA).filter(p => p.title.toLowerCase().includes(q)).slice(0, 8);
       pop.hidden = !hits.length;
-      pop.innerHTML = hits.map(p => `<div data-id="${p.id}">${esc(p.title)} <span class="muted">${p.readers.map(r => esc(UI.P[r]?.name || r)).join(", ")}</span></div>`).join("");
+      pop.innerHTML = hits.map(p => `<div data-id="${p.id}">${esc(p.title)} <span class="muted">${p.readers.map(r => esc(UI.personName(r))).join(", ")}</span></div>`).join("");
     };
     pop.onclick = e => {
       const d = e.target.closest("[data-id]"); if (!d) return;

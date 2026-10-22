@@ -244,4 +244,20 @@ filteredMap = boot(filteredMap.db(), "alice", seed(), { viewTerms: ["2026H1"] })
 const fullMapPaper = filteredMap.lab.allPapers.find(p => p.title === "Brand new map paper");
 const viewMapPaper = filteredMap.lab.papers.find(p => p.id === fullMapPaper.id);
 assert.deepEqual([viewMapPaper.x, viewMapPaper.y, viewMapPaper.mx, viewMapPaper.my], [fullMapPaper.x, fullMapPaper.y, fullMapPaper.mx, fullMapPaper.my]);
+
+// A disabled member disappears everywhere with their diaries and comments; re-enabling brings everything back.
+const hiding = boot({}, "bob");
+await hiding.store.comments.add({ reviewId: "r1", body: "bob on alice's diary" });
+const hidingAdmin = boot(hiding.db(), "admin");
+await hidingAdmin.store.users.setDisabled("bob", true);
+const hidden = hidingAdmin.snapshot();
+assert.ok(!hidden.people.some(p => p.id === "bob"));
+assert.ok(!hidden.reviews.some(r => r.person === "bob"));
+assert.ok(!hidden.papers.some(p => p.id === "p2"), "a paper only the disabled member read is hidden too");
+assert.ok(!hidden.comments.some(c => c.author === "bob"));
+assert.equal(await hidingAdmin.store.comments.count("r1"), 0);
+assert.ok(hidden.users.some(u => u.id === "bob" && u.disabled), "admins still see the account to re-enable it");
+await hidingAdmin.store.users.setDisabled("bob", false);
+const shownAgain = hidingAdmin.snapshot();
+assert.ok(shownAgain.reviews.some(r => r.person === "bob") && shownAgain.comments.some(c => c.author === "bob"));
 console.log("store regression checks passed");

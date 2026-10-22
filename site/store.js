@@ -348,10 +348,12 @@
     });
     const R = tid => resolveTag(tid, merges);
 
-    // people: seed + members created by admin; each member may pick their own colour
-    const people = ORIG.people.map(p => ({ ...p }));
+    // people: seed + members created by admin; each member may pick their own colour.
+    // A disabled member disappears with their diaries (papers only they read go too); re-enabling brings it all back.
+    const shown = id => !db.users[id]?.disabled;
+    const people = ORIG.people.filter(p => shown(p.id)).map(p => ({ ...p }));
     Object.values(db.users).forEach(u => {
-      if (u.role === "admin" && u.id === "admin") return;
+      if ((u.role === "admin" && u.id === "admin") || u.disabled) return;
       if (!people.some(p => p.id === u.id)) people.push({ id: u.id, name: u.name, color: u.color || PERSON_COLORS[people.length % PERSON_COLORS.length], count: 0, avgRating: 0, topics: {}, dates: [], similar: [] });
     });
     people.forEach(p => { const u = db.users[p.id]; p.color = sysColor(u?.color || p.color); if (u?.name) p.name = u.name; });
@@ -360,10 +362,10 @@
     const allReviews = [];
     ORIG.reviews.forEach(r => {
       const e = db.reviewEdits[r.id];
-      if (e?.deleted) return;
+      if (e?.deleted || !shown(r.person)) return;
       allReviews.push({ ...r, ...(e || {}), source: "import" });
     });
-    Object.values(db.reviews).forEach(r => allReviews.push({ ...r, source: "site" }));
+    Object.values(db.reviews).forEach(r => shown(r.person) && allReviews.push({ ...r, source: "site" }));
 
     // papers keyed by normalised title, built from a given set of reviews
     function makePapers(reviews) {
@@ -517,6 +519,8 @@
   const RULES = Object.fromEntries(Object.entries(SEED.taxonomy || {}).map(([k, pats]) => [k, pats.map(p => { try { return new RegExp(p, "i"); } catch (e) { return null; } }).filter(Boolean)]));
 
   buildDataset();
+  // comments by disabled members, and on diaries hidden with them, aren't shown (same rule as buildDataset)
+  const visibleComments = () => Object.values(db.comments).filter(c => !db.users[c.author]?.disabled && reviewIndex.has(c.reviewId));
 
   // ---------------------------------------------------------------- session
   let actingAs = null; // set while applying an MCP op on behalf of its author
@@ -710,6 +714,8 @@
         const me = requireAdmin(), u = db.users[id]; if (!u) throw new Error("user.missing");
         if (id === me.id && disabled) throw new Error("forbidden");
         u.disabled = !!disabled; log("user.disable", `${u.name} ${u.disabled}`); save();
+        buildDataset();
+        if (!HEADLESS) window.dispatchEvent(new Event("lab:data"));
       },
     },
 
@@ -823,9 +829,9 @@
     },
 
     comments: {
-      async list(reviewId) { return Object.values(db.comments).filter(c => c.reviewId === reviewId).sort((a, b) => a.at.localeCompare(b.at)); },
-      recent(limit = 80) { return Object.values(db.comments).sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit); },
-      count(reviewId) { let n = 0; for (const c of Object.values(db.comments)) if (c.reviewId === reviewId) n++; return n; },
+      async list(reviewId) { return visibleComments().filter(c => c.reviewId === reviewId).sort((a, b) => a.at.localeCompare(b.at)); },
+      recent(limit = 80) { return visibleComments().sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit); },
+      count(reviewId) { return visibleComments().filter(c => c.reviewId === reviewId).length; },
       async add({ reviewId, parent = null, kind = "comment", body }) {
         const me = requireUser();
         body = (body || "").trim(); if (!body) throw new Error("empty");
@@ -1485,7 +1491,7 @@
     const users = Object.values(db.users).map(u => ({ id: u.id, name: u.name, role: u.role, color: u.color || null, quota: u.quota || {}, disabled: !!u.disabled }));
     return {
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
-      terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
+      terms: db.terms, comments: visibleComments(), reactions: db.reactions,
       reading: Object.fromEntries(Object.keys(db.reading).map(u => [u, Store.reading.list(u)])), notifications: db.notifications,
       guides: Object.values(db.guides).map(g => ({ ...g, items: g.items.map(it => ({ ...it, title: Store.guides.titleOf(it), paperId: Store.guides.paperOf(it)?.id || null,
         readers: Store.guides.paperOf(it)?.readers || [], studies: Store.guides.studiesFor(it).map(st => st.id) })) })), tagOps: db.tagOps, offDays: Object.values(db.offDays),

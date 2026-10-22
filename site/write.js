@@ -261,7 +261,7 @@
     const dup = !editing && d.title && S.findPaper(d.title);
     const box = $("#w-dup", view);
     box.hidden = !dup;
-    if (dup) box.innerHTML = `<b>${t("w.dup")}</b><p>${t("w.dupBy", { names: dup.readers.map(r => esc(UI.P[r]?.name || r)).join(", ") })}</p>
+    if (dup) box.innerHTML = `<b>${t("w.dup")}</b><p>${t("w.dupBy", { names: dup.readers.map(r => esc(UI.personName(r))).join(", ") })}</p>
       <button type="button" class="ui-btn small" data-open="paper:${dup.id}">${t("w.dupOpen")}</button>`;
     if (!d.title && !d.content) { $("#w-suggest", view).innerHTML = ""; $("#w-similar", view).innerHTML = ""; return; }
     const sug = S.suggestTags(d);

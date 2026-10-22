@@ -54,10 +54,13 @@
   };
   // a data colour that's safe inside style="": #hex or rgb(var(--name)); anything else → gray
   const safeColor = c => (/^#[0-9a-f]{3,8}$/i.test(c || "") || /^rgb\(var\(--[a-z0-9]+\)\)$/.test(c || "") ? c : "rgb(var(--gray2))");
+  // a member's display name; disabled members are left out of P (store.js buildDataset), so they never show an id
+  const personName = id => P[id]?.name || (id === "admin" ? "admin" : t("unknownPerson"));
   const avStack = (ids, max = 5, cls = id => "") => {
+    ids = ids.filter(id => P[id]);
     const shown = ids.slice(0, max), rest = ids.slice(max);
     return `<span class="st-avs">${shown.map(u => `<span class="${cls(u)}">${avatar(u)}</span>`).join("")}${rest.length
-      ? `<span class="av-more" title="${esc(rest.map(u => P[u]?.name || u).join(", "))}">+${rest.length}</span>` : ""}</span>`;
+      ? `<span class="av-more" title="${esc(rest.map(personName).join(", "))}">+${rest.length}</span>` : ""}</span>`;
   };
   const ratingText = n => String(Number(Number(n || 0).toFixed(1)));
   const ratingLabel = n => n ? t("rating.value", { n: ratingText(n) }) : t("rating.unrated");
@@ -417,7 +420,7 @@
     return `<div class="ui-card"><h3>${t("d.studies")}</h3>${L.map(({ st, common, picks }) => {
       const others = common ? Store.studies.picks(st) : [];
       return `<a class="ui-row two side-st" href="#/study/${st.id}"><b>📚 ${esc(st.title)}</b>
-        <span class="m">${common ? t("d.studyCommon") : t("d.studyPicked", { names: picks.map(pk => esc(P[pk.uid]?.name || pk.uid)).join(", ") })}${st.date ? " · " + esc(st.date) : ""}</span></a>
+        <span class="m">${common ? t("d.studyCommon") : t("d.studyPicked", { names: picks.map(pk => esc(personName(pk.uid))).join(", ") })}${st.date ? " · " + esc(st.date) : ""}</span></a>
         ${others.length ? `<div class="m st-with-h">${t("d.studyWith")}</div>${others.map(pickLink).join("")}` : ""}`;
     }).join("")}</div>`;
   }
@@ -485,7 +488,7 @@
         </div>
         <aside class="dp-side">
           ${studiesCard(p.id)}
-          <div class="ui-card"><h3>${t("d.readers")}</h3>${p.readers.map(r => `<div class="ui-row sim-row" data-open="person:${r}">${avatar(r)}<span>${esc(P[r]?.name || r)}</span><span></span><span class="m">${R[p.reviews.find(x => R[x].person === r)]?.date || ""}</span></div>`).join("")}</div>
+          <div class="ui-card"><h3>${t("d.readers")}</h3>${p.readers.map(r => `<div class="ui-row sim-row" data-open="person:${r}">${avatar(r)}<span>${esc(personName(r))}</span><span></span><span class="m">${R[p.reviews.find(x => R[x].person === r)]?.date || ""}</span></div>`).join("")}</div>
           ${related.length ? `<div class="ui-card"><h3>${t("d.related")}</h3><div class="mini-list">${related.map(([x, s]) => miniPaper(x, Math.round(s * 100) + "%")).join("")}</div></div>` : ""}
           ${refs.length ? `<div class="ui-card"><h3>${t("d.citesIn")}</h3><div class="mini-list">${refs.map(x => miniPaper(x)).join("")}</div></div>` : ""}
         </aside>
@@ -613,7 +616,7 @@
     };
     return () => busy;
   }
-  window.LabUI = { openDrawer, closeDrawer, esc, safeColor, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
+  window.LabUI = { openDrawer, closeDrawer, esc, safeColor, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, personName, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
     buzz, papersTabs, paperTopicCount, topicDetail, shortDate, leaveGuard, submitOnce,
     rerender, P, T, PA, R, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place

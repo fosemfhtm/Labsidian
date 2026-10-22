@@ -38,7 +38,7 @@
 
   let dirty = false, saving = () => false;
   const leave = UI.leaveGuard({ dirty: () => dirty, busy: () => saving(), discard: () => { dirty = false; } });
-  const name = id => UI.P[id]?.name || id;
+  const name = UI.personName;
   const wdName = i => t("grp.wd").split(",")[i] || "";
   const rhythm = g => { const c = g.cadence; return c ? t("grp.rhythm", { every: t("grp.every" + (c.every || 1)), wd: wdName(c.weekday), time: c.time || "" }).trim() : ""; };
   const info = g => [rhythm(g), g.place, t("grp.count", { n: g.members.length })].filter(Boolean).map(esc).join(" · ");

@@ -41,7 +41,7 @@
   const mk = id => { const v = document.createElement("section"); v.id = "view-" + id; v.className = "view page"; document.querySelector("main").appendChild(v); return v; };
   const listView = mk("guides"), pageView = mk("guide");
   const isUrl = s => /^https?:\/\//i.test(s) || /^10\.\d{4,9}\//.test(s);
-  const name = id => UI.P[id]?.name || (id === "admin" ? "admin" : id);
+  const name = UI.personName;
   const progressBar = (d, n) => `<div class="gd-prog"><i style="width:${n ? (d / n * 100).toFixed(0) : 0}%"></i></div>`;
   const tagChips = tags => (tags || []).filter(x => UI.T[x]).map(x => UI.tag(x)).join("");
 

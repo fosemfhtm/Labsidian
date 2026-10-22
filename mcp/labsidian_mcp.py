@@ -793,7 +793,10 @@ def _hidden_for(r, viewer_id, d):
 
 
 def _name(uid, d):
-    return d["P"].get(uid, {}).get("name") or d["U"].get(uid, {}).get("name") or uid
+    u = d["U"].get(uid, {})
+    if u.get("disabled"):   # hidden everywhere, like on the site
+        return "(unknown)"
+    return d["P"].get(uid, {}).get("name") or u.get("name") or uid
 
 
 @mcp.tool()

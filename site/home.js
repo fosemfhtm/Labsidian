@@ -39,7 +39,7 @@
   const PAGE = 25;
   let tab = "all", shown = PAGE;
 
-  const name = id => esc(UI.P[id]?.name || id);
+  const name = id => esc(UI.personName(id));
   const ago = iso => {
     const m = Math.round((Date.now() - Date.parse(iso)) / 6e4);
     if (m < 1) return t("h.ago.now");
