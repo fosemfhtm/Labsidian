@@ -218,6 +218,11 @@
     if (splitGroups()) changed = true;
     if ("clusterNames" in db) { delete db.clusterNames; changed = true; }  // map regions are gone (2026-10-22)
     if (SEED.social?.guides && !db.guidesSeeded) { seedGuides(SEED.social.guides); db.guidesSeeded = true; changed = true; }  // added after the rest
+    Object.values(db.studies).forEach(st => {
+      if (!Array.isArray(st.presenters)) { st.presenters = st.presenter ? [st.presenter] : []; changed = true; }
+      if ("presenter" in st) { delete st.presenter; changed = true; }
+      if (!st.materials) { st.materials = []; changed = true; }
+    });
     if (changed) save();
   }
   // 2026-10-22: a reading group used to be a guide with `group` on; it is its own record now (docs/design/decisions.md)
@@ -550,7 +555,8 @@
   const fileInUse = (fid, except) => SEED.allReviews.some(r => r.id !== except?.id && (r.files || []).some(f => f.id === fid))
     || Object.values(db.reading).some(l => (l || []).some(x => x !== except && (x.files || []).some(f => f.id === fid)))
     || Object.values(db.studies).some(st => (st !== except && (st.files || []).some(f => f.id === fid))
-      || Object.values(st.picks || {}).some(pk => pk !== except && (pk.files || []).some(f => f.id === fid)));
+      || Object.values(st.picks || {}).some(pk => pk !== except && (pk.files || []).some(f => f.id === fid))
+      || (st.materials || []).some(m => m !== except && m.file?.id === fid));
   const removeFiles = (files, except, keep = []) => {
     const ids = new Set(keep.map(f => f.id));
     return Promise.all((files || []).filter(f => !ids.has(f.id) && !fileInUse(f.id, except)).map(f => Store.files.remove(f.id).catch(() => {})));
@@ -889,7 +895,7 @@
       get(id) { return db.studies[id] || null; },
       paperOf(st) { return st && (paperIndex.get(st.paperId) || paperKeyIndex.get(st.paperKey)) || null; },
       reviews(st) { const p = Store.studies.paperOf(st); return p ? SEED.allReviews.filter(r => r.paper === p.id && !r.deleted) : []; },
-      canManage(st) { const me = current(); return !!me && (st.host === me.id || st.presenter === me.id || me.role === "admin"); },
+      canManage(st) { const me = current(); return !!me && !!st && (st.host === me.id || st.presenters.includes(me.id) || me.role === "admin"); },
       async create(data) {
         const me = requireUser();
         const g = data.groupId ? db.groups[data.groupId] : null;
@@ -901,12 +907,15 @@
         const title = (data.title || "").trim(); if (!title) throw new Error("study.title");
         const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(title));
         const id = uid("s_");
-        const members = [...new Set([me.id, data.presenter, ...(data.invite || [])].filter(u => u && db.users[u]))];
+        if (data.presenters != null && !Array.isArray(data.presenters)) throw new Error("study.presenters");
+        const presenters = [...new Set(data.presenters || [g ? Store.groups.nextPresenter(g) : me.id])];
+        if (!presenters.length || presenters.some(u => !db.users[u] || db.users[u].disabled)) throw new Error("study.presenters");
+        const members = [...new Set([me.id, ...presenters, ...(data.invite || [])].filter(u => u && db.users[u]))];
         db.studies[id] = {
           id, title: known?.title || title, paperId: known?.id || null, paperKey: known?.key || normTitle(title), link: data.link || known?.link || "",
-          host: me.id, presenter: data.presenter || me.id, date: isDate(data.date) ? data.date : "", time: (data.time || "").slice(0, 5), place: (data.place || "").slice(0, 80),
+          host: me.id, presenters, date: isDate(data.date) ? data.date : "", time: (data.time || "").slice(0, 5), place: (data.place || "").slice(0, 80),
           desc: (data.desc || "").slice(0, 2000), files: cleanFiles(data.files), members, closed: false, notes: null, notesDraft: null, reminded: {}, createdAt: now(),
-          blind: data.blind !== false, bring: !!data.bring, picks: {}, groupId: g?.id || null,
+          blind: data.blind !== false, bring: !!data.bring, picks: {}, materials: [], groupId: g?.id || null,
         };
         members.filter(u => u !== me.id).forEach(u => notify(u, { type: "studyInvite", studyId: id, paperId: known?.id, excerpt: db.studies[id].title }));
         if (known) Store.reading._add(known.id);
@@ -916,10 +925,14 @@
       async update(id, patch) {
         const st = db.studies[id]; if (!st) throw new Error("study.missing");
         requireUser(Store.studies.canManage(st));
-        ["date", "time", "place", "desc", "presenter", "link"].forEach(k => { if (k in patch) st[k] = k === "date" ? (isDate(patch.date) ? patch.date : "") : String(patch[k] || ""); });
+        if ("presenters" in patch) {
+          if (!Array.isArray(patch.presenters) || !patch.presenters.length || patch.presenters.some(u => !db.users[u] || db.users[u].disabled)) throw new Error("study.presenters");
+          st.presenters = [...new Set(patch.presenters)];
+        }
+        ["date", "time", "place", "desc", "link"].forEach(k => { if (k in patch) st[k] = k === "date" ? (isDate(patch.date) ? patch.date : "") : String(patch[k] || ""); });
         ["blind", "bring"].forEach(k => { if (k in patch) st[k] = !!patch[k]; });
         if ("files" in patch) st.files = await replaceFiles(st, patch.files);
-        if (st.presenter && !st.members.includes(st.presenter)) st.members.push(st.presenter);
+        st.presenters.forEach(u => { if (!st.members.includes(u)) st.members.push(u); });
         log("study.update", st.title); save();
       },
       async join(id) {
@@ -929,7 +942,7 @@
         save();
       },
       async leave(id) {
-        const me = requireUser(), st = db.studies[id]; if (!st || st.host === me.id || st.presenter === me.id) return;
+        const me = requireUser(), st = db.studies[id]; if (!st || st.host === me.id || st.presenters.includes(me.id)) return;
         st.members = st.members.filter(u => u !== me.id);
         if (st.picks?.[me.id]) { await removeFiles(st.picks[me.id].files, st.picks[me.id]); delete st.picks[me.id]; }
         save();
@@ -947,9 +960,35 @@
         const st = db.studies[id]; if (!st) return;
         requireUser(Store.studies.canManage(st));
         delete db.studies[id];
-        await removeFiles([...(st.files || []), ...Object.values(st.picks || {}).flatMap(pk => pk.files || [])], st);
+        await removeFiles([...(st.files || []), ...Object.values(st.picks || {}).flatMap(pk => pk.files || []), ...(st.materials || []).flatMap(m => m.file ? [m.file] : [])], st);
         Object.values(db.studyQs).forEach(q => q.studyId === id && delete db.studyQs[q.id]);
         log("study.delete", st.title); save();
+      },
+      async addMaterial(id, data) {
+        const me = requireUser(), st = db.studies[id];
+        if (!st) throw new Error("study.missing");
+        if (!st.members.includes(me.id) && me.role !== "admin") throw new Error("forbidden");
+        const title = String(data.title || "").trim();
+        if (!title || title.length > 80) throw new Error("study.materialTitle");
+        const material = { id: uid("sm_"), kind: data.kind, title, by: me.id, at: now() };
+        if (data.kind === "file") {
+          const file = cleanFiles([data.file])[0]; if (!file) throw new Error("file.type");
+          material.file = file;
+        } else if (data.kind === "link") {
+          const url = String(data.url || "").trim();
+          try { if (!["http:", "https:"].includes(new URL(url).protocol)) throw new Error(); }
+          catch { throw new Error("study.materialUrl"); }
+          material.url = url;
+        } else throw new Error("study.materialKind");
+        st.materials.push(material); log("study.materialAdd", title); save(); return material;
+      },
+      async removeMaterial(id, materialId) {
+        const me = requireUser(), st = db.studies[id], material = st?.materials.find(m => m.id === materialId);
+        if (!material) throw new Error("study.materialMissing");
+        if (material.by !== me.id && st.host !== me.id && me.role !== "admin") throw new Error("forbidden");
+        st.materials = st.materials.filter(m => m !== material);
+        if (material.file) await removeFiles([material.file], material);
+        log("study.materialRemove", material.title); save();
       },
       // has this member already written a diary entry on the study's common paper?
       wrote(st, uid) { const p = Store.studies.paperOf(st); return !!p && p.readers.includes(uid); },
@@ -1015,7 +1054,7 @@
           const q = { id: uid("q_"), studyId, author: me.id, body: body.slice(0, 1000), votes: [], done: false, at: now() };
           db.studyQs[q.id] = q;
           if (!st.members.includes(me.id) && db.users[me.id]?.role !== "admin") st.members.push(me.id);
-          [st.presenter, st.host].filter((u, i, a) => a.indexOf(u) === i).forEach(u => notify(u, { type: "studyQuestion", studyId, excerpt: q.body.slice(0, 80) }));
+          [...st.presenters, st.host].filter((u, i, a) => a.indexOf(u) === i).forEach(u => notify(u, { type: "studyQuestion", studyId, excerpt: q.body.slice(0, 80) }));
           save(); return q;
         },
         async vote(qid) {
@@ -1054,7 +1093,7 @@
           if (st.closed || !st.members.includes(me.id) || (st.date !== d0 && st.date !== d1) || st.reminded?.[me.id] === tag) return;
           (st.reminded ||= {})[me.id] = tag;
           const todo = !Store.studies.wrote(st, me.id) || (st.bring && !st.picks?.[me.id]);
-          (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: st.presenter,
+          (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: st.presenters[0],
             type: (st.date === d0 ? "studyToday" : "studyTomorrow") + (todo ? "Todo" : ""), studyId: st.id, excerpt: st.title });
           changed = true;
         });
@@ -1131,14 +1170,23 @@
       // presenters take turns in the members' order
       nextPresenter(g) {
         const ms = (g.members || []).filter(u => db.users[u]); if (!ms.length) return g.owner;
-        const last = Store.groups.sessions(g).filter(st => st.presenter).pop();
-        return ms[((last ? ms.indexOf(last.presenter) : -1) + 1) % ms.length];
+        const last = Store.groups.sessions(g).filter(st => st.presenters.length).pop();
+        return ms[((last ? ms.indexOf(last.presenters.at(-1)) : -1) + 1) % ms.length];
       },
       _fields(g, data) {
         const c = data.cadence, wd = c && c.weekday !== "" && c.weekday != null ? +c.weekday : null;
         if (wd != null && (!Number.isInteger(wd) || wd < 0 || wd > 6)) throw new Error("group.cadence");
+        const emoji = String(data.emoji ?? g.emoji ?? "").trim(), rawLinks = data.links ?? g.links ?? [];
+        if (emoji.length > 8 || [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(emoji)].length > 1) throw new Error("group.emoji");
+        if (!Array.isArray(rawLinks) || rawLinks.length > 6) throw new Error("group.links");
+        const links = rawLinks.map(link => {
+          const label = String(link?.label || "").trim(), url = String(link?.url || "").trim();
+          if (!label || label.length > 40 || !/^https?:\/\//i.test(url)) throw new Error("group.links");
+          try { new URL(url); } catch { throw new Error("group.links"); }
+          return { label, url };
+        });
         g.title = String(data.title || "").trim().slice(0, 120) || g.title; if (!g.title) throw new Error("group.title");
-        g.desc = String(data.desc || "").slice(0, 1000);
+        g.desc = String(data.desc || "").slice(0, 5000); g.emoji = emoji; g.links = links;
         g.members = [...new Set([g.owner, ...(data.members || g.members || [])])].filter(u => db.users[u]);
         g.cadence = wd == null ? null : { weekday: wd, time: /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(c.time || "") ? c.time : "", every: +c.every === 2 ? 2 : 1 };
         g.place = String(data.place || "").slice(0, 80); g.updatedAt = now();
@@ -1512,7 +1560,7 @@
   // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
   // and stores the result; a hosted DB would do the same in an RPC / edge function. Returns what it made (ids) for the caller.
   const OPS = new Set(["draft", "draft.delete", "comment", "react", "inbox.read", "reading.add", "study.question", "study.questionVote",
-    "study.notesDraft", "study.create", "study.join",
+    "study.notesDraft", "study.create", "study.join", "study.materialAdd",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
     "paper.meta", "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
   async function applyOp(op) {
@@ -1571,6 +1619,7 @@
         res = { votes: db.studyQs[op.questionId].votes.length };
       }
       if (op.op === "study.join") { const st = db.studies[op.studyId]; if (!st || st.closed) throw new Error("study.missing"); await Store.studies.join(op.studyId); }
+      if (op.op === "study.materialAdd") res = { materialId: (await Store.studies.addMaterial(op.studyId, { kind: "link", title: op.title, url: op.url })).id };
       if (op.op === "study.create") {
         // a regular study's next session gets the same defaults as the site's "next session" form
         const g = op.groupId ? db.groups[op.groupId] : null;
@@ -1579,7 +1628,7 @@
         res = { studyId: (await Store.studies.create({
           title: p?.title || op.title || "", paperId: p?.id || null, link: op.link || p?.link || "",
           date: op.date || (g ? Store.groups.nextDate(g) : ""), time: op.time || g?.cadence?.time || "", place: op.place || g?.place || "",
-          presenter: op.presenter && db.users[op.presenter] ? op.presenter : g ? Store.groups.nextPresenter(g) : op.actor,
+          presenters: op.presenters || [g ? Store.groups.nextPresenter(g) : op.actor],
           desc: op.desc || "", invite: [...new Set([...(op.invite || []), ...(g ? g.members : [])])].filter(u => db.users[u]),
           blind: op.blind !== false, bring: !!op.bring, groupId: g ? g.id : null,
         })).id };

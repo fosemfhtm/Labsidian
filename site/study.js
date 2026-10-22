@@ -18,6 +18,11 @@
       "st.empty": "진행 중인 스터디가 없어요. 위에서 하나 열어보세요.", "st.pastEmpty": "아직 끝난 스터디가 없어요",
       "st.members": "참가 {n}명", "st.reviewed": "다이어리 {n}/{m}", "st.qs": "질문 {n}", "st.noDate": "날짜 미정", "st.today": "오늘", "st.dday": "D-{n}", "st.after": "{n}일 지남",
       "st.done": "마침", "st.presenter": "발제", "st.host": "개설",
+      "st.materials": "자료", "st.materialTitle": "자료 제목", "st.materialUrl": "자료 링크", "st.materialFile": "PDF · 이미지 추가…",
+      "st.materialHint": "PDF와 이미지를 올릴 수 있어요. PPTX는 PDF로 내보내 올려 주세요.",
+      "st.materialEmpty": "아직 자료가 없어요.", "st.materialDelete": "이 자료를 삭제할까요?", "st.materialDeleteMsg": "첨부 파일도 함께 삭제되고 되돌릴 수 없어요.",
+      "st.materialInvalid": "80자 이내 제목과 http 또는 https 링크를 입력해 주세요.", "st.needPresenters": "발제자를 한 명 이상 선택해 주세요.",
+      "st.materialAdd": "추가",
       // form
       "st.new": "스터디 열기", "st.paper": "논문", "st.paper.ph": "연구실 논문 검색 · 없으면 제목을 그대로 입력", "st.link": "링크 (선택)",
       "st.date": "날짜", "st.time": "시간", "st.place": "장소", "st.place.ph": "예: 세미나실, Zoom", "st.desc": "소개 · 읽을 범위", "st.desc.ph": "왜 같이 읽고 싶은지, 어디까지 읽어올지…",
@@ -62,6 +67,11 @@
       "st.empty": "No open studies. Open one above.", "st.pastEmpty": "No finished studies yet",
       "st.members": "{n} joined", "st.reviewed": "entries {n}/{m}", "st.qs": "{n} questions", "st.noDate": "date TBD", "st.today": "Today", "st.dday": "D-{n}", "st.after": "{n}d ago",
       "st.done": "done", "st.presenter": "presenter", "st.host": "opened by",
+      "st.materials": "Materials", "st.materialTitle": "Material Title", "st.materialUrl": "Material Link", "st.materialFile": "Add PDF or Image…",
+      "st.materialHint": "Upload a PDF or image. Export PPTX slides as a PDF before uploading.",
+      "st.materialEmpty": "No materials yet.", "st.materialDelete": "Delete this material?", "st.materialDeleteMsg": "Its attached file will also be deleted. This cannot be undone.",
+      "st.materialInvalid": "Enter a title of up to 80 characters and an http or https link.", "st.needPresenters": "Select at least one presenter.",
+      "st.materialAdd": "Add",
       "st.new": "Open a study", "st.paper": "Paper", "st.paper.ph": "Search lab papers · or type a new title", "st.link": "Link (optional)",
       "st.date": "Date", "st.time": "Time", "st.place": "Place", "st.place.ph": "e.g. seminar room, Zoom", "st.desc": "About · what to read", "st.desc.ph": "Why read it together, which sections…",
       "st.invite": "Invite (they get notified)", "st.pdf": "PDF (optional)", "st.create": "Open study", "st.need.title": "Pick a paper", "st.created": "Study opened ✓",
@@ -125,7 +135,7 @@
       <h3>${esc(st.title)}</h3>
       ${st.desc ? `<p class="st-desc">${esc(st.desc.slice(0, 140))}</p>` : ""}
       <div class="st-foot">${UI.avStack(st.members, 6, u => (done.has(u) ? "did" : ""))}
-        <span class="m">${st.presenter ? `${t("st.presenter")} ${name(st.presenter)} · ` : ""}${t("st.reviewed", { n: st.members.filter(u => done.has(u)).length, m: st.members.length })} · ${t("st.qs", { n: S.studies.questions.list(st.id).length })}</span></div>
+        <span class="m">${st.presenters.length ? `${t("st.presenter")} ${st.presenters.map(name).join(", ")} · ` : ""}${t("st.reviewed", { n: st.members.filter(u => done.has(u)).length, m: st.members.length })} · ${t("st.qs", { n: S.studies.questions.list(st.id).length })}</span></div>
     </a>`;
   }
   function sharedHtml() {
@@ -212,8 +222,8 @@
           <label class="fld"><span>${t("st.time")}</span><input id="st-time" type="time" value="${esc(g?.cadence?.time || "")}"></label>
           <label class="fld"><span>${t("st.place")}</span><input id="st-place" placeholder="${t("st.place.ph")}" value="${esc(g?.place || "")}"></label>
         </div>
-        <label class="fld"><span>${t("st.presenter")}</span><select id="st-presenter">
-          ${[UI.P[me.id] || { id: me.id, name: me.name }, ...others].map(p => `<option value="${p.id}" ${p.id === presenter ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+        <div class="fld"><span>${t("st.presenter")}</span><div class="chips" id="st-presenters">
+          ${[UI.P[me.id] || me, ...others].map(p => `<button type="button" class="ui-chip" aria-pressed="${p.id === presenter}" data-u="${p.id}">${UI.avatar(p.id)}${esc(p.name)}</button>`).join("")}</div></div>
         <label class="fld"><span>${t("st.desc")}</span><textarea id="st-desc" rows="4" placeholder="${t("st.desc.ph")}"></textarea></label>
         <div class="st-opts">
           <label class="ui-check"><input type="checkbox" id="st-blind" checked><span><b>${t("st.opt.blind")}</b><em class="hint">${t("st.opt.blindHint")}</em></span></label>
@@ -234,6 +244,8 @@
     const box = paperSearch(title, $("#st-pop", view), $("#st-link", view), hint);
     box.id = pre?.id || null; hint();
     $("#st-invite", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c) c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); };
+    const presenters = new Set([presenter]);
+    $("#st-presenters", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; if (presenters.has(c.dataset.u)) presenters.delete(c.dataset.u); else presenters.add(c.dataset.u); c.setAttribute("aria-pressed", presenters.has(c.dataset.u)); };
     const picker = $("#st-file", view);
     $("#st-pick", view).onclick = () => picker.click();
     picker.onchange = async () => {
@@ -243,9 +255,10 @@
     };
     UI.submitOnce($("#st-form", view), async () => {
       if (!title.value.trim()) return ($("#st-err", view).textContent = t("st.need.title"));
+      if (!presenters.size) return ($("#st-err", view).textContent = t("st.needPresenters"));
       const { id } = await S.studies.create({
         title: title.value, paperId: box.id, link: $("#st-link", view).value.trim(), date: $("#st-date", view).value, time: $("#st-time", view).value,
-        place: $("#st-place", view).value.trim(), presenter: $("#st-presenter", view).value, desc: $("#st-desc", view).value.trim(),
+        place: $("#st-place", view).value.trim(), presenters: [...presenters], desc: $("#st-desc", view).value.trim(),
         invite: [...view.querySelectorAll('#st-invite .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u), files: newFiles,
         blind: $("#st-blind", view).checked, bring: $("#st-bring", view).checked, groupId: g?.id,
       });
@@ -324,7 +337,7 @@
         </div>
         <div class="st-side">
           <div class="ui-card st-prep"><h3>${t("st.prepStatus")}</h3>
-            ${st.members.map(u => `<div class="ui-row prep-row" data-open="person:${u}">${UI.avatar(u)}<span class="nm">${name(u)}${u === st.presenter ? ` <span class="ui-pill accent">${t("st.presenter")}</span>` : ""}</span>
+            ${st.members.map(u => `<div class="ui-row prep-row" data-open="person:${u}">${UI.avatar(u)}<span class="nm">${name(u)}${st.presenters.includes(u) ? ` <span class="ui-pill accent">${t("st.presenter")}</span>` : ""}</span>
               <span class="ck ${byPerson[u] ? "on" : ""}">${byPerson[u] ? "✓" : "·"} ${t("st.prepDiary")}</span>
               ${st.bring ? `<span class="ck ${st.picks?.[u] ? "on" : ""}">${st.picks?.[u] ? "✓" : "·"} ${t("st.prepPick")}</span>` : ""}</div>`).join("")}</div>
           ${p?.abstract ? `<details class="ui-card st-abs"><summary><h3>${t("st.abstract")}</h3></summary><p class="abstract-full">${esc(p.abstract)}</p></details>` : ""}
@@ -378,7 +391,7 @@
     view.innerHTML = `
       <a class="ui-btn text back" href="#/study">← ${t("st.title")}</a>
       <div class="st-hero">${series(st)}
-        <div class="st-top">${dday(st)}<span>${longDate(st)}</span>${st.presenter ? `<span class="m">${t("st.presenter")} <b>${name(st.presenter)}</b></span>` : ""}
+        <div class="st-top">${dday(st)}<span>${longDate(st)}</span>${st.presenters.length ? `<span class="m">${t("st.presenter")} <b>${st.presenters.map(name).join(", ")}</b></span>` : ""}
           ${canManage ? `<details class="st-manage"><summary>⋯ ${t("st.manage")}</summary><div class="menu-pop ui-popover">
             ${st.closed ? "" : `<label class="ui-check"><input type="checkbox" data-opt="blind" ${st.blind ? "checked" : ""}><span>${t("st.opt.blind")}</span></label>
             <label class="ui-check"><input type="checkbox" data-opt="bring" ${st.bring ? "checked" : ""}><span>${t("st.opt.bring")}</span></label><hr>`}
@@ -390,11 +403,23 @@
           ${pdf ? `<a class="ui-btn small" data-fid="${esc(pdf.id)}" target="_blank" rel="noopener">${t("d.pdf")}</a>` : ""}
           ${httpUrl(st.link) ? `<a class="ui-btn small" href="${esc(st.link)}" target="_blank" rel="noopener noreferrer">🔗 ${t("w.link")}</a>` : ""}
           ${UI.avStack(st.members, 6)}<span class="m">${t("st.members", { n: st.members.length })}</span>
-          ${joined && st.host !== me.id && st.presenter !== me.id && !st.closed ? `<button class="ui-btn text" data-act="leave">${t("st.leave")}</button>` : ""}
+          ${joined && st.host !== me.id && !st.presenters.includes(me.id) && !st.closed ? `<button class="ui-btn text" data-act="leave">${t("st.leave")}</button>` : ""}
           ${inGuides.map(g => `<a class="ui-pill" href="#/guide/${g.id}">📚 ${esc(g.title)}</a>`).join("")}${guideAdd({ paperId: p?.id, title: st.title, link: st.link })}</div>
         ${st.desc ? `<p class="st-desc full">${esc(st.desc)}</p>` : ""}
       </div>
       ${todoHtml}
+      <section class="ui-card"><h3>${t("st.materials")}</h3>
+        <div class="ui-list">${st.materials.map(m => `<div class="ui-row ruled">
+          ${m.kind === "file" ? `<a class="link" data-fid="${esc(m.file.id)}" target="_blank" rel="noopener">${esc(m.title)}</a>` : `<a class="link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.title)}</a>`}
+          <span class="m">${UI.avatar(m.by)} ${name(m.by)} · ${esc(UI.shortDate(m.at.slice(0, 10)))}</span>
+          ${m.by === me.id || st.host === me.id || me.role === "admin" ? `<button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}</div>
+        ${joined || me.role === "admin" ? `<form id="st-material-form">
+          <label class="fld"><span>${t("st.materialTitle")}</span><input id="st-material-title" maxlength="80" required></label>
+          <label class="fld"><span>${t("st.materialUrl")}</span><input id="st-material-url" type="url"></label>
+          <div class="form-foot"><button type="button" class="ui-btn" id="st-material-pick">${t("st.materialFile")}</button><button class="ui-btn">${t("st.materialAdd")}</button></div>
+          <input id="st-material-file" type="file" accept="application/pdf,image/*" hidden>
+          <p class="hint">${t("st.materialHint")}</p><p class="err" id="st-material-err"></p></form>` : ""}
+      </section>
       <div class="ui-seg page-tabs st-tabs">${tabs.map(k => `<a href="${link(k)}" aria-current="${tab === k ? "page" : "false"}">${t("st.tab." + k)}${count[k] ? ` <span class="cnt">${count[k]}</span>` : ""}</a>`).join("")}</div>
       <div class="st-tab">${{ prep: prepTab, diary: diaryTab, picks: picksTab, notes: notesTab }[tab]}</div>`;
     wireDetail(st, params);
@@ -402,6 +427,21 @@
 
   function wireDetail(st, params) {
     const rerender = () => detailPage(st.id, params);
+    const mf = $("#st-material-form", view);
+    if (mf) {
+      const title = $("#st-material-title", view), url = $("#st-material-url", view), picker = $("#st-material-file", view), err = $("#st-material-err", view);
+      $("#st-material-pick", view).onclick = () => { if (!title.reportValidity()) return; picker.click(); };
+      picker.onchange = async () => {
+        const f = picker.files[0]; picker.value = ""; if (!f) return;
+        const file = await uploadInto(f, err); if (!file) return;
+        try { await S.studies.addMaterial(st.id, { kind: "file", title: title.value, file }); rerender(); }
+        catch (e) { await S.files.remove(file.id); err.textContent = t("st.materialInvalid"); }
+      };
+      UI.submitOnce(mf, async () => {
+        if (!httpUrl(url.value.trim())) { err.textContent = t("st.materialInvalid"); return; }
+        await S.studies.addMaterial(st.id, { kind: "link", title: title.value, url: url.value }); rerender();
+      }, err);
+    }
     view.querySelectorAll("[data-opt]").forEach(el => (el.onchange = async () => { await S.studies.update(st.id, { [el.dataset.opt]: el.checked }); rerender(); }));
     const pf = $("#st-pick-form", view);
     if (pf) {
@@ -423,6 +463,10 @@
     }
     view.querySelectorAll("[data-act]").forEach(el => (el.onclick = async () => {
       const act = el.dataset.act, q = el.closest("[data-q]")?.dataset.q, pu = el.closest("[data-pick]")?.dataset.pick;
+      if (act === "materialDelete") {
+        if (!(await LabConfirm(t("st.materialDelete"), { message: t("st.materialDeleteMsg"), ok: t("st.delete"), destructive: true }))) return;
+        await S.studies.removeMaterial(st.id, el.dataset.material); return rerender();
+      }
       if (act === "pkedit") { editPick = true; return rerender(); }
       if (act === "toguide") {
         const gid = el.closest(".menu-pop").querySelector("[data-gsel]").value;
@@ -473,14 +517,17 @@
       <div class="row3"><label class="fld"><span>${t("st.date")}</span><input id="ei-date" type="date" value="${esc(st.date)}"></label>
         <label class="fld"><span>${t("st.time")}</span><input id="ei-time" type="time" value="${esc(st.time)}"></label>
         <label class="fld"><span>${t("st.place")}</span><input id="ei-place" value="${esc(st.place)}"></label></div>
-      <label class="fld"><span>${t("st.presenter")}</span><select id="ei-presenter">${others.map(p => `<option value="${p.id}" ${p.id === st.presenter ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <div class="fld"><span>${t("st.presenter")}</span><div class="chips" id="ei-presenters">${others.map(p => `<button type="button" class="ui-chip" aria-pressed="${st.presenters.includes(p.id)}" data-u="${p.id}">${UI.avatar(p.id)}${esc(p.name)}</button>`).join("")}</div><p class="err" id="ei-err"></p></div>
       <label class="fld"><span>${t("st.desc")}</span><textarea id="ei-desc" rows="3">${esc(st.desc)}</textarea></label>
       <label class="fld"><span>${t("st.link")}</span><input id="ei-link" value="${esc(st.link)}"></label>
       <div class="form-foot"><span></span><button class="ui-btn" data-close>${t("st.n.cancel")}</button><button class="ui-btn prominent" id="ei-save">${t("st.save")}</button></div>`, { wide: true });
     m.querySelector(".modal").classList.add("write-form");
+    const presenters = new Set(st.presenters);
+    m.querySelector("#ei-presenters").onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; if (presenters.has(c.dataset.u)) presenters.delete(c.dataset.u); else presenters.add(c.dataset.u); c.setAttribute("aria-pressed", presenters.has(c.dataset.u)); };
     m.querySelector("#ei-save").onclick = async () => {
       const v = id => m.querySelector(id).value.trim();
-      await S.studies.update(st.id, { date: v("#ei-date"), time: v("#ei-time"), place: v("#ei-place"), presenter: v("#ei-presenter"), desc: v("#ei-desc"), link: v("#ei-link") });
+      if (!presenters.size) { m.querySelector("#ei-err").textContent = t("st.needPresenters"); return; }
+      await S.studies.update(st.id, { date: v("#ei-date"), time: v("#ei-time"), place: v("#ei-place"), presenters: [...presenters], desc: v("#ei-desc"), link: v("#ei-link") });
       m.remove(); LabToast(t("st.saved")); done();
     };
   }

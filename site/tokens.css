@@ -334,6 +334,20 @@
 :where([data-ui]) .ui-pill.outline { background: none; box-shadow: inset 0 0 0 1px var(--separator); }
 :where([data-ui]) a.ui-pill:hover { filter: brightness(.96); }
 
+/* ---------- formatted, escaped prose ---------- */
+:where([data-ui]) .ui-prose { max-width: var(--readable); font: var(--t-body); letter-spacing: var(--tr-body); color: var(--label); overflow-wrap: anywhere; }
+:where([data-ui]) .ui-prose :is(p, ul, ol) { margin: 0 0 var(--s-3); }
+:where([data-ui]) .ui-prose :is(ul, ol) { padding-left: var(--s-5); }
+:where([data-ui]) .ui-prose li > :is(ul, ol) { margin: var(--s-1) 0; }
+:where([data-ui]) .ui-prose li { margin: var(--s-1) 0; }
+:where([data-ui]) .ui-prose :is(h1, h2, h3) { margin: var(--s-4) 0 var(--s-2); color: var(--label); }
+:where([data-ui]) .ui-prose h1 { font: var(--t-title2); font-weight: 700; }
+:where([data-ui]) .ui-prose h2 { font: var(--t-title3); font-weight: 600; }
+:where([data-ui]) .ui-prose h3 { font: var(--t-headline); }
+:where([data-ui]) .ui-prose > :first-child { margin-top: 0; }
+:where([data-ui]) .ui-prose > :last-child { margin-bottom: 0; }
+:where([data-ui]) .ui-prose code { font-family: var(--font-mono); background: var(--fill-3); padding: 0 var(--s-1); border-radius: var(--r-control-sm); }
+
 /* ---------- cards & inset-grouped lists (content layer: no glass, no border) ---------- */
 :where([data-ui]) .ui-card { background: var(--bg-grouped-2); border-radius: var(--r-card); padding: var(--s-4); box-shadow: var(--shadow-1); }
 :where([data-ui]) :is(a, [data-open]).ui-card { cursor: pointer; }

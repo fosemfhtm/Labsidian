@@ -141,7 +141,7 @@
         <div class="ui-card"><h3>${t("me.inbox")}</h3><div id="me-inbox"></div></div>
         <div class="ui-card"><h3>${t("me.studies")}</h3>
           ${upcoming.map(st => `<a class="ui-row two" href="#/study/${st.id}"><div class="grow"><div class="me-st-t">${esc(st.title)}</div>
-            <div class="m">${esc([st.date, st.time].filter(Boolean).join(" ") || t("me.noDate"))}${st.presenter === me.id ? ` · <span class="ui-pill accent">${t("me.presenting")}</span>` : ""}</div></div></a>`).join("")
+            <div class="m">${esc([st.date, st.time].filter(Boolean).join(" ") || t("me.noDate"))}${st.presenters.includes(me.id) ? ` · <span class="ui-pill accent">${t("me.presenting")}</span>` : ""}</div></div></a>`).join("")
             || `<p class="muted">${t("me.noStudies")}</p>`}
           <a class="ui-btn text" href="#/study">${t("me.studiesAll")} →</a></div>
       </div>

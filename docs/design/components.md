@@ -155,6 +155,7 @@
 
 - 개수(질문 3, 다이어리 12편)는 배지가 아니라 회색 글자로 쓴다.
 - 칩·태그 안 글자는 한 줄. 넘치면 줄임표.
+- 고정 외부 링크는 `<a class="ui-chip" target="_blank" rel="noopener">`로 표시한다. 토글 상태를 붙이지 않는다.
 
 | 옛 클래스 | 지금 |
 |---|---|
@@ -435,6 +436,12 @@ LabConfirm(t("st.delQ"), { message: t("st.delMsg"), ok: t("act.delete"), destruc
 - 결과가 없으면 빈 상태 + 조건을 바꾸는 방법.
 
 ---
+## 23. 서식 있는 본문
+
+`.ui-prose`는 소개·규칙처럼 읽는 글에 쓴다. `LabUI.md(text)`가 HTML을 먼저 이스케이프하고 제목 1–3단계, 문단·줄바꿈, 순서·비순서 목록(한 단계 중첩), 굵게·기울임·인라인 코드, HTTP(S) 링크만 렌더링한다. 원시 HTML은 허용하지 않는다.
+
+본문은 Body·label, 제목은 Title 2/3·Headline, 읽는 폭은 `--readable`이다. 긴 소개는 약 12줄 높이에서 접고 `.ui-btn.text`의 더 보기/접기와 `aria-expanded`로 펼친다.
+
 
 ## 옮긴 결과 (2026-10-03)
 

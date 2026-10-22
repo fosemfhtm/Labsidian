@@ -659,7 +659,7 @@ details.fld summary { cursor: pointer; }
 .gd-tagpick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .gd-tagpick select { max-width: 220px; }
 .gd-by, .grp-by { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
-.gd-desc, .grp-desc { margin: var(--s-1) 0 var(--s-3); max-width: var(--readable); color: var(--label-2); font: var(--t-body); letter-spacing: var(--tr-body); line-height: 1.5; white-space: pre-line; }
+.gd-desc { margin: var(--s-1) 0 var(--s-3); max-width: var(--readable); color: var(--label-2); font: var(--t-body); letter-spacing: var(--tr-body); line-height: 1.5; white-space: pre-line; }
 .gd-manage .menu-pop .ui-btn.text, .grp-manage .menu-pop .ui-btn.text { display: block; text-decoration: none; min-height: var(--hit); line-height: var(--hit); }
 .gd-me { display: grid; gap: var(--s-3); margin-top: var(--s-4); }
 .gd-me .row-between { flex-wrap: wrap; gap: var(--s-2); }
@@ -729,6 +729,14 @@ details.fld summary { cursor: pointer; }
 .grp-tile-t { font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .grp-info { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); margin: 0; font: var(--t-callout); letter-spacing: var(--tr-callout); color: var(--label-2); }
 .grp-card, .grp-form { margin: var(--s-4) 0; display: grid; gap: var(--s-3); }
+.grp-links { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+.grp-link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--s-2); margin-bottom: var(--s-2); }
+.grp-intro[data-expanded="false"] { max-height: calc(12 * var(--lh-body)); overflow: hidden; }
+#grp-more { justify-self: start; }
+@media (max-width: 760px) {
+  .grp-link-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .grp-link-row input[name="linkUrl"] { grid-row: 2; grid-column: 1 / -1; }
+}
 .grp-card .row-between { align-items: flex-start; gap: var(--s-3); flex-wrap: wrap; }
 .grp-rounds { list-style: none; margin: 0; padding: 0; display: grid; gap: calc(var(--s-1) / 2); }
 .grp-rounds .ui-row { display: grid; grid-template-columns: 64px 104px minmax(0, 1fr) auto; gap: var(--s-3); margin: 0 calc(-1 * var(--s-2)); }

@@ -20,6 +20,47 @@
   const P = {}, T = {}, PA = {}, R = {};
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Escape before parsing; only these generated tags can enter a prose block.
+  function md(text) {
+    const inline = text => text.replace(/`([^`\n]+)`|\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>]+)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*/g,
+      (match, code, label, href, bare, bold, italic) => {
+        if (code) return `<code>${code}</code>`;
+        if (href || bare) {
+          const url = href || bare.replace(/[.,;!?]+$/, "");
+          return `<a class="link" href="${url}" target="_blank" rel="noopener">${label || url}</a>${bare ? bare.slice(url.length) : ""}`;
+        }
+        return bold ? `<strong>${inline(bold)}</strong>` : `<em>${inline(italic)}</em>`;
+      });
+    const lines = esc(text).replace(/\r\n?/g, "\n").split("\n");
+    const item = line => /^([ \t]*)([-+*]|\d+\.)\s+(.+)$/.exec(line);
+    const indent = match => match[1].replace(/\t/g, "  ").length;
+    let i = 0;
+    function list(base, depth = 0) {
+      const ordered = /^\d/.test(item(lines[i])[2]), tag = ordered ? "ol" : "ul";
+      let html = `<${tag}>`;
+      while (i < lines.length) {
+        const m = item(lines[i]);
+        if (!m || indent(m) < base || /^\d/.test(m[2]) !== ordered && indent(m) === base) break;
+        html += `<li>${inline(m[3])}`; i++;
+        if (depth === 0 && i < lines.length && item(lines[i]) && indent(item(lines[i])) >= base + 2) html += list(indent(item(lines[i])), 1);
+        html += "</li>";
+      }
+      return html + `</${tag}>`;
+    }
+    let html = "";
+    while (i < lines.length) {
+      if (!lines[i].trim()) { i++; continue; }
+      const heading = /^(#{1,3})\s+(.+)$/.exec(lines[i]);
+      if (heading) { html += `<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`; i++; }
+      else if (item(lines[i])) html += list(indent(item(lines[i])));
+      else {
+        const paragraph = [];
+        do { paragraph.push(inline(lines[i++])); } while (i < lines.length && lines[i].trim() && !item(lines[i]) && !/^#{1,3}\s/.test(lines[i]));
+        html += `<p>${paragraph.join("<br>")}</p>`;
+      }
+    }
+    return html;
+  }
   const initial = name => /^[A-Za-z]/.test(name) ? name[0].toUpperCase() : name.slice(-2);
   const tl = x => (lang === "en" ? x.labelEn : x.label) || x.label;
   const topicIds = p => [...p.domains.map(d => "d:" + d), ...p.methods.map(m => "m:" + m)];
@@ -622,7 +663,7 @@
     return () => busy;
   }
   window.LabUI = { openDrawer, closeDrawer, esc, safeColor, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, personName, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
-    buzz, papersTabs, paperTopicCount, topicDetail, shortDate, leaveGuard, submitOnce,
+    buzz, papersTabs, paperTopicCount, topicDetail, shortDate, leaveGuard, submitOnce, md,
     rerender, P, T, PA, R, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place
   document.addEventListener("DOMContentLoaded", () => { window.I18N.apply(); route(); });

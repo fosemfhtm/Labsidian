@@ -342,11 +342,15 @@ async def main(tmpdir):
             g = await call("create_guide", title="Smoke test guide")
             gi = await call("add_guide_item", guide_id=g.get("guide_id"), paper_ref=pid)
             await call("vote_guide_item", guide_id=g.get("guide_id"), item_id=gi.get("item_id") if isinstance(gi, dict) else "")
-            st = await call("open_study", paper_ref=pid, on_date="2030-01-15", at_time="15:00", place="smoke room", invite=["박지호"])
+            st = await call("open_study", paper_ref=pid, on_date="2030-01-15", at_time="15:00", place="smoke room", presenters=[options.user, "박지호"], invite=["박지호"])
             sid = st.get("study_id") if isinstance(st, dict) else ""
+            await call("add_study_material", study_id=sid, title="Discussion Slides", url="https://example.org/slides")
+            await call("add_study_material", expect_ok=False, study_id=sid, title="Unsafe Link", url="javascript:alert(1)")
             q = await call("add_study_question", study_id=sid, question="(smoke test) 왜요?")
             await call("vote_study_question", study_id=sid, question_id=q.get("question_id") if isinstance(q, dict) else "")
             study = await call("get_study", study_id=sid)
+            if study.get("presenters") != [options.user, "박지호"] or not any(m.get("title") == "Discussion Slides" for m in study.get("materials", [])):
+                failed.append("study presenters and materials")
             if isinstance(study, dict) and not any(x.get("i_voted") for x in study.get("questions", [])):
                 failed.append("question vote")
             await call("my_inbox", limit=2, mark_read=True)

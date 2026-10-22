@@ -11,6 +11,9 @@
     ko: {
       "grp.title": "정기 스터디", "grp.new": "정기 스터디", "grp.newTitle": "새 정기 스터디",
       "grp.name": "이름", "grp.name.ph": "예: 최신 AI 논문 스터디", "grp.desc": "소개", "grp.desc.ph": "어떤 논문을 읽고 무엇을 이야기하는지",
+      "grp.mdHint": "마크다운으로 제목, 목록, 강조, 링크를 쓸 수 있어요.", "grp.emoji": "표지 이모지", "grp.links": "고정 링크",
+      "grp.linkLabel": "링크 이름", "grp.linkUrl": "링크 주소", "grp.remove": "제거", "grp.addLink": "링크 추가", "grp.more": "더 보기", "grp.less": "접기",
+      "group.links": "이름은 40자 이하, 주소는 http 또는 https로 입력해 주세요. 링크는 6개까지 추가할 수 있어요.", "group.emoji": "표지 이모지는 8자 이내의 한 글자로 입력해 주세요.",
       "grp.members": "참여자", "grp.cadence": "주기", "grp.every1": "매주", "grp.every2": "격주", "grp.weekday": "요일", "grp.noWeekday": "정하지 않음",
       "grp.time": "시간", "grp.place": "장소", "grp.wd": "일,월,화,수,목,금,토", "grp.rhythm": "{every} {wd}요일 {time}",
       "grp.count": "참여 {n}명", "grp.rounds": "{n}회 진행", "grp.by": "{name} 만듦", "grp.nextAt": "다음 회차 {d}", "grp.planned": "다음 예정 {d} · 발표 차례 {name}",
@@ -22,6 +25,9 @@
     en: {
       "grp.title": "Regular study", "grp.new": "Regular study", "grp.newTitle": "New regular study",
       "grp.name": "Name", "grp.name.ph": "e.g. Recent AI papers", "grp.desc": "About", "grp.desc.ph": "What you read and what you talk about",
+      "grp.mdHint": "Markdown supports headings, lists, emphasis and links.", "grp.emoji": "Cover emoji", "grp.links": "Pinned links",
+      "grp.linkLabel": "Link name", "grp.linkUrl": "Link URL", "grp.remove": "Remove", "grp.addLink": "Add link", "grp.more": "Show more", "grp.less": "Show less",
+      "group.links": "Use a name up to 40 characters and an http or https URL. You can add up to 6 links.", "group.emoji": "Use one cover emoji, up to 8 characters.",
       "grp.members": "Members", "grp.cadence": "Every", "grp.every1": "Every week", "grp.every2": "Every other week", "grp.weekday": "Day", "grp.noWeekday": "Not set",
       "grp.time": "Time", "grp.place": "Place", "grp.wd": "Sun,Mon,Tue,Wed,Thu,Fri,Sat", "grp.rhythm": "{every}, {wd} {time}",
       "grp.count": "{n} members", "grp.rounds": "{n} sessions so far", "grp.by": "by {name}", "grp.nextAt": "Next session {d}", "grp.planned": "Due {d} · {name}'s turn to present",
@@ -47,7 +53,7 @@
   // the coming session, or (none set up yet) the next date on the rhythm and whose turn it is
   function nextLine(g) {
     const up = S.groups.upcoming(g);
-    if (up) return t("grp.nextAt", { d: UI.shortDate(up.date) || t("st.noDate") }) + (up.presenter ? " · " + t("grp.presenter", { name: name(up.presenter) }) : "");
+    if (up) return t("grp.nextAt", { d: UI.shortDate(up.date) || t("st.noDate") }) + (up.presenters.length ? " · " + t("grp.presenter", { name: up.presenters.map(name).join(", ") }) : "");
     const d = S.groups.nextDate(g);
     return d ? t("grp.planned", { d: UI.shortDate(d), name: name(S.groups.nextPresenter(g)) }) : "";
   }
@@ -55,17 +61,21 @@
 
   // a card on the study list
   function tile(g) {
-    return `<a class="ui-card grp-tile" href="#/group/${encodeURIComponent(g.id)}"><div class="grp-tile-t">${esc(g.title)}</div>
+    return `<a class="ui-card grp-tile" href="#/group/${encodeURIComponent(g.id)}"><div class="grp-tile-t">${g.emoji ? esc(g.emoji) + " " : ""}${esc(g.title)}</div>
       <p class="grp-info">${[rhythm(g), doneRounds(g) && t("grp.rounds", { n: doneRounds(g) })].filter(Boolean).map(esc).join(" · ")}</p>
       ${nextLine(g) ? `<p class="grp-info">${esc(nextLine(g))}</p>` : ""}
       ${UI.avStack(g.members, 6)}</a>`;
   }
 
+  const linkRow = (link = {}) => `<div class="grp-link-row"><input name="linkLabel" maxlength="40" required aria-label="${t("grp.linkLabel")}" placeholder="${t("grp.linkLabel")}" value="${esc(link.label || "")}"><input name="linkUrl" type="url" pattern="[hH][tT][tT][pP][sS]?://.+" required aria-label="${t("grp.linkUrl")}" placeholder="https://" value="${esc(link.url || "")}"><button class="ui-btn" type="button" data-remove-link>${t("grp.remove")}</button></div>`;
+
   function form(g) {
     const me = S.auth.current(), c = g?.cadence, picked = new Set(g ? g.members : [me.id]), people = Object.values(UI.P);
     return `<form class="ui-card write-form grp-form" id="grp-form" autocomplete="off">
       <label class="fld"><span>${t("grp.name")}</span><input name="title" required maxlength="120" placeholder="${t("grp.name.ph")}" value="${esc(g?.title || "")}"></label>
-      <label class="fld"><span>${t("grp.desc")}</span><textarea name="desc" rows="2" placeholder="${t("grp.desc.ph")}">${esc(g?.desc || "")}</textarea></label>
+      <label class="fld"><span>${t("grp.emoji")}</span><input name="emoji" maxlength="8" value="${esc(g?.emoji || "")}"></label>
+      <label class="fld"><span>${t("grp.desc")}</span><textarea name="desc" rows="8" maxlength="5000" aria-describedby="grp-md-hint" placeholder="${t("grp.desc.ph")}">${esc(g?.desc || "")}</textarea><span class="t-callout c-2" id="grp-md-hint">${t("grp.mdHint")}</span></label>
+      <div class="fld"><span>${t("grp.links")}</span><div id="grp-links">${(g?.links || []).map(linkRow).join("")}</div><div><button class="ui-btn" id="grp-add-link" type="button">${t("grp.addLink")}</button></div></div>
       <div class="fld"><span>${t("grp.members")}</span><div class="chips" id="grp-members">
         ${people.map(p => `<button type="button" class="ui-chip" aria-pressed="${picked.has(p.id)}" data-u="${esc(p.id)}" ${p.id === (g?.owner || me.id) ? "disabled" : ""}><span class="dot" style="--c:${UI.safeColor(p.color)};background:var(--c)"></span>${esc(p.name)}</button>`).join("")}</div></div>
       <div class="grp-cad">
@@ -81,12 +91,20 @@
     const f = $("#grp-form", view);
     f.oninput = f.onchange = () => { dirty = true; };
     $("#grp-members", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c && !c.disabled) { c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); dirty = true; } };
+    const links = $("#grp-links", view), add = $("#grp-add-link", view);
+    const limitLinks = () => { add.disabled = links.querySelectorAll(".grp-link-row").length >= 6; };
+    limitLinks();
+    add.onclick = () => { if (add.disabled) return; links.insertAdjacentHTML("beforeend", linkRow()); dirty = true; limitLinks(); links.lastElementChild.querySelector("input").focus(); };
+    links.onclick = e => { const button = e.target.closest("[data-remove-link]"); if (button) { button.closest(".grp-link-row").remove(); dirty = true; limitLinks(); } };
     saving = UI.submitOnce(f, async () => {
       if (!f.title.value.trim()) { $("#grp-err", view).textContent = t("grp.needName"); return; }
-      const data = { title: f.title.value, desc: f.desc.value, place: f.place.value,
+      const data = { title: f.title.value, desc: f.desc.value, place: f.place.value, emoji: f.emoji.value,
+        links: [...links.querySelectorAll(".grp-link-row")].map(row => ({ label: row.querySelector('[name="linkLabel"]').value, url: row.querySelector('[name="linkUrl"]').value })),
         members: [...view.querySelectorAll('#grp-members .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u),
         cadence: { weekday: f.weekday.value, time: f.time.value, every: f.every.value } };
-      const id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data);
+      let id;
+      try { id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data); }
+      catch (error) { throw new Error(["group.links", "group.emoji"].includes(error.message) ? t(error.message) : error.message); }
       dirty = false; location.hash = "#/group/" + encodeURIComponent(id);
     }, $("#grp-err", view));
   }
@@ -96,17 +114,18 @@
     const acts = (me && me.id !== g.owner ? `<button class="ui-btn small" id="grp-join" data-on="${member ? "0" : "1"}">${member ? t("grp.leave") : t("grp.join")}</button>` : "")
       + (!next && (member || canManage) ? `<a class="ui-btn small prominent" href="#/study/new?group=${encodeURIComponent(g.id)}">👥 ${t("grp.newSession")}</a>` : "");
     return `${back()}
-      <div class="page-head row-head"><div><h1>${esc(g.title)}</h1>
-          <p class="sub grp-by">${UI.avatar(g.owner)} ${t("grp.by", { name: esc(name(g.owner)) })}</p></div>
+      <div class="page-head row-head"><div><h1>${g.emoji ? esc(g.emoji) + " " : ""}${esc(g.title)}</h1>
+          <p class="sub grp-by">${UI.avatar(g.owner)} ${t("grp.by", { name: esc(name(g.owner)) })}</p>
+          ${g.links?.length ? `<div class="grp-links">${g.links.map(link => `<a class="ui-chip" href="${esc(link.url)}" target="_blank" rel="noopener">${esc(link.label)}</a>`).join("")}</div>` : ""}</div>
         ${canManage ? `<details class="st-manage grp-manage"><summary>⋯ ${t("grp.manage")}</summary><div class="menu-pop ui-popover">
           <a class="ui-btn text" href="#/group/${encodeURIComponent(g.id)}?edit=1">${t("grp.edit")}</a><hr><button class="ui-btn text destructive" id="grp-del">${t("grp.delete")}</button></div></details>` : ""}</div>
-      ${g.desc ? `<p class="grp-desc">${esc(g.desc)}</p>` : ""}
+      ${g.desc ? `<section class="ui-card grp-card"><h2 class="t-title3">${t("grp.desc")}</h2><div class="ui-prose grp-intro" id="grp-intro" data-expanded="false">${UI.md(g.desc)}</div><button class="ui-btn text" id="grp-more" type="button" aria-expanded="false" aria-controls="grp-intro" hidden>${t("grp.more")}</button></section>` : ""}
       <div class="ui-card grp-card">
         <div class="row-between"><div><p class="grp-info">${info(g)} ${UI.avStack(g.members, 8)}</p>${!next && nextLine(g) ? `<p class="grp-info">${esc(nextLine(g))}</p>` : ""}</div>${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
         <h3>${t("grp.sessions")}</h3>
         ${sts.length ? `<ol class="grp-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a class="ui-row" href="#/study/${encodeURIComponent(st.id)}${st.closed && st.notes ? "?tab=notes" : ""}">
             <span class="r">${t("grp.round", { n: i + 1 })}</span><span class="d">${esc(UI.shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
-            <span class="m">${st.closed ? (st.notes ? `✓ ${t("grp.notesDone")}` : "") : `<span class="ui-pill accent">${t("grp.nextSession")}</span> ${st.presenter ? t("grp.presenter", { name: esc(name(st.presenter)) }) : ""}`}</span></a></li>`).join("")}</ol>`
+            <span class="m">${st.presenters.length ? t("grp.presenter", { name: esc(st.presenters.map(name).join(", ")) }) : ""} ${st.closed ? (st.notes ? `✓ ${t("grp.notesDone")}` : "") : `<span class="ui-pill accent">${t("grp.nextSession")}</span>`}</span></a></li>`).join("")}</ol>`
           : `<p class="muted">${t("grp.noSessions")}</p>`}</div>`;
   }
 
@@ -125,6 +144,15 @@
       return wireForm(g);
     }
     view.innerHTML = page(g, me);
+    const intro = $("#grp-intro", view), more = $("#grp-more", view);
+    if (intro && more) {
+      more.hidden = intro.scrollHeight <= intro.clientHeight;
+      more.onclick = () => {
+        const expanded = more.getAttribute("aria-expanded") !== "true";
+        more.setAttribute("aria-expanded", expanded); intro.dataset.expanded = String(expanded);
+        more.textContent = t(expanded ? "grp.less" : "grp.more");
+      };
+    }
     $("#grp-join", view)?.addEventListener("click", async e => { await S.groups.join(g.id, e.currentTarget.dataset.on === "1"); rerender(); });
     $("#grp-del", view)?.addEventListener("click", async () => {
       if (!(await LabConfirm(t("grp.deleteQ"), { message: t("grp.deleteMsg"), ok: t("grp.delete"), destructive: true }))) return;

@@ -38,6 +38,22 @@ const context = vm.createContext({
 const load = name => readFileSync(new URL(`../site/${name}`, import.meta.url), "utf8");
 const formHelpers = globals => vm.runInNewContext(load("app.js").split("  function leaveGuard(")[1]
   .split("  window.LabUI =")[0].replace(/^/, "function leaveGuard(") + "\n({ leaveGuard, submitOnce })", { t: window.I18N.t, ...globals });
+// The shared note renderer never admits raw HTML or non-HTTP links.
+const md = vm.runInNewContext(load("app.js").split("  const esc =")[1].split("  const initial =")[0]
+  .replace(/^/, "const esc =") + "\nmd");
+const note = md("## 📌 변경된 논문 세미나 진행 방식\n### 1. 세미나 일정\n- **일시:** 매주 목요일 오후 2:50 ~ 3:50\n- **Main Paper 발표 (1명)**\n  - AI 분야의 이론 논문 1편");
+assert.match(note, /<h2>📌 변경된 논문 세미나 진행 방식<\/h2>/);
+assert.match(note, /<strong>일시:<\/strong>/);
+assert.match(note, /<li><strong>Main Paper 발표 \(1명\)<\/strong><ul><li>AI 분야의 이론 논문 1편<\/li><\/ul><\/li>/);
+assert.equal(md("1. First\n\t- Nested\n2. Second"), "<ol><li>First<ul><li>Nested</li></ul></li><li>Second</li></ol>");
+assert.equal(md("Line one\nLine two\n\n*Italic* and `code`"), "<p>Line one<br>Line two</p><p><em>Italic</em> and <code>code</code></p>");
+const unsafeNote = md('<script>alert(1)</script>\n<img src=x onerror=alert(1)>\n[bad](javascript:alert(1))\n[ok](https://example.com/?a=1&b=2)\nhttps://example.org');
+assert.doesNotMatch(unsafeNote, /<(?:script|img)\b|href="javascript:/i);
+assert.match(unsafeNote, /&lt;script&gt;/);
+assert.match(unsafeNote, /\[bad\]\(javascript:alert\(1\)\)/);
+assert.match(unsafeNote, /href="https:\/\/example.com\/\?a=1&amp;b=2" target="_blank" rel="noopener"/);
+assert.match(unsafeNote, /href="https:\/\/example.org" target="_blank" rel="noopener"/);
+assert.match(md('`<img onerror="x">`'), /<code>&lt;img onerror=&quot;x&quot;&gt;<\/code>/);
 vm.runInContext(load("viz.js"), context);
 const viz = window.LabViz;
 assert.equal(viz.axesOf("domain")[0].name, "Old");
@@ -227,7 +243,7 @@ const groupNode = selector => {
   return groupNodes.get(selector);
 };
 const groupView = groupNode("view"), groupForm = groupNode("#grp-form");
-for (const field of ["title", "desc", "place", "weekday", "time", "every"]) groupForm[field] = { value: field === "title" ? "Study" : "" };
+for (const field of ["title", "desc", "place", "emoji", "weekday", "time", "every"]) groupForm[field] = { value: field === "title" ? "Study" : "" };
 let groupConfirm, resolveGroup, rejectGroup, groupCreates = 0;
 const groupLocation = { hash: "#/group/new" };
 const formWindow = { I18N: window.I18N, LabUI: { esc: String, P: {} },
@@ -294,7 +310,7 @@ assert.equal(published, 1);
 let studyCreates = 0, rejectStudy;
 const newStudy = load("study.js").split("  function newPage(params) {")[1].split("  // ---------------------------------------------------------------- detail")[0];
 const studyFormContext = vm.createContext({ view: groupView, $: groupNode, back: "", t: key => key, esc: String,
-  UI: { P: {}, PA: {}, submitOnce: formWindow.LabUI.submitOnce }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
+  UI: { P: {}, PA: {}, avatar: () => "", submitOnce: formWindow.LabUI.submitOnce }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
     findPaper: () => null, studies: { create: () => { studyCreates++; return new Promise((_, reject) => { rejectStudy = reject; }); } } },
   paperSearch: () => ({ id: null }), location: {}, LabToast() {}, URLSearchParams });
 vm.runInContext("function newPage(params) {" + newStudy + "\nnewPage(new URLSearchParams());", studyFormContext);

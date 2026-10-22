@@ -4,8 +4,8 @@
  */
 (() => {
   I18N.extend({
-    ko: { "design.diaryCard": "다이어리 카드 (콘텐츠 층, 유리 없음)" },
-    en: { "design.diaryCard": "Diary card (content layer, no glass)" },
+    ko: { "design.diaryCard": "다이어리 카드 (콘텐츠 층, 유리 없음)", "design.prose": "서식 있는 본문", "design.prose.sample": "## 세미나 안내\n### 발표 순서\n- **핵심 논문**\n  - *이론*과 `code` 소개\n\n자세한 내용은 [자료](https://example.com)에서 확인해 주세요." },
+    en: { "design.diaryCard": "Diary card (content layer, no glass)", "design.prose": "Formatted text", "design.prose.sample": "## Seminar guide\n### Presentation order\n- **Main paper**\n  - Introduce *theory* and `code`\n\nSee the [materials](https://example.com) for details." },
   });
   const view = document.createElement("section");
   view.id = "view-design"; view.className = "view page wide";
@@ -27,6 +27,10 @@
     <section><h2 class="t-title2">글자 · Typography</h2>
       <p class="t-callout c-2">데스크톱은 macOS 텍스트 스타일, 폰(760px 이하)은 같은 이름이 iOS 크기로 바뀌어요. 글꼴: Apple 기기는 SF + Apple SD Gothic Neo, 그 외 Pretendard.</p>
       <div class="ui-list">${TYPE.map(([k, n, spec, ex]) => `<div class="ui-row sp-type"><span class="sp-k t-caption1 c-2">${n}<br>${spec}</span><span class="t-${k} grow">${ex}</span></div>`).join("")}</div>
+    </section>
+
+    <section><h2 class="t-title2">${I18N.t("design.prose")}</h2>
+      <div class="ui-card"><div class="ui-prose">${window.LabUI.md(I18N.t("design.prose.sample"))}</div></div>
     </section>
 
     <section><h2 class="t-title2">색 · Color</h2>

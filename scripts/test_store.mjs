@@ -145,7 +145,7 @@ assert.equal(study.paperId, "p1");
 assert.equal(study.date, groupSnapshot.nextDate);
 assert.equal(study.time, "14:00");
 assert.equal(study.place, "Lab");
-assert.equal(study.presenter, "alice");
+assert.equal(study.presenters.join(","), "alice");
 await assert.rejects(grouped.applyOp({ actor: "bob", op: "study.create", groupId, paperId: "p2" }), /group.upcoming/);
 await assert.rejects(grouped.store.studies.create({ title: "Duplicate", groupId }), /group.upcoming/);
 await assert.rejects(grouped.store.studies.create({ title: "Missing group", groupId: "missing" }), /group.missing/);
@@ -162,6 +162,17 @@ for (const weekday of ["bad", 1.5, -1, 7]) {
   await assert.rejects(grouped.store.groups.update(groupId, { title: "Must not persist", cadence: { weekday } }), /group.cadence/);
   assert.equal(grouped.store.groups.get(groupId).title, "Regular study");
 }
+await grouped.store.groups.update(groupId, { title: "Regular study", desc: "x".repeat(5001), emoji: "👩‍🔬", links: [{ label: "Materials", url: "https://example.com" }] });
+assert.equal(grouped.store.groups.get(groupId).desc.length, 5000);
+assert.equal(grouped.snapshot().groups.find(g => g.id === groupId).emoji, "👩‍🔬");
+assert.equal(grouped.snapshot().groups.find(g => g.id === groupId).links[0].url, "https://example.com");
+for (const links of [[{ label: "Bad", url: "javascript:alert(1)" }], [{ label: "Bad", url: "https://" }], [{ label: "x".repeat(41), url: "https://example.com" }], Array(7).fill({ label: "Link", url: "https://example.com" })]) {
+  await assert.rejects(grouped.store.groups.update(groupId, { title: "Must not persist", links }), /group.links/);
+  assert.equal(grouped.store.groups.get(groupId).title, "Regular study");
+}
+for (const emoji of ["AB", "👨‍👩‍👧‍👦"]) await assert.rejects(grouped.store.groups.update(groupId, { emoji }), /group.emoji/);
+await grouped.store.groups.update(groupId, { title: "Regular study" });
+assert.equal(grouped.store.groups.get(groupId).links[0].label, "Materials", "omitted new fields preserve saved content");
 await grouped.store.groups.remove(groupId);
 assert.equal(grouped.snapshot().studies.find(st => st.id === session.studyId).groupId, null);
 const migratedGroup = boot({
@@ -208,6 +219,42 @@ assert.deepEqual(deletedFiles, ["study-only", "pick-only"]);
 await attachments.store.studies.removePick("st", "alice");
 await attachments.store.studies.remove("st");
 assert.deepEqual(deletedFiles, ["study-only", "pick-only"]);
+const legacy = boot({ studies: { old: { id: "old", host: "alice", presenter: "bob", members: ["alice", "bob"], title: "Legacy" } } }, "bob");
+assert.equal(legacy.store.studies.get("old").presenters.join(","), "bob");
+assert.equal("presenter" in legacy.store.studies.get("old"), false);
+assert.equal(legacy.store.studies.canManage(legacy.store.studies.get("old")), true);
+await legacy.store.studies.leave("old");
+assert.ok(legacy.store.studies.get("old").members.includes("bob"));
+const multi = boot({}, "alice");
+const { id: multiId } = await multi.store.studies.create({ title: "Multi", presenters: ["bob", "carol"] });
+for (const user of ["alice", "bob", "carol", "admin"]) {
+  const as = boot(multi.db(), user);
+  assert.equal(as.store.studies.canManage(as.store.studies.get(multiId)), true);
+}
+const rotationId = await multi.store.groups.create({ title: "Rotation", members: ["bob", "carol"] });
+multi.store.studies.get(multiId).groupId = rotationId;
+assert.equal(multi.store.groups.nextPresenter(multi.store.groups.get(rotationId)), "alice");
+await assert.rejects(multi.store.studies.create({ title: "Invalid presenters", presenters: "bob" }), /study.presenters/);
+await assert.rejects(multi.store.studies.update(multiId, { presenters: [] }), /study.presenters/);
+const mats = boot(multi.db(), "bob"), materialFiles = [];
+mats.store.files.remove = async id => { materialFiles.push(id); };
+const mat = await mats.store.studies.addMaterial(multiId, { kind: "file", title: "Slides", file: { id: "slides", kind: "pdf" } });
+await assert.rejects(boot(mats.db(), "carol").store.studies.removeMaterial(multiId, mat.id), /forbidden/);
+await assert.rejects(mats.store.studies.addMaterial(multiId, { kind: "link", title: "Bad", url: "javascript:alert(1)" }), /materialUrl/);
+await assert.rejects(mats.store.studies.addMaterial(multiId, { kind: "link", title: "x".repeat(81), url: "https://example.org" }), /materialTitle/);
+await mats.store.studies.removeMaterial(multiId, mat.id);
+assert.deepEqual(materialFiles, ["slides"]);
+await mats.store.studies.addMaterial(multiId, { kind: "file", title: "Image", file: { id: "image", kind: "image" } });
+await mats.store.studies.remove(multiId);
+assert.deepEqual(materialFiles, ["slides", "image"]);
+const outsiders = boot({}, "alice");
+const { id: outsiderId } = await outsiders.store.studies.create({ title: "Private membership" });
+await assert.rejects(boot(outsiders.db(), "bob").store.studies.addMaterial(outsiderId, { kind: "link", title: "Link", url: "https://example.org" }), /forbidden/);
+const hostMaterials = boot({}, "alice");
+const { id: hm } = await hostMaterials.store.studies.create({ title: "Host removal", invite: ["bob"] });
+const memberMaterials = boot(hostMaterials.db(), "bob");
+const memberLink = await memberMaterials.store.studies.addMaterial(hm, { kind: "link", title: "Link", url: "https://example.org" });
+await boot(memberMaterials.db(), "alice").store.studies.removeMaterial(hm, memberLink.id);
 
 const rhythm = boot({
   groups: { grp_rhythm: { id: "grp_rhythm", title: "Rhythm", owner: "alice", members: ["alice"], cadence: { weekday: 4, every: 2 } } },

@@ -814,7 +814,7 @@ def list_studies(include_past: bool = False) -> list[dict]:
         rnd = sorted((x for x in d.get("studies") or [] if x.get("groupId") == st.get("groupId")), key=lambda x: (x.get("date") or "9999", x.get("createdAt", ""))).index(st) + 1 if g else None
         out.append({"id": st["id"], "title": st["title"], "date": st.get("date") or None, "time": st.get("time") or None, "place": st.get("place") or None,
                     **({"regular_study": g["title"], "round": rnd, "group_id": g["id"]} if g else {}),
-                    "presenter": _name(st["presenter"], d), "members": [_name(u, d) for u in st["members"]], "questions": len(qs),
+                    "presenters": [_name(u, d) for u in st["presenters"]], "members": [_name(u, d) for u in st["members"]], "questions": len(qs),
                     "closed": bool(st.get("closed")), "open": f"{SITE}/#/study/{st['id']}"})
     return out
 
@@ -834,7 +834,7 @@ def get_study(study_id: str) -> dict:
     qs = sorted([q for q in d.get("studyQuestions") or [] if q["studyId"] == st["id"]], key=lambda q: (q.get("done", False), -len(q.get("votes", []))))
     return {
         "id": st["id"], "title": st["title"], "date": st.get("date") or None, "time": st.get("time") or None, "place": st.get("place") or None,
-        "about": st.get("desc", ""), "presenter": _name(st["presenter"], d), "members": [_name(u, d) for u in st["members"]], "closed": bool(st.get("closed")),
+        "about": st.get("desc", ""), "presenters": [_name(u, d) for u in st["presenters"]], "members": [_name(u, d) for u in st["members"]], "closed": bool(st.get("closed")),
         "paper": ({**brief(p, d), "abstract": p.get("abstract", "")} if p else {"title": st["title"], "link": st.get("link", ""), "inLab": False}),
         "reviews": [{"review_id": r["id"], "by": _name(r["person"], d), "rating": r.get("rating"), "diary_date": r["date"],
                      "summary": r.get("content", ""), "memo": r.get("memo", ""), "for_this_study": r.get("studyId") == st["id"]} for r in revs],
@@ -847,6 +847,9 @@ def get_study(study_id: str) -> dict:
         "questions": [{"question_id": q["id"], "by": _name(q["author"], d), "question": q["body"], "votes": len(q.get("votes", [])),
                        "i_voted": viewer in (q.get("votes") or []), "discussed": q.get("done", False)} for q in qs],
         "pdfs": file_list(st.get("files")), "i_am_member": viewer in st["members"],
+        "materials": [{"title": m["title"], "kind": m["kind"], "by": _name(m["by"], d),
+                       **({"url": m["url"]} if m["kind"] == "link" else {"file_id": m["file"]["id"], "file_kind": m["file"]["kind"]})}
+                      for m in st.get("materials", [])],
         "notes": st.get("notes"), "open": f"{SITE}/#/study/{st['id']}",
     }
 
@@ -862,6 +865,23 @@ def add_study_question(study_id: str, question: str) -> dict:
         raise ToolError("empty question")
     return _done(DB.apply({"op": "study.question", "actor": u["id"], "studyId": st["id"], "body": question.strip()[:1000], "summary": question[:60]}),
                    {"open": f"{SITE}/#/study/{st['id']}"})
+
+@mcp.tool()
+def add_study_material(study_id: str, title: str, url: str) -> dict:
+    """Add a link to a study's materials as me. Only study members (or an admin) can add materials.
+    title: a short label (up to 80 characters); url: an http/https link. Files are added on the site."""
+    u, st = me(), _study(study_id)
+    if u["id"] not in st["members"] and u.get("role") != "admin":
+        raise ToolError("only study members can add materials")
+    title, url = title.strip(), url.strip()
+    if not title or len(title) > 80:
+        raise ToolError("title must be 1–80 characters")
+    if not re.match(r"^https?://[^/\s]+", url, re.I):
+        raise ToolError("url must be an http/https link")
+    return _done(DB.apply({"op": "study.materialAdd", "actor": u["id"], "studyId": st["id"],
+                           "title": title, "url": url, "summary": title}),
+                 {"open": f"{SITE}/#/study/{st['id']}"})
+
 
 
 @mcp.tool()
@@ -885,13 +905,13 @@ def join_study(study_id: str) -> dict:
 
 @mcp.tool()
 def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: str = "",
-               on_date: str = "", at_time: str = "", place: str = "", presenter: str = "", invite: list[str] | None = None,
+               on_date: str = "", at_time: str = "", place: str = "", presenters: list[str] | None = None, invite: list[str] | None = None,
                about: str = "", write_first: bool = True, everyone_brings_a_paper: bool = False) -> dict:
     """Open a paper study as me (I host it; invited members get a notification). The paper: a lab paper (paper_ref),
     or any paper by title and optional link. on_date YYYY-MM-DD, at_time HH:MM. write_first = members must post their own diary
     before they see others' (the usual). For a regular study's next session give group_id (see list_regular_studies):
     date, time, place, members and whose turn it is to present are filled in like the site's "next session" form —
-    nonempty date, time, place and presenter override defaults; invite adds members to the group's members.
+    nonempty date, time, place and presenters (names or ids, in order) override defaults; invite adds members to the group's members.
     Explain what you'll open to the user before calling."""
     u = me()
     if on_date:
@@ -904,13 +924,13 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: s
         raise ToolError("give paper_ref or title")
     op = DB.apply({"op": "study.create", "actor": u["id"], "paperId": p["id"] if p else None, "title": title.strip(), "link": link.strip(),
                    "groupId": g["id"] if g else None, "date": on_date, "time": at_time, "place": place,
-                   "presenter": person(presenter)["id"] if presenter else None, "invite": [person(x)["id"] for x in invite or []],
+                   "presenters": [person(x)["id"] for x in presenters] if presenters is not None else None, "invite": [person(x)["id"] for x in invite or []],
                    "desc": about, "blind": bool(write_first), "bring": bool(everyone_brings_a_paper), "summary": (p["title"] if p else title)[:60]})
     sid = op["result"].get("studyId")
     st = _study(sid) if sid else None
     d = DB.data()
     return _done(op, {"title": st and st["title"], "date": st and (st.get("date") or None), "time": st and (st.get("time") or None),
-                      "place": st and (st.get("place") or None), "presenter": st and _name(st["presenter"], d),
+                      "place": st and (st.get("place") or None), "presenters": st and [_name(x, d) for x in st["presenters"]],
                       "members": st and [_name(x, d) for x in st["members"]], "open": sid and f"{SITE}/#/study/{sid}"})
 
 
@@ -947,9 +967,10 @@ def list_regular_studies() -> list:
         c = g.get("cadence")
         sessions = sorted((x for x in d.get("studies") or [] if x.get("groupId") == g["id"]), key=lambda x: (x.get("date") or "9999", x.get("createdAt", "")))
         out.append({"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"], d), "members": [_name(u, d) for u in g.get("members") or []],
+                    "emoji": g.get("emoji", ""), "links": g.get("links") or [],
                     "schedule": f"every {'other ' if c.get('every') == 2 else ''}{DAYS[c['weekday']]} {c.get('time', '')}".strip() if c else None,
                     "place": g.get("place") or None, "next_date": g.get("nextDate") or None, "next_presenter": _name(g.get("nextPresenter"), d),
-                    "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenter": _name(x["presenter"], d),
+                    "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenters": [_name(u, d) for u in x["presenters"]],
                                   "finished": bool(x.get("closed")), "has_notes": bool(x.get("notes"))} for i, x in enumerate(sessions)],
                     "open": f"{SITE}/#/group/{g['id']}"})
     return out
