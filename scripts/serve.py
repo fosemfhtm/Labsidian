@@ -19,7 +19,7 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
   GET|POST /api/tokens · DELETE /api/tokens/<id>   your MCP tokens: [{id, label, created, used}] · {label} → {token} (shown once)
   GET  /api/state              {version, db, seedOnly, me} — the site's whole state (window.Store's db), no secrets
   POST /api/state              {upserts: [[coll, id, value]], deletes: [[coll, id]]} → {version, prev}
-                               (accounts: members only change their own; passwords, roles and deletes are refused)
+                               (browser accounts: members only change their own; passwords, roles and deletes are refused)
   POST /api/state/import       {db} — admin, once, while the server only has seed data: a browser's old localStorage
   GET  /api/changes?since=N    {version, ops} — what changed since N (the open site polls this)
   GET  /api/version            {version}
@@ -27,6 +27,7 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
   POST /api/ops                one MCP command, applied right away as its actor → {ok, id, version, result} | {ok: false, error}
   GET  /api/ops?limit=N        recent commands with their result — admin (also: SELECT * FROM ops in the .db file)
   GET|PUT|DELETE /api/files/<id>   attachments (PDF · images)
+  Local MCP authentication cannot write browser state, import data, or manage personal tokens.
 
 Tables: records(coll, id, value) — one row per user / review / comment / member's notifications …, coll "_meta" for the
 rest (terms, tag ops, log …) · ops(id, at, actor, op, status, error, version) · files(id, type, data) · meta(key, value)
@@ -39,7 +40,6 @@ import calendar
 import hashlib
 import hmac
 import json
-import re
 import secrets
 import shutil
 import sqlite3
@@ -53,6 +53,8 @@ from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+
+from build_site import norm_title
 
 ROOT = Path(__file__).resolve().parent.parent
 # a fresh clone has no real lab data (site/data.js is gitignored) → serve the demo lab
@@ -176,10 +178,8 @@ class Store:
     def db(self):
         d = {}
         for coll, id_, value in self.con.execute("SELECT coll, id, value FROM records"):
-            if coll == "_meta":
-                d[id_] = json.loads(value)
-            else:
-                d.setdefault(coll, {})[id_] = json.loads(value)
+            target = d if coll == "_meta" else d.setdefault(coll, {})
+            target[id_] = json.loads(value)
         return d
 
     def users(self):
@@ -353,9 +353,6 @@ def migrate_mcp_drafts():
             if not result.get("ok"):
                 raise RuntimeError(f"couldn't migrate AI drafts: {result.get('error')}")
             resolved = result["snapshot"]["reading"]
-
-        def norm_title(title):
-            return re.sub(r"[^0-9a-z가-힣]+", "", (title or "").lower().replace("ﬁ", "fi").replace("ﬂ", "fl"))
 
         upserts, deletes = [], [("mcpDrafts", u) for u, _ in legacy]
         if meta:
@@ -659,6 +656,8 @@ class Handler(SimpleHTTPRequestHandler):
         who = self.who()
         if not who:
             return self.send_json({"error": "signin"}, 401)
+        if who == LOCAL and u.path in ("/api/tokens", "/api/state", "/api/state/import"):
+            return self.send_json({"error": "forbidden"}, 403)
         if u.path == "/api/password":
             me = STORE.user(who) if who != LOCAL else None
             if not me:
@@ -675,14 +674,10 @@ class Handler(SimpleHTTPRequestHandler):
             STORE.end_sessions(me["id"], keep=self.cookie())  # signed in elsewhere with the old password → signed out
             return self.send_json({"ok": True, "user": public_user(me)})
         if u.path == "/api/tokens":
-            if who == LOCAL:
-                return self.send_json({"error": "forbidden"}, 403)
             label = str(req.get("label") or "").strip()[:60]
             token = STORE.new_session(who, "mcp", label)
             return self.send_json({"token": token, **next(x for x in STORE.tokens(who) if x["id"] == sha(token)[:16])})
         if u.path == "/api/state":
-            if who == LOCAL:
-                return self.send_json({"error": "forbidden"}, 403)
             ups, dels = req.get("upserts") or [], req.get("deletes") or []
             if not valid_records(ups, 3) or not valid_records(dels, 2):
                 return self.send_json({"error": "invalid records"}, 400)
@@ -690,7 +685,7 @@ class Handler(SimpleHTTPRequestHandler):
             prev, v = STORE.write(ups, dels)
             return self.send_json({"version": v, "prev": prev})
         if u.path == "/api/state/import":
-            if who == LOCAL or not self.is_admin(who):
+            if not self.is_admin(who):
                 return self.send_json({"error": "forbidden"}, 403)
             if not STORE.seed_only():
                 return self.send_json({"error": "the server already has data"}, 409)
@@ -771,23 +766,20 @@ class Handler(SimpleHTTPRequestHandler):
         if not self.same_origin():
             return
         with STORE.lock:
-            return self._delete()
-
-    def _delete(self):
-        who = self.who()
-        if self.path.startswith("/api/tokens/"):
-            tid = self.path[len("/api/tokens/"):]
-            if not who or who == LOCAL:
-                return self.send_json({"error": "signin"}, 401)
-            if len(tid) != 16 or any(c not in "0123456789abcdef" for c in tid):
+            who = self.who()
+            if self.path.startswith("/api/tokens/"):
+                tid = self.path[len("/api/tokens/"):]
+                if not who or who == LOCAL:
+                    return self.send_json({"error": "signin"}, 401)
+                if len(tid) != 16 or any(c not in "0123456789abcdef" for c in tid):
+                    return self.send_error(404)
+                n = STORE.con.execute("DELETE FROM sessions WHERE user=? AND kind='mcp' AND substr(hash, 1, 16)=?", (who, tid)).rowcount
+                return self.send_json({"ok": True}) if n else self.send_error(404)
+            if not self.path.startswith("/api/files/"):
                 return self.send_error(404)
-            n = STORE.con.execute("DELETE FROM sessions WHERE user=? AND kind='mcp' AND substr(hash, 1, 16)=?", (who, tid)).rowcount
-            return self.send_json({"ok": True}) if n else self.send_error(404)
-        if not self.path.startswith("/api/files/"):
-            return self.send_error(404)
-        if not who:
-            return self.send_json({"error": "signin"}, 401)
-        STORE.con.execute("DELETE FROM files WHERE id=?", (self.file_id(),))
+            if not who:
+                return self.send_json({"error": "signin"}, 401)
+            STORE.con.execute("DELETE FROM files WHERE id=?", (self.file_id(),))
         self.send_json({"ok": True})
 
 

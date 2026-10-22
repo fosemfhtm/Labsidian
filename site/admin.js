@@ -117,15 +117,14 @@
       if (b.dataset.act === "reset") b.onclick = async () => { if (!await LabConfirm(t("ad.reset"), { message: users.find(u => u.id === id).name, ok: t("ad.reset"), destructive: true })) return; const r = await S.users.resetPassword(id); showTemp(users.find(u => u.id === id).name, r.tempPassword); members(el); };
       if (b.dataset.act === "toggle") b.onclick = async () => { const u = users.find(u => u.id === id); if (!u.disabled && !await LabConfirm(t("ad.disable"), { message: u.name, ok: t("ad.disable"), destructive: true })) return; await S.users.setDisabled(id, !u.disabled); members(el); };
     });
-    $("#ad-add", el).onsubmit = async e => {
-      e.preventDefault();
-      const f = e.target;
+    const add = $("#ad-add", el);
+    UI.submitOnce(add, async () => {
       try {
-        const r = await S.users.create({ name: f.name.value, color: f.color.value });
-        if (f.start.value || f.exempt.checked) await S.users.setQuota(r.id, { start: f.start.value || null, exempt: f.exempt.checked });
+        const r = await S.users.create({ name: add.name.value, color: add.color.value });
+        if (add.start.value || add.exempt.checked) await S.users.setQuota(r.id, { start: add.start.value || null, exempt: add.exempt.checked });
         showTemp(r.name, r.tempPassword, true);
       } catch (x) { LabToast(t("ad.exists")); }
-    };
+    });
   }
   function showTemp(name, pw, reload) {
     const m = LabModal(`<h2>${t("ad.tempTitle")}</h2><p class="sub">${t("ad.tempSub", { name: esc(name) })}</p>
@@ -194,11 +193,11 @@
       doMerge(from, into);
     });
     el.querySelectorAll("[data-undo]").forEach(b => b.onclick = async () => { await S.tags.undo(+b.dataset.undo); LabReload("#/admin?tab=tags", t("ad.done")); });
-    $("#ad-newtag", el).onsubmit = async e => {
-      e.preventDefault(); const f = e.target;
-      await S.tags.create({ axis: f.axis.value, label: f.label.value, labelEn: f.labelEn.value || f.label.value, color: f.color.value });
+    const tag = $("#ad-newtag", el);
+    UI.submitOnce(tag, async () => {
+      await S.tags.create({ axis: tag.axis.value, label: tag.label.value, labelEn: tag.labelEn.value || tag.label.value, color: tag.color.value });
       LabReload("#/admin?tab=tags", t("ad.done"));
-    };
+    });
   }
   async function doMerge(from, into) {
     if (!into) return;
@@ -227,21 +226,21 @@
         <p class="hint ad-holidays"><b>${t("ad.autoHolidays", { y: S.today().slice(0, 4) })}</b> · ${S.calendar.holidays(S.today().slice(0, 4))
           .filter(h => !S.calendar.isWeekend(h.date)).map(h => `${+h.date.slice(5, 7)}/${+h.date.slice(8)} ${esc(h.label)}`).join(", ")}</p></div>`;
     el.querySelectorAll('[data-act="off-del"]').forEach(b => b.onclick = async () => { const id = b.closest("tr").dataset.off; if (!await LabConfirm(t("ad.remove"), { message: S.calendar.list().find(o => o.id === id)?.label || "", ok: t("ad.remove"), destructive: true })) return; await S.calendar.remove(id); terms(el); });
-    $("#ad-off", el).onsubmit = async e => {
-      e.preventDefault(); const f = e.target;
-      try { await S.calendar.save({ start: f.start.value, end: f.end.value || f.start.value, label: f.label.value, kind: f.kind.value }); terms(el); }
+    const off = $("#ad-off", el);
+    UI.submitOnce(off, async () => {
+      try { await S.calendar.save({ start: off.start.value, end: off.end.value || off.start.value, label: off.label.value, kind: off.kind.value }); terms(el); }
       catch (x) { LabToast("⚠️ " + x.message); }
-    };
+    });
     el.querySelectorAll("tbody tr[data-id]").forEach(tr => tr.querySelector("[data-act]").onclick = async () => {
       const f = k => tr.querySelector(`[data-f="${k}"]`).value;
       await S.terms.save({ id: tr.dataset.id, label: f("label"), start: f("start"), end: f("end"), target: f("target") === "" ? null : +f("target") });
       LabToast(t("ad.done"));
     });
-    $("#ad-term", el).onsubmit = async e => {
-      e.preventDefault(); const f = e.target;
-      await S.terms.save({ id: f.id.value, label: f.label.value, start: f.start.value, end: f.end.value, target: f.target.value === "" ? null : +f.target.value });
+    const term = $("#ad-term", el);
+    UI.submitOnce(term, async () => {
+      await S.terms.save({ id: term.id.value, label: term.label.value, start: term.start.value, end: term.end.value, target: term.target.value === "" ? null : +term.target.value });
       terms(el);
-    };
+    });
   }
 
   // ---------------- data ----------------

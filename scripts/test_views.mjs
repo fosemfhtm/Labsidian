@@ -36,6 +36,8 @@ const context = vm.createContext({
   clearInterval: timer => { clearedTimer = timer; },
 });
 const load = name => readFileSync(new URL(`../site/${name}`, import.meta.url), "utf8");
+const formHelpers = globals => vm.runInNewContext(load("app.js").split("  function leaveGuard(")[1]
+  .split("  window.LabUI =")[0].replace(/^/, "function leaveGuard(") + "\n({ leaveGuard, submitOnce })", { t: window.I18N.t, ...globals });
 vm.runInContext(load("viz.js"), context);
 const viz = window.LabViz;
 assert.equal(viz.axesOf("domain")[0].name, "Old");
@@ -74,6 +76,7 @@ vm.runInContext(`
   buildSim = () => {
     const nodes = [];
     graph.forEachNode((id, a) => nodes.push({ id, ...a }));
+    simById = Object.fromEntries(nodes.map(n => [n.id, n]));
     sim = { stop() {}, nodes: () => nodes, force: () => ({ x() {}, y() {} }), alpha() { return this; }, restart };
   };
 `, context);
@@ -97,6 +100,8 @@ window.LabGraph.hide();
 assert.equal(cancelledFrame, 99);
 assert.equal(vm.runInContext("flipping", context), false);
 assert.equal(vm.runInContext('graph.getNodeAttributes("p2").x', context), 20);
+assert.equal(vm.runInContext("simById.p2.ax", context), 20);
+assert.equal(vm.runInContext("simById.p2.ay", context), 30);
 assert.equal(restarts, 0);
 // Read all label sizes before placing any label: no forced layout per tag during camera animation.
 const layout = [];
@@ -162,7 +167,7 @@ const writeNode = selector => {
 };
 const writeView = writeNode("view");
 Object.defineProperty(writeView, "innerHTML", { set() { writeNodes.clear(); } });
-let savedDraft = null, confirmLeave, resolveLookup;
+let savedDraft = null, confirmLeave, resolveLookup, published = 0;
 const writeLocation = { hash: "#/write" }, writeUI = { esc: String, R: { r: { id: "r", person: "u", paper: "p", date: "2026-10-01", content: "original", rating: 4 } },
   PA: { p: { title: "Paper", reviews: ["r"] } }, ratingInput: () => "", paintRatingInput() {}, wireRatingInput() {}, T: {} };
 const writeStore = { auth: { current: () => ({ id: "u" }) }, terms: { current: () => ({ start: "2026-01-01", end: "2026-12-31" }), list: () => [] },
@@ -170,10 +175,18 @@ const writeStore = { auth: { current: () => ({ id: "u" }) }, terms: { current: (
   drafts: { get: () => savedDraft, save: data => { savedDraft = structuredClone(data); return "2026-10-01T12:00:00Z"; } },
   lookup: () => new Promise(resolve => { resolveLookup = resolve; }) };
 const writeWindow = { I18N: window.I18N, LabUI: writeUI, Store: writeStore,
-  addEventListener(type, callback) { writeEvents[type] = callback; } };
+  addEventListener(type, callback) { (writeEvents[type] ||= []).push(callback); } };
+Object.assign(writeUI, formHelpers({ window: writeWindow, location: writeLocation,
+  LabConfirm: () => new Promise(resolve => { confirmLeave = resolve; }) }));
 vm.runInNewContext(load("write.js"), { window: writeWindow, I18N: window.I18N, location: writeLocation,
   document: { createElement: () => writeView, querySelector: writeNode },
-  LabConfirm: () => new Promise(resolve => { confirmLeave = resolve; }), setTimeout: () => 1, clearTimeout() {} });
+  LabConfirm: () => new Promise(resolve => { confirmLeave = resolve; }), setTimeout: () => 1, clearTimeout() {},
+  LabReload() {
+    let blocked = false;
+    writeEvents.beforeunload.forEach(callback => callback({ preventDefault() { blocked = true; } }));
+    assert.equal(blocked, false, "successful publishing must not warn before reloading");
+    published++;
+  } });
 const writePage = writeWindow.LabPages.write, change = () => writeNode("#w-form").handlers.input({ target: { id: "w-content" } });
 writePage.render(new URLSearchParams());
 writeNode("#w-title").value = "Draft"; writeNode("#w-content").value = "Keep this"; change();
@@ -182,7 +195,7 @@ writePage.render(new URLSearchParams());
 assert.equal(writeNode("#w-content").value, "Keep this", "navigation restores the new diary draft");
 change();
 let unloadBlocked = false;
-writeEvents.beforeunload({ preventDefault() { unloadBlocked = true; } });
+writeEvents.beforeunload.forEach(callback => callback({ preventDefault() { unloadBlocked = true; } }));
 assert.equal(unloadBlocked, false, "a saved draft does not need a discard warning");
 writePage.render(new URLSearchParams("review=r"));
 writeNode("#w-content").value = "Edited text"; change(); writeLocation.hash = "#/me";
@@ -202,6 +215,7 @@ assert.equal(writeNode("#w-title").value, "Draft", "lookup completion cannot rew
 // Regular-study cards retain safe routes when IDs contain percent signs or quotes.
 const groupWindow = { I18N: window.I18N, LabUI: { esc: String, avStack: () => "" }, addEventListener() {},
   Store: { groups: { sessions: () => [], upcoming: () => null, nextDate: () => null } } };
+Object.assign(groupWindow.LabUI, formHelpers({ window: groupWindow }));
 vm.runInNewContext(load("groups.js"), { window: groupWindow, I18N: window.I18N,
   document: { createElement: () => ({}), querySelector: () => ({ appendChild() {} }) } });
 assert.ok(groupWindow.LabGroups.tile({ id: 'g%"/', title: "Study", members: [] }).includes('href="#/group/g%25%22%2F"'));
@@ -220,6 +234,8 @@ const formWindow = { I18N: window.I18N, LabUI: { esc: String, P: {} },
   Store: { auth: { current: () => ({ id: "u" }) }, groups: { create: () => {
     groupCreates++; return new Promise((resolve, reject) => { resolveGroup = resolve; rejectGroup = reject; });
   } } }, addEventListener(type, callback) { groupEvents[type] = callback; } };
+Object.assign(formWindow.LabUI, formHelpers({ window: formWindow, location: groupLocation,
+  LabConfirm: () => new Promise(resolve => { groupConfirm = resolve; }) }));
 vm.runInNewContext(load("groups.js"), { window: formWindow, I18N: window.I18N, location: groupLocation,
   LabConfirm: () => new Promise(resolve => { groupConfirm = resolve; }),
   document: { createElement: () => groupView, querySelector: groupNode } });
@@ -255,11 +271,30 @@ assert.equal(tagCreates, 1);
 writePage.render(new URLSearchParams());
 resolveTag("d:new"); await createTag;
 assert.equal(writeNode("#w-tags").innerHTML, "", "late tag completion must not modify a different form");
+// Uploads and publishing block navigation; publishing remains single-flight and releases the reload guard.
+let resolveUpload, resolvePublish, reviewSaves = 0;
+writeUI.R.r.tags = ["d:field"]; writeUI.safeColor = () => ""; writeUI.kb = () => "";
+writeStore.files = { kindOf: () => "pdf", limits: { pdf: 1000 },
+  put: () => new Promise(resolve => { resolveUpload = resolve; }) };
+writeStore.reviews = { update: () => { reviewSaves++; return new Promise(resolve => { resolvePublish = resolve; }); } };
+writePage.render(new URLSearchParams("review=r"));
+writeNode("#w-file").files = [{ type: "application/pdf", name: "Paper.pdf", size: 10 }];
+writeNode("#w-file").onchange();
+assert.equal(writePage.leave(), false, "uploading blocks navigation");
+await writeNode("#w-form").onsubmit({ preventDefault() {} });
+assert.equal(reviewSaves, 0, "publishing must wait for uploads");
+resolveUpload({ id: "f", kind: "pdf", name: "Paper.pdf", size: 10 }); await new Promise(resolve => setTimeout(resolve));
+const publish = () => writeNode("#w-form").onsubmit({ preventDefault() {} });
+const publishing = publish(); await publish();
+assert.equal(reviewSaves, 1, "rapid submit publishes once");
+assert.equal(writePage.leave(), false, "publishing blocks navigation");
+resolvePublish(); await publishing;
+assert.equal(published, 1);
 // Browser study creation reports group conflicts without leaving the form or double-submitting.
 let studyCreates = 0, rejectStudy;
 const newStudy = load("study.js").split("  function newPage(params) {")[1].split("  // ---------------------------------------------------------------- detail")[0];
 const studyFormContext = vm.createContext({ view: groupView, $: groupNode, back: "", t: key => key, esc: String,
-  UI: { P: {}, PA: {} }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
+  UI: { P: {}, PA: {}, submitOnce: formWindow.LabUI.submitOnce }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
     findPaper: () => null, studies: { create: () => { studyCreates++; return new Promise((_, reject) => { rejectStudy = reject; }); } } },
   paperSearch: () => ({ id: null }), location: {}, LabToast() {}, URLSearchParams });
 vm.runInContext("function newPage(params) {" + newStudy + "\nnewPage(new URLSearchParams());", studyFormContext);

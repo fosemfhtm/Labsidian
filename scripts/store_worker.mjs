@@ -21,7 +21,6 @@ const load = (file, parse) => {  // re-read when the file changes (rebuilt diary
   return cache[file].v;
 };
 const lab = () => structuredClone(load(DATA, raw => JSON.parse(raw.slice(raw.indexOf("=") + 1).trim().replace(/;\s*$/, ""))));
-const script = () => load(STORE, src => new vm.Script(src, { filename: "store.js" }));
 
 function boot(db) {
   let saved = db ? JSON.stringify(db) : null, api = null;
@@ -35,7 +34,7 @@ function boot(db) {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  script().runInContext(ctx);
+  load(STORE, src => new vm.Script(src, { filename: "store.js" })).runInContext(ctx);
   return api;
 }
 

@@ -15,10 +15,33 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from build_site import norm_title, read_json, write_json, s2_key, s2_details
 import demo_build
 import design_lint
 import enrich_s2
 import parse_diary
+
+
+class SharedDataTests(unittest.TestCase):
+    def test_title_keys_preserve_diary_and_s2_conventions(self):
+        self.assertEqual(norm_title(None), "")
+        self.assertEqual(norm_title("한글: ﬁeld-ﬂow!"), "한글fieldflow")
+        self.assertEqual(s2_key("한글: ﬁeld-ﬂow oﬃce!"), "fieldflowoffice")
+
+    def test_json_and_s2_cache_loading(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cache.json"
+            with self.assertRaises(FileNotFoundError):
+                s2_details(path)
+            cache = {"match": {"한글": "p1", "missing": "p2", "unmatched": None},
+                     "detail": {"p1": {"title": "한글"}}}
+            write_json(path, cache, indent=1)
+            self.assertEqual(read_json(path), cache)
+            self.assertIn("한글", path.read_text(encoding="utf-8"))
+            self.assertEqual(s2_details(path), {"한글": {"title": "한글"}, "missing": None})
+            path.write_text("broken", encoding="utf-8")
+            with self.assertRaises(json.JSONDecodeError):
+                read_json(path)
 
 
 class ParserTests(unittest.TestCase):
@@ -78,7 +101,7 @@ class EnrichmentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp)
             title = "An English paper title"
-            key = enrich_s2.norm(title)
+            key = s2_key(title)
             (data / "diary.json").write_text(json.dumps([{"title": title, "link": ""}]), encoding="utf-8")
             cache = data / "s2_cache.json"
             cache.write_text(json.dumps({"match": {}, "detail": {}, "ext": {key: ""}}), encoding="utf-8")
@@ -95,7 +118,7 @@ class EnrichmentTests(unittest.TestCase):
             (data / "diary.json").write_text(json.dumps([{"title": title}]), encoding="utf-8")
             cache = data / "s2_cache.json"
             cache.write_text(json.dumps({"match": {"old": "existing"}, "detail": {},
-                                         "ext": {enrich_s2.norm(title): "DOI:10.1234/example"}}), encoding="utf-8")
+                                         "ext": {s2_key(title): "DOI:10.1234/example"}}), encoding="utf-8")
             with patch.object(enrich_s2, "DATA", data), patch.object(enrich_s2, "CACHE", cache), \
                     patch.object(enrich_s2, "req", return_value="retry") as request:
                 enrich_s2.main()

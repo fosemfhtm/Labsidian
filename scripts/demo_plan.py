@@ -8,17 +8,14 @@ finds a fresh real paper for it), plus a few real reviews as style references. _
 Reused papers are picked by title keywords (taxonomy domains), not by the real map's clusters, so the
 demo lab's interest landscape doesn't mirror the real members'.
 """
-import json
 import random
 import re
 from collections import defaultdict
 from datetime import date, timedelta
-from pathlib import Path
 
-from build_site import norm_title, compile_tax
+from build_site import ROOT, read_json, write_json, s2_details, s2_key, norm_title, compile_tax
 from taxonomy import DOMAINS
 
-ROOT = Path(__file__).resolve().parent.parent
 DEMO = ROOT / "data" / "demo"
 WORK = DEMO / "_work"
 END = date(2026, 6, 24)
@@ -37,16 +34,15 @@ def weekdays(start, end):
 
 def main():
     rng = random.Random(SEED)
-    personas = json.loads((DEMO / "personas.json").read_text(encoding="utf-8"))
-    entries = json.loads((ROOT / "data" / "diary.json").read_text(encoding="utf-8"))
-    c = json.loads((ROOT / "data" / "s2_cache.json").read_text(encoding="utf-8"))
-    s2 = {k: c["detail"].get(v) for k, v in c["match"].items() if v}
+    personas = read_json(DEMO / "personas.json")
+    entries = read_json(ROOT / "data" / "diary.json")
+    s2 = s2_details(ROOT / "data" / "s2_cache.json")
 
     # real paper pool: public metadata only (title, authors, venue, link, abstract, year)
     pool = {}
     for e in entries:
         k = norm_title(e["title"])
-        d = s2.get(re.sub(r"[^0-9a-z]+", "", k)) or {}  # same lookup as build_map
+        d = s2.get(s2_key(k)) or {}
         abstract = d.get("abstract") or ""
         p = pool.setdefault(k, {"title": e["title"].strip(), "authors": "", "venue": "", "link": "",
                                 "year": d.get("year"), "abstract": abstract})
@@ -101,7 +97,7 @@ def main():
         out = {"persona": per,
                "slots": [{"date": d.isoformat(), "paper": p} for d, p in zip(dates, papers)],
                "style_examples": [{k: e[k] for k in ("title", "rating", "content", "memo")} for e in examples]}
-        (WORK / f"{per['id']}.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+        write_json(WORK / f"{per['id']}.json", out, indent=1)
         print(f"{per['id']}: {per['count']} slots, {sum(p is None for p in papers)} NEW")
     print(f"shared papers: {sum(len(v) > 1 for v in readers.values())}")
 

@@ -374,7 +374,6 @@
 /* tooltip: values on charts (icon buttons use the title attribute) */
 :where([data-ui]) .ui-tooltip { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
   box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-control-sm); padding: 8px 10px; font: var(--t-callout); color: var(--label); }
-:where([data-ui]) .ui-scroll-edge { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
 
 /* ---------- alert (≤3 buttons; Cancel leading, action trailing) & sheet ---------- */
 :where([data-ui]).ui-scrim, :where([data-ui]) .ui-scrim { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: var(--scrim); animation: ui-fade var(--dur) var(--ease); }

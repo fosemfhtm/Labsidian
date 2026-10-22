@@ -13,7 +13,7 @@
     ko: {
       "pf.terrain": "연구 지형", "pf.terrainHint.domain": "어떤 교통 분야 논문을 읽나 · 꽃잎 = 비중, 점선 = 연구실 평균",
       "pf.terrainHint.method": "어떤 방법론 논문을 읽나 · 꽃잎 = 비중, 점선 = 연구실 평균",
-      "pf.axis.domain": "분야", "pf.axis.method": "방법론", "pf.methods": "방법론", "pf.noDomain": "분야가 없는 일반 AI 논문 {v}%는 방법론에만 잡혀요",
+      "pf.axis.domain": "분야", "pf.axis.method": "방법론", "pf.noDomain": "분야가 없는 일반 AI 논문 {v}%는 방법론에만 잡혀요",
       "pp.lab": "연구실 전체", "pp.labSub": "논문 {p}편 · {n}명", "pp.papersN": "{n}편", "pp.pick": "{v}% · {n}편",
       "pp.hint": "항목을 누르면 아래 사람들이 그 비중이 큰 순서로 정렬돼요 · 한 번 더 누르면 원래대로",
       "pf.similar": "관심사가 비슷한 사람", "pf.similarHint": "읽은 분야가 비슷한 순 · 누르면 나란히 비교해요", "pf.recent": "최근 다이어리",
@@ -27,7 +27,7 @@
     en: {
       "pf.terrain": "Research terrain", "pf.terrainHint.domain": "Which transport fields the papers they read are about · petal = share, dashed = lab average",
       "pf.terrainHint.method": "Which methods the papers they read use · petal = share, dashed = lab average",
-      "pf.axis.domain": "Fields", "pf.axis.method": "Methods", "pf.methods": "Methods", "pf.noDomain": "{v}% are general AI papers with no field; they count under methods only",
+      "pf.axis.domain": "Fields", "pf.axis.method": "Methods", "pf.noDomain": "{v}% are general AI papers with no field; they count under methods only",
       "pp.lab": "The whole lab", "pp.labSub": "{p} papers · {n} people", "pp.papersN": "{n} papers", "pp.pick": "{v}% · {n} papers",
       "pp.hint": "Pick one and the people below line up by how much of their reading it is · pick it again to undo",
       "pf.similar": "Similar interests", "pf.similarHint": "Most alike in what they read first · open one to compare side by side", "pf.recent": "Recent reviews",
@@ -68,7 +68,7 @@
   // ---- one person's profile, from what they read
   function profile(id) {
     const p = UI.P[id], papers = D().papers.filter(x => x.readers.includes(id));
-    const methods = Object.entries(p?.topics || {}).filter(([k]) => k.startsWith("m:")).map(([k, v]) => ({ id: k, label: UI.T[k] ? UI.tl(UI.T[k]) : k.slice(2), value: v }));
+    const method = Object.keys(p?.topics || {}).find(k => k.startsWith("m:"));
     const by = Object.fromEntries(KINDS.map(kind => {
       const axes = axesOf(kind), mine = sharesOf(kind, papers, axes), lab = sharesOf(kind, D().papers, axes);
       return [kind, axes.map((a, i) => ({ ...a, share: mine[i], lab: lab[i] }))];
@@ -78,10 +78,10 @@
     const studies = window.Store ? Store.studies.list().filter(st => st.members.includes(id)).length : 0;
     const enough = (p?.count || 0) >= MIN_REVIEWS;
     return {
-      count: p?.count || 0, enough, by, methods, studies,
+      count: p?.count || 0, enough, by, studies,
       noDomain: papers.length ? papers.filter(x => !x.domains.length).length / papers.length : 0,
       shared: papers.filter(x => x.readers.length > 1).length,
-      role: topDomain?.share && methods[0] && enough ? t("pf.role", { domain: topDomain.name, method: methods[0].label }) : "",
+      role: topDomain?.share && method && enough ? t("pf.role", { domain: topDomain.name, method: UI.T[method] ? UI.tl(UI.T[method]) : method.slice(2) }) : "",
       lift: Object.fromEntries(KINDS.map(kind => { const l = lift(kind); return [kind, l && l.k >= 1.5 ? t("pf.more." + kind, { x: l.name, k: l.k.toFixed(1) }) : ""]; })),
     };
   }

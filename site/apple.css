@@ -14,7 +14,6 @@ h1, h2, h3, h4 { letter-spacing: -.01em; }
 .page-head h1 { font: var(--t-large-title); letter-spacing: .01em; }
 .dp-head h1 { font: var(--t-title1); letter-spacing: .01em; }
 .sub { color: var(--label-2); font-size: var(--fs-body); }
-.muted, .hint { color: var(--label-meta); }
 a { color: inherit; }
 .kv a, .rv-body a, a.link { color: var(--link-text); }
 
@@ -34,7 +33,7 @@ a { color: inherit; }
 .top { inset: 10px 14px auto 14px; height: 52px; padding: 0 8px 0 16px; gap: 14px; border-radius: var(--r-sheet); }
 .logo { font: var(--t-title3); line-height: 1; letter-spacing: -.02em; color: var(--label); }
 nav { gap: 2px; padding: 3px; border-radius: var(--r-full); background: var(--fill-4); }
-nav a { padding: 6px 13px; border-radius: var(--r-full); font-size: var(--fs-body); font-weight: 500; color: var(--label-2); transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+nav a { padding: 6px 13px; border-radius: var(--r-full); font-size: var(--fs-body); font-weight: 500; color: var(--label); transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
 nav a:hover { background: var(--fill-3); color: var(--label); }
 nav a.on { background: var(--seg-on); color: var(--label); font-weight: 600; box-shadow: var(--shadow-seg); }
 .top-right { gap: 6px; }
@@ -53,14 +52,11 @@ main { padding-top: var(--top-h); }
 #view-graph .focus-bar { top: calc(var(--top-h) + 54px); }
 
 /* ---------- graph controls (glass) ---------- */
-.tb-search input { border-radius: var(--r-full); color: var(--label); }
+.tb-search input { border-radius: var(--r-full); color: var(--label); padding: 8px 14px; min-height: 34px; }
 .g-filter .n { background: var(--on-color); color: var(--accent); }
-.tb-search input { padding: 8px 14px; min-height: 34px; }
 .tb-count { border-radius: var(--r-full); padding: 6px 12px; font-size: var(--fs-callout); color: var(--label-2); }
 .g-people, .legend, .timeline { border-radius: var(--r-sheet); }
 .focus-bar { border-radius: var(--r-full); }
-.pl.on { background: rgb(var(--accent-rgb) / .16); color: var(--label); }
-.lg-note i.ring { box-shadow: 0 0 0 2px var(--label) inset; }
 
 /* ---------- drawer: floating glass inspector ---------- */
 .drawer { top: var(--top-h); right: 14px; bottom: 14px; width: min(520px, calc(100vw - 28px)); border-radius: var(--r-sheet); transform: translateX(calc(100% + 24px)); transition: transform var(--dur) var(--ease); }
@@ -82,27 +78,16 @@ body:has(#drawer.open) .legend { right: 548px; }
 .review.st-missing { border: 1.5px dashed var(--separator); background: none; box-shadow: none; }
 .rv-body { color: var(--label); font-size: var(--fs-body); line-height: 1.6; }
 .rv-body:not(.open) { -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
-.rv-toggle { color: var(--accent); font-size: var(--fs-body); }
 .rv-memo { background: none; border-top: .5px solid var(--separator); border-radius: 0; padding: var(--s-3) 0 0; font-size: var(--fs-body); color: var(--label); }   /* inside a card: a separator, not a grey box (Settings) */
-.rv-memo::before { font-size: var(--fs-subhead); letter-spacing: .06em; }
 .rv-files .rv-pdf, .att.pdf { background: var(--fill-4); border: 0; border-radius: var(--r-control); }
-.stat { background: var(--fill-4); }
-.avatar { color: var(--on-color); font-weight: 600; text-shadow: var(--text-shadow-on-color); }
-.bar-row .track, .sim-row .track { background: var(--fill-3); }
-.spark i { background: var(--fill); }
-.mark.exp { background: var(--label); }
-.cal-grid i.today { outline-color: var(--label); }
 
 /* ---------- buttons (roles: normal / primary / destructive) ---------- */
 .ui-btn.text.back { display: inline-flex; align-items: center; min-height: 28px; }
 
 /* ---------- fields ---------- */
-.tag-input { background: var(--fill-4); border: 0; border-radius: var(--r-control); }
-.drop { border: 1.5px dashed var(--separator); border-radius: var(--r-card); }
 .fld > span, .fld > label, label.fld > span { color: var(--label-2); }
 
 /* ---------- menus, popovers, notifications ---------- */
-.notif.unread { background: rgb(var(--accent-rgb) / .1); }
 .tb-search .find-results { border-radius: var(--r-popover); }
 .tb-search .find-results > div:hover { background: var(--fill-3); }
 
@@ -110,29 +95,23 @@ body:has(#drawer.open) .legend { right: 548px; }
 .gate { background: radial-gradient(70% 60% at 25% 15%, rgb(var(--indigo) / .22), transparent 70%), radial-gradient(60% 60% at 85% 85%, rgb(var(--mint) / .16), transparent 70%), var(--bg); }
 .gate-card { border-radius: var(--r-sheet); }
 .mcp-banner { border-radius: var(--r-full); }
-.lightbox { background: var(--scrim-strong); }
 
 /* ---------- feed / study accents → system colours ---------- */
 .feed-item.act.question { border-left: 0; box-shadow: inset 3px 0 0 rgb(var(--yellow)), var(--shadow-1); }
 .feed-item.act.idea { border-left: 0; box-shadow: inset 3px 0 0 rgb(var(--mint)), var(--shadow-1); }
 .feed-item.act.study { border-left: 0; box-shadow: inset 3px 0 0 rgb(var(--accent-rgb)), var(--shadow-1); }
-.todo.done .lbl { color: var(--label-3); text-decoration-color: var(--label-4); }
-.st-todo-done { color: rgb(var(--green)); }
 .pk-n { background: var(--accent); }
 .st-q .vote { background: var(--panel); border: 0; box-shadow: inset 0 0 0 1px var(--separator); }
 .st-q .vote.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
 
 /* ---------- icons (Lucide) inside existing controls ---------- */
-.ic { width: 1.15em; height: 1.15em; stroke-width: 2; flex: none; vertical-align: -.18em; }
+.ic { width: 1.15em; height: 1.15em; stroke-width: 2; flex: none; vertical-align: -.18em; margin-right: .3em; }
 .top .bell .ic { width: 17px; height: 17px; }
 
 /* the root keeps the browser default size so rem-based type tokens stay exact */
-html[data-ui] { font: 400 100%/1.5 var(--font); }
+html[data-ui] { font: 400 100%/1.5 var(--font); background: var(--bg); }
 .menu-theme { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px; font-size: var(--fs-body); color: var(--label-2); }
 
-/* ---------- fixes after the first full pass ---------- */
-.back { text-decoration: none; }
-.ic { margin-right: .3em; }
 .top .bell .ic, .term-btn .ic, .ui-btn .ic, .ui-glass-group .ic, .user-btn .ic, .sp-badge-demo .ic, .ui-search .ic, .ui-empty > .ic { margin-right: 0; }
 /* inspector-like drawer: mostly opaque so long text stays readable over the page */
 .drawer { background: var(--glass-sheen), color-mix(in srgb, var(--sys-bg-2) 92%, transparent); }
@@ -140,21 +119,13 @@ html[data-ui] { font: 400 100%/1.5 var(--font); }
 @media (prefers-color-scheme: light) { [data-theme="auto"] .drawer { background: var(--glass-sheen), color-mix(in srgb, var(--sys-bg) 90%, transparent); } }
 
 /* contrast pass (≥ 4.5:1 for text, decorative glyphs excepted) */
-nav a { color: var(--label); }
 nav a:not(.on) { opacity: .82; }
-
-/* the root paints the page colour too (long pages scroll past the body box) */
-html[data-ui] { background: var(--bg); }
-
 /* ---------- polish (2026-10-02, demo review) ---------- */
-/* avatar stacks: lighter overlap + "+N" chip */
-.st-avs { display: inline-flex; align-items: center; vertical-align: middle; }
 .st-avs > span { display: inline-flex; }
 .st-avs .avatar { width: var(--av-s); height: var(--av-s); font-size: var(--fs-av-s); margin-right: -5px; box-shadow: 0 0 0 2px var(--panel); border: 0; }   /* initials ≥ 11px: bigger avatar, not smaller text */
 .st-meta .st-avs .avatar, .st-hero .st-avs .avatar { box-shadow: 0 0 0 2px var(--bg); }
 .av-more { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; margin-left: 8px; border-radius: var(--r-full);
   background: var(--fill-3); color: var(--label-2); font-size: var(--fs-subhead); font-weight: 600; font-variant-numeric: tabular-nums; }
-.act-paper .st-avs .avatar { width: var(--av-s); height: var(--av-s); font-size: var(--fs-av-s); }
 .act-paper .av-more { height: 20px; min-width: 20px; font-size: var(--fs-footnote); }
 /* graph focus bar: centred in the space the drawer leaves, title truncates so "depth / clear" stay visible */
 body:has(#drawer.open) #view-graph .focus-bar { left: calc((100% - 548px) / 2); max-width: calc(100% - 548px - 32px); }

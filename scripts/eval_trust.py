@@ -2,13 +2,11 @@
 (1) Does SPECTER2 closeness track real academic relatedness in OUR corpus?  (citations between our papers, same venue)
 (2) How much does the 2-D map distort it?  (3) What does the current 'interest %' measure vs. shared papers?"""
 import json, re
-from pathlib import Path
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent.parent
-from build_site import norm_title
+from build_site import ROOT, read_json, norm_title
 D = json.loads(re.sub(r"^[^=]*=\s*", "", (ROOT / "site/data.js").read_text(encoding="utf-8")).rstrip().rstrip(";"))
-E = np.load(ROOT / "data/emb_specter2.npy"); keys = json.loads((ROOT / "data/emb_keys.json").read_text(encoding="utf-8"))
+E = np.load(ROOT / "data/emb_specter2.npy"); keys = read_json(ROOT / "data/emb_keys.json")
 kidx = {k: i for i, k in enumerate(keys)}
 papers = [p for p in D["papers"] if norm_title(p["title"]) in kidx and p.get("x") is not None]
 pid = {p["id"]: i for i, p in enumerate(papers)}

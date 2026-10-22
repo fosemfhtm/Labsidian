@@ -121,6 +121,7 @@ Paper Diary .docx ─ parse_diary.py ─▶ diary.json
 
 - `parse_diary.py`는 우리 연구실의 Word 양식을 읽어요. 양식이 다르면 이 스크립트를 맞추거나, 같은 `diary.json` 형식(`data/demo/diary.json` 참고)으로 바꿔 넣으면 돼요.
 - 분야·방법론 태그는 키워드 규칙(`scripts/taxonomy.py`)으로 붙어요. 지금은 교통·AI 연구실 기준이라, 다른 분야라면 이 파일부터 바꿔요. 다이어리를 쓸 때는 분야나 방법론을 하나 이상 골라야 하고, 맞는 게 없으면 누구나(내 AI도 `create_tag`로) 새로 만들 수 있어요. 잘못 붙은 태그는 관리자가 사이트나 MCP로 고쳐요.
+- 파이프라인 스크립트의 데이터 경로·JSON 입출력·제목 정규화·S2 캐시 조회는 `scripts/build_site.py`에서 공유해요. 명령별 옵션과 데모 생성·검사 흐름은 그대로 유지해요.
 
 <details>
 <summary>명령 순서</summary>

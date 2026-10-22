@@ -241,24 +241,16 @@
       const meta = await uploadInto(f, err); if (!meta) return;
       newFiles = [meta]; out.innerHTML = `<span class="att pdf">📄 ${esc(f.name)} <span class="m">${UI.kb(f.size)}</span></span>`;
     };
-    let saving = false;
-    $("#st-form", view).onsubmit = async e => {
-      e.preventDefault();
-      if (saving) return;
+    UI.submitOnce($("#st-form", view), async () => {
       if (!title.value.trim()) return ($("#st-err", view).textContent = t("st.need.title"));
-      saving = true;
-      const button = e.currentTarget.querySelector('button:not([type="button"])'); button.disabled = true;
-      try {
       const { id } = await S.studies.create({
         title: title.value, paperId: box.id, link: $("#st-link", view).value.trim(), date: $("#st-date", view).value, time: $("#st-time", view).value,
         place: $("#st-place", view).value.trim(), presenter: $("#st-presenter", view).value, desc: $("#st-desc", view).value.trim(),
         invite: [...view.querySelectorAll('#st-invite .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u), files: newFiles,
         blind: $("#st-blind", view).checked, bring: $("#st-bring", view).checked, groupId: g?.id,
       });
-        LabToast(t("st.created")); location.hash = "#/study/" + encodeURIComponent(id);
-      } catch (error) { $("#st-err", view).textContent = error.message; }
-      finally { saving = false; button.disabled = false; }
-    };
+      LabToast(t("st.created")); location.hash = "#/study/" + encodeURIComponent(id);
+    }, $("#st-err", view));
   }
 
   // ---------------------------------------------------------------- detail
@@ -267,8 +259,7 @@
   let editPick = false, editNotes = false;
   const longDate = st => {
     if (!st.date) return t("st.noDate");
-    const d = new Date(st.date + "T00:00:00").toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US", { month: "short", day: "numeric", weekday: "short" });
-    return [d, st.time, st.place].filter(Boolean).map(esc).join(" · ");
+    return [UI.shortDate(st.date), st.time, st.place].filter(Boolean).map(esc).join(" · ");
   };
 
   // "Regular study · session 3" with the sessions either side
@@ -424,12 +415,11 @@
         const meta = await uploadInto(f, $("#pk-err", view)); if (!meta) return;
         pickFiles.push(meta); out.insertAdjacentHTML("beforeend", `<span class="att pdf">📎 ${esc(f.name)}</span>`);
       };
-      pf.onsubmit = async e => {
-        e.preventDefault();
+      UI.submitOnce(pf, async () => {
         const title = $("#pk-title", view).value.trim(); if (!title) return ($("#pk-err", view).textContent = t("st.need.title"));
         await S.studies.setPick(st.id, { title, paperId: box.id, link: $("#pk-link", view).value, why: $("#pk-why", view).value.trim(), files: pickFiles });
         editPick = false; LabToast(t("st.pick.saved")); rerender();
-      };
+      }, $("#pk-err", view));
     }
     view.querySelectorAll("[data-act]").forEach(el => (el.onclick = async () => {
       const act = el.dataset.act, q = el.closest("[data-q]")?.dataset.q, pu = el.closest("[data-pick]")?.dataset.pick;
@@ -469,11 +459,10 @@
       rerender();
     }));
     const f = $("#st-q-form", view);
-    if (f) f.onsubmit = async e => {
-      e.preventDefault();
+    if (f) UI.submitOnce(f, async () => {
       const body = $("#st-q", view).value.trim(); if (!body) return;
       await S.studies.questions.add(st.id, body); rerender();
-    };
+    });
     if (params?.get("focus") === "q") $("#st-q", view)?.focus();
   }
 

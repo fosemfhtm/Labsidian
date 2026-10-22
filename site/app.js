@@ -111,6 +111,7 @@
 
   // diary date (which week it counts for) vs. when it was actually posted
   const localDay = iso => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const shortDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", weekday: "short" }) : "";
   const regBadge = r => {
     if (!r.createdAt || !r.date) return "";
     const n = Math.round((Date.parse(localDay(r.createdAt)) - Date.parse(r.date)) / 864e5);
@@ -582,8 +583,38 @@
   // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
   const papersTabs = on => `<div class="ui-seg page-tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
     .map(([k, href, key]) => `<a href="${href}" aria-current="${on === k ? "page" : "false"}">${t(key)}</a>`).join("")}</div>`;
+
+  // A page's leave() for the router (LabPages[name].leave): stays while busy(), asks once before dropping dirty() input,
+  // and has the browser warn on tab close in both cases. discard() runs before navigating on "discard".
+  function leaveGuard({ dirty, busy = () => false, discard = () => {} }) {
+    let asking = false;
+    window.addEventListener("beforeunload", e => { if (busy() || dirty()) { e.preventDefault(); e.returnValue = ""; } });
+    return () => {
+      if (busy()) return false;
+      if (!dirty()) return;
+      if (!asking) {
+        const next = location.hash; asking = true;
+        LabConfirm(t("w.leave"), { message: t("w.leaveMsg"), ok: t("w.leaveOk"), destructive: true })
+          .then(ok => { asking = false; if (ok) { discard(); location.hash = next; } });
+      }
+      return false;
+    };
+  }
+  // form.onsubmit that runs run() one at a time with the submit button disabled; a thrown error is shown in errEl.
+  // Returns busy() for leaveGuard.
+  function submitOnce(form, run, errEl) {
+    let busy = false;
+    form.onsubmit = async e => {
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      const button = form.querySelector('button:not([type="button"])'); if (button) button.disabled = true;
+      try { await run(); } catch (error) { if (errEl) errEl.textContent = error.message; } finally { busy = false; if (button) button.disabled = false; }
+    };
+    return () => busy;
+  }
   window.LabUI = { openDrawer, closeDrawer, esc, safeColor, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
-    buzz, papersTabs, paperTopicCount, topicDetail,
+    buzz, papersTabs, paperTopicCount, topicDetail, shortDate, leaveGuard, submitOnce,
     rerender, P, T, PA, R, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place
   document.addEventListener("DOMContentLoaded", () => { window.I18N.apply(); route(); });

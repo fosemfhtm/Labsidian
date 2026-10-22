@@ -50,6 +50,25 @@ async def main(tmpdir):
             failed.append("snapshot refreshes only on a new day")
         if sum(args.args == ("/api/snapshot",) for args in request.call_args_list) != 2:
             failed.append("snapshot same-day cache")
+    term = {"id": "2030H1", "start": "2030-01-01", "end": "2030-06-30"}
+    paper = {"id": "p0", "title": "Example paper", "_key": "examplepaper"}
+    with patch.object(labsidian_mcp.DB, "data", return_value={"terms": [term], "PA": {"p0": paper}, "papers": [paper]}):
+        assert labsidian_mcp.term_for("2030H1") == term
+        assert labsidian_mcp._paper_input("Example paper", "", "") == {"paperId": "p0", "summary": "Example paper"}
+        assert labsidian_mcp._paper_input("", " https://example.org ", " Example ") == {
+            "input": "https://example.org", "title": "Example", "link": "https://example.org", "summary": " Example "}
+        for color in ("", "blue", "#123", "#1234", "#123456", "#12345678"):
+            labsidian_mcp._validate_tag_color(color)
+        labsidian_mcp._validate_dates("invalid date", "2030-01-01", "2030-06-30")
+        for action in (lambda: labsidian_mcp.term_for("missing"), lambda: labsidian_mcp._paper_input("", "", ""),
+                       lambda: labsidian_mcp._validate_dates("invalid date", "2030-01-01", "2030-02-30"),
+                       lambda: labsidian_mcp._validate_tag_color("#12345")):
+            try:
+                action()
+            except labsidian_mcp.ToolError:
+                pass
+            else:
+                raise AssertionError("invalid MCP input accepted")
     # tests talk to the demo lab's server unless LABSIDIAN_URL says otherwise, so they never write into real data
     env = {**os.environ, "LABSIDIAN_URL": URL, "LABSIDIAN_USER": ARGS[0] if ARGS else "한서윤",
            "LABSIDIAN_DOWNLOADS": os.path.join(tmpdir, "downloads"), "PYTHONIOENCODING": "utf-8"}
@@ -83,10 +102,9 @@ async def main(tmpdir):
 
             # ---- reads
             await call("whoami")
-            hits = await call("search_papers", query="graph forecasting", limit=3)
-            single = await call("search_papers", query="graph forecasting", limit=1)
+            hits = await call("search_papers", query="graph forecasting", limit=1)
             empty = await call("search_papers", query="no-such-paper-" + os.urandom(12).hex())
-            if not isinstance(single, list) or len(single) != 1 or empty != []:
+            if not isinstance(hits, list) or len(hits) != 1 or empty != []:
                 failed.append("empty and single-item list results")
             profile = await call("get_person", name="박지호")
             for recent in profile.get("recent", []):

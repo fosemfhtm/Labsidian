@@ -8,16 +8,13 @@ Then:  LABSIDIAN_DATA=data/demo  enrich_s2.py → build_map.py → build_site.py
 Leak check (fails with exit 1): real member names anywhere, or any 8-word run copied from a real review.
 Validation and cache loading finish before existing demo outputs are replaced.
 """
-import json
 import random
 import re
 from collections import Counter
-from pathlib import Path
 
-from build_site import norm_title, compile_tax, score, pick, cosine  # noqa: E402
+from build_site import ROOT, read_json, write_json, s2_key, norm_title, compile_tax, score, pick, cosine
 from taxonomy import DOMAINS, METHODS  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
 DEMO = ROOT / "data" / "demo"
 FIELDS = ("date", "dateNote", "author", "title", "link", "venue", "authors", "year", "abstract",
           "rating", "content", "memo", "term")
@@ -46,20 +43,20 @@ def grams(text):
 
 
 def main():
-    personas = json.loads((DEMO / "personas.json").read_text(encoding="utf-8"))
-    real = json.loads((ROOT / "data" / "diary.json").read_text(encoding="utf-8"))
-    real_roster = json.loads((ROOT / "data" / "roster.json").read_text(encoding="utf-8"))
+    personas = read_json(DEMO / "personas.json")
+    real = read_json(ROOT / "data" / "diary.json")
+    real_roster = read_json(ROOT / "data" / "roster.json")
     problems = []
     rng = random.Random(0)
 
     entries = []
     for per in personas:
         part = DEMO / "parts" / f"{per['id']}.json"
-        plan = json.loads((DEMO / "_work" / f"{per['id']}.json").read_text(encoding="utf-8"))
+        plan = read_json(DEMO / "_work" / f"{per['id']}.json")
         if not part.exists():
             problems.append(f"{per['id']}: missing part")
             continue
-        got = json.loads(part.read_text(encoding="utf-8"))
+        got = read_json(part)
         if sorted(e["date"] for e in got) != sorted(s["date"] for s in plan["slots"]):
             problems.append(f"{per['id']}: dates differ from plan ({len(got)} entries / {len(plan['slots'])} slots)")
         for e in got:
@@ -133,7 +130,7 @@ def main():
             elif isinstance(x, list):
                 for v in x:
                     yield from texts(v)
-        sources.extend(("social.json", t) for t in texts(json.loads(social_p.read_text(encoding="utf-8"))))
+        sources.extend(("social.json", t) for t in texts(read_json(social_p)))
     # Include the demo film's recording script, terminal scene and overlays.
     for src in [*(ROOT / "video").glob("*.py"), *(ROOT / "video").glob("*.html"), *(ROOT / "video" / "remotion" / "src").glob("*")]:
         if src.is_file():
@@ -156,17 +153,16 @@ def main():
         raise SystemExit(1)
 
     # S2 metadata for the reused (public) papers; new ones get matched by enrich_s2.py
-    c = json.loads((ROOT / "data" / "s2_cache.json").read_text(encoding="utf-8"))
-    mk = {re.sub(r"[^0-9a-z]+", "", k) for k in keys}
+    c = read_json(ROOT / "data" / "s2_cache.json")
+    mk = {s2_key(k) for k in keys}
     cache_p = DEMO / "s2_cache.json"  # keep what enrich_s2.py already fetched for the demo
-    demo_c = json.loads(cache_p.read_text(encoding="utf-8")) if cache_p.exists() else {"match": {}, "detail": {}}
+    demo_c = read_json(cache_p) if cache_p.exists() else {"match": {}, "detail": {}}
     match = {k: v for k, v in c["match"].items() if k in mk}
     demo_c["match"].update(match)
     demo_c["detail"].update({v: c["detail"][v] for v in match.values() if v and v in c["detail"]})
-    DEMO.joinpath("diary.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
-    DEMO.joinpath("roster.json").write_text(json.dumps([{"id": p["id"], "name": p["name"]} for p in personas],
-                                                       ensure_ascii=False), encoding="utf-8")
-    cache_p.write_text(json.dumps(demo_c, ensure_ascii=False), encoding="utf-8")
+    write_json(DEMO / "diary.json", entries, indent=1)
+    write_json(DEMO / "roster.json", [{"id": p["id"], "name": p["name"]} for p in personas])
+    write_json(cache_p, demo_c)
     print(f"wrote data/demo/diary.json, roster.json, s2_cache.json ({len(demo_c['detail'])} S2 records)")
 
 

@@ -11,14 +11,13 @@ Everything after "연구실 운영 규정" is lab policy and is dropped.
 """
 import argparse
 from datetime import date as Date
-import json
 import re
 import sys
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-ROOT = Path(__file__).resolve().parent.parent
+from build_site import ROOT, read_json, write_json
 
 DATE_RE = re.compile(r"^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})(?:~\d+)?일\s*(?:\((.*)\))?")
 FIELD_RE = re.compile(r"^(논문|Link|저널|저자|Rating|내용|Memo)\s*[:：]\s*(.*)$", re.I)
@@ -87,22 +86,14 @@ def parse(lines, term, roster):
                        "rating": 0, "content": [], "memo": [], "term": term}
             elif cur is None:
                 continue
-            elif key == "link":
-                cur["link"] = val
-            elif key == "저널":
-                cur["venue"] = val
-            elif key == "저자":
-                cur["authors"] = val
+            elif key in ("link", "저널", "저자"):
+                cur[{"link": "link", "저널": "venue", "저자": "authors"}[key]] = val
             elif key == "rating":
                 cur["rating"] = min(5, val.count("✯") + val.count("★"))
-            elif key == "내용":
-                field = "content"
+            elif key in ("내용", "memo"):
+                field = "content" if key == "내용" else "memo"
                 if val:
-                    cur["content"].append(val)
-            elif key == "memo":
-                field = "memo"
-                if val:
-                    cur["memo"].append(val)
+                    cur[field].append(val)
             continue
         # A roster name plus optional numbering starts someone's block, not a sentence mentioning them.
         name = find_name(s, names, aliases) if len(s) <= 30 else None
@@ -124,13 +115,13 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "data" / "diary.json"))
     a = ap.parse_args()
 
-    roster = json.loads((ROOT / "data" / "roster.json").read_text(encoding="utf-8"))
+    roster = read_json(ROOT / "data" / "roster.json")
     entries = parse(docx_paragraphs(a.docx), a.term, roster)
     out = Path(a.out)
     # merge with existing terms so multiple semesters can live in one file
-    existing = json.loads(out.read_text(encoding="utf-8")) if out.exists() else []
+    existing = read_json(out) if out.exists() else []
     merged = [e for e in existing if e.get("term") != a.term] + entries
-    out.write_text(json.dumps(merged, ensure_ascii=False, indent=1), encoding="utf-8")
+    write_json(out, merged, indent=1)
 
     from collections import Counter
     c = Counter(e["author"] for e in entries)

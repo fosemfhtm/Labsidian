@@ -75,6 +75,17 @@
       <div class="form-foot"><a class="ui-btn" href="${g ? "#/guide/" + g.id : "#/guides"}">${t("gd.cancel")}</a><button class="ui-btn prominent">${g ? t("gd.save") : t("gd.create")}</button></div></form>`;
   }
 
+  function wireForm(f, tags, g) {
+    wireTagPicker(f, tags);
+    UI.submitOnce(f, async () => {
+      const titles = f.sections.value.split(",").map(s => s.trim()).filter(Boolean);
+      const data = { title: f.title.value, desc: f.desc.value, tags,
+        sections: g ? titles.map(title => g.sections.find(x => x.title === title) || { title }) : titles };
+      const id = g ? (await S.guides.update(g.id, data), g.id) : await S.guides.create(data);
+      location.hash = "#/guide/" + id;
+    });
+  }
+
   function renderList(params) {
     const me = S.auth.current(), creating = params.get("new") === "1" && me;
     const guides = S.guides.list();
@@ -83,15 +94,7 @@
         ${me && !creating ? `<a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a>` : ""}</div>
       ${creating ? form(null, params.get("tag")) : ""}
       ${guides.length ? `<div class="gd-cards">${guides.map(card).join("")}</div>` : `<div class="ui-empty">${t("gd.empty")}${me ? `<p><a class="ui-btn prominent" href="#/guides?new=1">＋ ${t("gd.new")}</a></p>` : ""}</div>`}`;
-    if (creating) {
-      const f = $("#gd-form", listView), tags = params.get("tag") ? [params.get("tag")] : [];
-      wireTagPicker(f, tags);
-      f.onsubmit = async e => {
-        e.preventDefault();
-        const id = await S.guides.create({ title: f.title.value, desc: f.desc.value, tags, sections: f.sections.value.split(",").map(s => s.trim()).filter(Boolean) });
-        location.hash = "#/guide/" + id;
-      };
-    }
+    if (creating) wireForm($("#gd-form", listView), params.get("tag") ? [params.get("tag")] : []);
   }
 
   // ---------------- one guide
@@ -155,15 +158,7 @@
   function wire(g, editing) {
     const rerender = () => renderPage(new URLSearchParams(location.hash.split("?")[1] || ""), g.id);
     if (editing) {
-      const f = $("#gd-form", pageView), tags = [...(g.tags || [])];
-      wireTagPicker(f, tags);
-      f.onsubmit = async e => {
-        e.preventDefault();
-        const titles = f.sections.value.split(",").map(s => s.trim()).filter(Boolean);
-        const sections = titles.map(title => g.sections.find(x => x.title === title) || { title });
-        await S.guides.update(g.id, { title: f.title.value, desc: f.desc.value, tags, sections });
-        location.hash = "#/guide/" + g.id;
-      };
+      wireForm($("#gd-form", pageView), [...(g.tags || [])], g);
       return;
     }
     $("#gd-del", pageView)?.addEventListener("click", async () => { if (await LabConfirm(t("gd.deleteQ"), { ok: t("gd.delete"), destructive: true })) { await S.guides.remove(g.id); location.hash = "#/guides"; } });
@@ -201,8 +196,7 @@
       });
     });
     const f = $("#gd-add", pageView);
-    if (f) f.onsubmit = async e => {
-      e.preventDefault();
+    if (f) UI.submitOnce(f, async () => {
       const q = f.q.value.trim(), out = $("#gd-add-msg", pageView); if (!q) return;
       out.textContent = t("gd.finding");
       let meta = await S.lookup(q).catch(() => null);
@@ -211,7 +205,7 @@
       if (!meta && isUrl(q)) { out.textContent = t("gd.notFound"); return; }
       await S.guides.addItem(g.id, { ...(meta || { title: q }), link: meta?.link || (isUrl(q) ? q : ""), section: f.section.value, note: f.note.value });
       rerender(); $("#gd-add-msg", pageView).textContent = t("gd.added");
-    };
+    }, $("#gd-add-msg", pageView));
   }
 
   window.LabGuides = { card };

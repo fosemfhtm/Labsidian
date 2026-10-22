@@ -36,35 +36,20 @@
   view.id = "view-group"; view.className = "view page";
   document.querySelector("main").appendChild(view);
 
-  let dirty = false, saving = false, leaving = false;
-  function leave() {
-    if (saving) return false;
-    if (!dirty) return;
-    if (!leaving) {
-      const next = location.hash; leaving = true;
-      LabConfirm(t("w.leave"), { message: t("w.leaveMsg"), ok: t("w.leaveOk"), destructive: true }).then(ok => {
-        leaving = false;
-        if (ok) { dirty = false; location.hash = next; }
-      });
-    }
-    return false;
-  }
-  window.addEventListener("beforeunload", e => {
-    if (dirty || saving) { e.preventDefault(); e.returnValue = ""; }
-  });
+  let dirty = false, saving = () => false;
+  const leave = UI.leaveGuard({ dirty: () => dirty, busy: () => saving(), discard: () => { dirty = false; } });
   const name = id => UI.P[id]?.name || id;
   const wdName = i => t("grp.wd").split(",")[i] || "";
   const rhythm = g => { const c = g.cadence; return c ? t("grp.rhythm", { every: t("grp.every" + (c.every || 1)), wd: wdName(c.weekday), time: c.time || "" }).trim() : ""; };
   const info = g => [rhythm(g), g.place, t("grp.count", { n: g.members.length })].filter(Boolean).map(esc).join(" · ");
-  const shortDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString(I18N.lang === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", weekday: "short" }) : "";
   const back = () => `<a class="ui-btn text back" href="#/study">← ${t("st.title")}</a>`;
 
   // the coming session, or (none set up yet) the next date on the rhythm and whose turn it is
   function nextLine(g) {
     const up = S.groups.upcoming(g);
-    if (up) return t("grp.nextAt", { d: shortDate(up.date) || t("st.noDate") }) + (up.presenter ? " · " + t("grp.presenter", { name: name(up.presenter) }) : "");
+    if (up) return t("grp.nextAt", { d: UI.shortDate(up.date) || t("st.noDate") }) + (up.presenter ? " · " + t("grp.presenter", { name: name(up.presenter) }) : "");
     const d = S.groups.nextDate(g);
-    return d ? t("grp.planned", { d: shortDate(d), name: name(S.groups.nextPresenter(g)) }) : "";
+    return d ? t("grp.planned", { d: UI.shortDate(d), name: name(S.groups.nextPresenter(g)) }) : "";
   }
   const doneRounds = g => S.groups.sessions(g).filter(st => st.closed).length;
 
@@ -96,21 +81,14 @@
     const f = $("#grp-form", view);
     f.oninput = f.onchange = () => { dirty = true; };
     $("#grp-members", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c && !c.disabled) { c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); dirty = true; } };
-    f.onsubmit = async e => {
-      e.preventDefault();
-      if (saving) return;
+    saving = UI.submitOnce(f, async () => {
       if (!f.title.value.trim()) { $("#grp-err", view).textContent = t("grp.needName"); return; }
       const data = { title: f.title.value, desc: f.desc.value, place: f.place.value,
         members: [...view.querySelectorAll('#grp-members .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u),
         cadence: { weekday: f.weekday.value, time: f.time.value, every: f.every.value } };
-      saving = true;
-      const button = f.querySelector('button:not([type="button"])'); button.disabled = true;
-      try {
-        const id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data);
-        dirty = false; location.hash = "#/group/" + encodeURIComponent(id);
-      } catch (error) { $("#grp-err", view).textContent = error.message; }
-      finally { saving = false; button.disabled = false; }
-    };
+      const id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data);
+      dirty = false; location.hash = "#/group/" + encodeURIComponent(id);
+    }, $("#grp-err", view));
   }
 
   function page(g, me) {
@@ -127,7 +105,7 @@
         <div class="row-between"><div><p class="grp-info">${info(g)} ${UI.avStack(g.members, 8)}</p>${!next && nextLine(g) ? `<p class="grp-info">${esc(nextLine(g))}</p>` : ""}</div>${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
         <h3>${t("grp.sessions")}</h3>
         ${sts.length ? `<ol class="grp-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a class="ui-row" href="#/study/${encodeURIComponent(st.id)}${st.closed && st.notes ? "?tab=notes" : ""}">
-            <span class="r">${t("grp.round", { n: i + 1 })}</span><span class="d">${esc(shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
+            <span class="r">${t("grp.round", { n: i + 1 })}</span><span class="d">${esc(UI.shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
             <span class="m">${st.closed ? (st.notes ? `✓ ${t("grp.notesDone")}` : "") : `<span class="ui-pill accent">${t("grp.nextSession")}</span> ${st.presenter ? t("grp.presenter", { name: esc(name(st.presenter)) }) : ""}`}</span></a></li>`).join("")}</ol>`
           : `<p class="muted">${t("grp.noSessions")}</p>`}</div>`;
   }

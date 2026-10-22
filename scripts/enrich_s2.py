@@ -20,14 +20,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
-from build_site import norm_title
-
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / os.environ.get("LABSIDIAN_DATA", "data")  # data/demo = the fake demo lab
+from build_site import DATA, read_json, write_json, s2_key
 CACHE = DATA / "s2_cache.json"
 API = "https://api.semanticscholar.org/graph/v1"
 KEY = os.environ.get("S2_API_KEY")
@@ -68,12 +64,8 @@ def req(url, body=None, tries=6):  # S2 and Crossref share transient-error handl
     return "retry"
 
 
-def norm(t):
-    return re.sub(r"[^0-9a-z]+", "", norm_title(t.replace("ﬃ", "ffi")))
-
-
 def same_title(a, b, cut=0.9):
-    a, b = norm(a), norm(b)
+    a, b = s2_key(a), s2_key(b)
     return bool(a and b) and (a == b or difflib.SequenceMatcher(None, a, b).ratio() >= cut)
 
 
@@ -101,34 +93,34 @@ def ext_id(title, link):
 
 
 def main():
-    entries = json.loads((DATA / "diary.json").read_text(encoding="utf-8"))
+    entries = read_json(DATA / "diary.json")
     titles = sorted({e["title"].strip() for e in entries})
     links = {}
     for e in entries:
         links[e["title"].strip()] = links.get(e["title"].strip()) or (e.get("link") or "").strip()
-    cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {"match": {}, "detail": {}}
+    cache = read_json(CACHE) if CACHE.exists() else {"match": {}, "detail": {}}
     cache.setdefault("ext", {})
     def save():
         tmp = CACHE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        write_json(tmp, cache)
         tmp.replace(CACHE)
     english = lambda t: re.search(r"[A-Za-z]{4}", t)
 
-    todo = [t for t in titles if not cache["match"].get(norm(t)) and norm(t) not in cache["ext"] and english(t)]
+    todo = [t for t in titles if not cache["match"].get(s2_key(t)) and s2_key(t) not in cache["ext"] and english(t)]
     print(f"phase 0: {len(todo)} titles to find a DOI / arXiv id for (Crossref)", file=sys.stderr)
     for i, t in enumerate(todo):
         x = ext_id(t, links.get(t))
         if x == "retry":
             print("  Crossref is rate-limiting; rerun later", file=sys.stderr)
             break
-        cache["ext"][norm(t)] = x
+        cache["ext"][s2_key(t)] = x
         if i % 50 == 0:
             save()
             print(f"  {i}/{len(todo)}", file=sys.stderr)
         time.sleep(0.7)
     save()
 
-    want = {cache["ext"][norm(t)]: t for t in titles if not cache["match"].get(norm(t)) and cache["ext"].get(norm(t))}
+    want = {cache["ext"][s2_key(t)]: t for t in titles if not cache["match"].get(s2_key(t)) and cache["ext"].get(s2_key(t))}
     print(f"phase 1: {len(want)} papers by id (S2 batch)", file=sys.stderr)
     ids = list(want)
     for i in range(0, len(ids), 500):
@@ -140,12 +132,12 @@ def main():
         for x, d in zip(chunk, r):
             if d and same_title(want[x], d.get("title") or "", 0.8):  # a diary link can point at another paper
                 d["references"] = [y["paperId"] for y in d.get("references") or [] if y.get("paperId")]
-                cache["match"][norm(want[x])] = d["paperId"]
+                cache["match"][s2_key(want[x])] = d["paperId"]
                 cache["detail"][d["paperId"]] = d
         save()
         time.sleep(3)
 
-    todo = [t for t in titles if norm(t) not in cache["match"] and english(t)]
+    todo = [t for t in titles if s2_key(t) not in cache["match"] and english(t)]
     print(f"phase 2: {len(todo)} titles to match ({len(titles)} total)", file=sys.stderr)
     for i, t in enumerate(todo):
         r = req(f"{API}/paper/search/match?query={urllib.parse.quote(t[:300])}&fields=title")
@@ -155,7 +147,7 @@ def main():
             return
         hit = next(iter((r or {}).get("data") or []), None)
         ok = bool(hit) and same_title(t, hit.get("title") or "")
-        cache["match"][norm(t)] = hit["paperId"] if ok else None
+        cache["match"][s2_key(t)] = hit["paperId"] if ok else None
         if i % 20 == 0:
             save()
             print(f"  {i}/{len(todo)}", file=sys.stderr)

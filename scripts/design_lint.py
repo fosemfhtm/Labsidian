@@ -27,7 +27,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from build_site import ROOT, read_json
 SITE = ROOT / "site"
 BASELINE = Path(__file__).with_name("design_lint_baseline.json")
 JS_SKIP = {"data.js", "data.demo.js", "design.js"}
@@ -172,7 +172,7 @@ def main(argv):
             print(f"  {c:<14} {sum(fs.values()):>5}")
         return 0
 
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
+    base = read_json(BASELINE)
     grew, shrank = [], []
     checks = sorted(set(counts) | set(base))
     print(f"{'check':<14} {'now':>5} {'base':>5}")

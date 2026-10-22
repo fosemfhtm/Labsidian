@@ -57,7 +57,7 @@
 
   let files = [], addedNow = new Set(), study = null, pick = null, fromDraft = false, prePaper = null;
   let form = null, tags = [], rating = 0, editing = null, saveTimer = null, suggestTimer = null, fromReading = null;
-  let dirty = false, uploading = 0, publishing = false, leaving = false;
+  let dirty = false, uploading = 0, publishing = () => false;
   let growObservers = [];
   const autoDraft = () => !editing && !study && !fromReading && (!prePaper || fromDraft);
   function saveDraft() {
@@ -65,27 +65,18 @@
     const at = S.drafts.save(collect());
     if (at) { dirty = false; $("#w-saved", view).textContent = t("w.saved", { time: new Date(at).toLocaleTimeString(lang === "ko" ? "ko-KR" : "en-US", { hour: "2-digit", minute: "2-digit" }) }); }
   }
+  const guardLeave = UI.leaveGuard({
+    dirty: () => { if (saveTimer) saveDraft(); return dirty; },
+    busy: () => uploading || publishing(),
+    discard: () => { dirty = false; },
+  });
   function leave() {
-    if (uploading || publishing) return false;
-    if (dirty && !autoDraft()) {
-      if (!leaving) {
-        const next = location.hash; leaving = true;
-        LabConfirm(t("w.leave"), { message: t("w.leaveMsg"), ok: t("w.leaveOk"), destructive: true }).then(ok => {
-          leaving = false;
-          if (ok) { dirty = false; location.hash = next; }
-        });
-      }
-      return false;
-    }
-    if (saveTimer) saveDraft();
+    if (guardLeave() === false) return false;
     clearTimeout(suggestTimer);
     growObservers.forEach(o => o.disconnect()); growObservers = [];
     dirty = false; form = null;
   }
-  window.addEventListener("beforeunload", e => {
-    if (saveTimer) saveDraft();
-    if (uploading || publishing || dirty) { e.preventDefault(); e.returnValue = ""; }
-  });
+  window.addEventListener("beforeunload", () => { if (saveTimer) saveDraft(); });
 
   const field = (id, label, input) => `<label class="fld" for="${id}"><span>${label}</span>${input}</label>`;
 
@@ -230,7 +221,7 @@
     } catch (e) { return file; }
   }
   async function addFiles(list) {
-    if (publishing) return;
+    if (publishing()) return;
     uploading++;
     const err = $("#w-err", view); err.textContent = "";
     for (let f of list) {
@@ -316,7 +307,7 @@
     UI.wireRatingInput($("#w-stars", view), n => { rating = n; changed(); });
     $("#w-tags", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
     $("#w-suggest", view).onclick = e => { const c = e.target.closest("[data-add]"); if (c) addTag(c.dataset.add); };
-    $("#w-discard", view)?.addEventListener("click", () => { if (uploading || publishing) return; S.drafts.clear(); render(new URLSearchParams()); });
+    $("#w-discard", view)?.addEventListener("click", () => { if (uploading || publishing()) return; S.drafts.clear(); render(new URLSearchParams()); });
 
     // tag autocomplete
     const q = $("#w-tag-q", view), pop = $("#w-tag-pop", view);
@@ -372,17 +363,15 @@
     $("#w-lookup", view)?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#w-fetch", view).click(); } });
 
     // submit / delete
-    form.onsubmit = async e => {
-      e.preventDefault();
-      if (uploading || publishing) return;
+    publishing = UI.submitOnce(form, async () => {
+      if (uploading) return;
       const d = collect(), err = $("#w-err", view);
       if (!d.title) return (err.textContent = t("w.need.title"));
       if (!d.rating) return (err.textContent = t("w.need.rating"));
       if (!d.content.trim() && !d.memo.trim()) return (err.textContent = t("w.need.body"));
       const ruleTagged = editing?.source === "import" && (UI.PA[editing.paper]?.domains.length || UI.PA[editing.paper]?.methods.length);  // imported diaries get tags from keyword rules
       if (!ruleTagged && !d.tags.some(id => /^[dm]:/.test(id))) return (err.textContent = t("w.need.tag"));
-      const btn = form.querySelector("button.ui-btn.prominent");
-      publishing = true; btn.disabled = true; clearTimeout(saveTimer); saveTimer = null;
+      clearTimeout(saveTimer); saveTimer = null;
       try {
         const paper = editing ? UI.PA[editing.paper] : study && prePaper ? prePaper :
           window.LAB.allPapers.find(p => p.key === S.normTitle(d.title));
@@ -392,14 +381,13 @@
         if (paper && Object.keys(metadata).length) await S.papers.update(paper.id, metadata);
         if (editing) await S.reviews.update(editing.id, d);
         else await S.reviews.create(d);
-        dirty = false; publishing = false;
+        dirty = false; publishing = () => false; // Reload must not trigger the busy beforeunload warning.
         LabReload(editing ? "#/me" : study ? "#/study/" + study.id : "#/me", t(editing ? "w.updated" : "w.done"));
       } catch (error) {
         console.warn("diary save failed", error);
         err.textContent = t("pm.failed");
-        publishing = false; btn.disabled = false;
       }
-    };
+    }, $("#w-err", view));
     $("#w-del", view)?.addEventListener("click", async () => {
       if (!(await LabConfirm(t("w.confirmDelete"), { ok: t("w.delete"), destructive: true }))) return;
       await S.reviews.remove(editing.id);

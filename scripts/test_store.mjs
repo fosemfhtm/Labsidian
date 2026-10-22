@@ -158,6 +158,41 @@ assert.equal(migratedGroup.store.guides.get("g_old").group, undefined);
 assert.equal(migratedGroup.store.groups.get("grp_old").members.join(","), "alice,bob");
 assert.equal(boot(migratedGroup.db()).store.groups.list().length, 1);
 
+for (const user of ["alice", "bob", "carol", "admin", null]) {
+  const access = boot({
+    groups: { grp_access: { id: "grp_access", owner: "alice", title: "Group", members: ["alice"] } },
+    guides: { g_access: { id: "g_access", owner: "alice", title: "Guide", items: [], sections: [] } },
+    studies: { s_access: { id: "s_access", host: "alice", presenter: "bob", title: "Study", members: ["alice", "bob"] } },
+  }, user);
+  for (const [collection, id, allowed] of [["groups", "grp_access", ["alice", "admin"]], ["guides", "g_access", ["alice", "admin"]], ["studies", "s_access", ["alice", "bob", "admin"]]]) {
+    const api = access.store[collection];
+    assert.equal(api.canManage(api.get(id)), allowed.includes(user));
+    if (allowed.includes(user)) await api.update(id, { title: "Updated" });
+    else {
+      const error = user ? /forbidden/ : /auth/;
+      await assert.rejects(api.update(id, { title: "Hijacked" }), error);
+      await assert.rejects(api.remove(id), error);
+      if (collection === "groups") await assert.rejects(api.update("missing", {}), error);
+      if (collection === "guides") await assert.rejects(api.update("missing", {}), user ? /guide.missing/ : /auth/);
+    }
+  }
+}
+
+const attachments = boot({
+  reading: { alice: [{ id: "reading", files: [{ id: "shared", kind: "pdf" }] }] },
+  studies: { st: { id: "st", host: "alice", presenter: "bob", members: ["alice", "bob"], files: [{ id: "shared", kind: "pdf" }, { id: "study-only", kind: "pdf" }], picks: {} } },
+}, "alice");
+const deletedFiles = [];
+attachments.store.files.remove = async id => { deletedFiles.push(id); throw new Error("already gone"); };
+await attachments.store.studies.update("st", { files: [{ id: "shared", kind: "pdf" }] });
+assert.deepEqual(deletedFiles, ["study-only"]);
+await attachments.store.studies.setPick("st", { title: "Pick", files: [{ id: "shared", kind: "pdf" }, { id: "pick-only", kind: "pdf" }] });
+await attachments.store.studies.setPick("st", { title: "Pick", files: [{ id: "shared", kind: "pdf" }] });
+assert.deepEqual(deletedFiles, ["study-only", "pick-only"]);
+await attachments.store.studies.removePick("st", "alice");
+await attachments.store.studies.remove("st");
+assert.deepEqual(deletedFiles, ["study-only", "pick-only"]);
+
 const rhythm = boot({
   groups: { grp_rhythm: { id: "grp_rhythm", title: "Rhythm", owner: "alice", members: ["alice"], cadence: { weekday: 4, every: 2 } } },
   studies: { last: { id: "last", groupId: "grp_rhythm", date: "2026-01-12", createdAt: "", closed: true } },

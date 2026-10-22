@@ -84,8 +84,9 @@ mcp = FastMCP("labsidian", instructions=(
 TAG_COLORS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown", "gray2"]
 
 
-def _tag_color_ok(c):
-    return c in TAG_COLORS or bool(re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})", c or ""))
+def _validate_tag_color(color):
+    if color and color not in TAG_COLORS and not re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})", color):
+        raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
 
 
 def norm_title(t):
@@ -239,6 +240,16 @@ def paper(ref):
     raise ToolError(f"no paper matching {ref!r} — try search_papers first")
 
 
+def _paper_input(paper_ref, link, title):
+    """Resolve the same lab-paper or external-paper input used by reading lists and guides."""
+    if paper_ref:
+        p = paper(paper_ref)
+        return {"paperId": p["id"], "summary": p["title"][:60]}
+    if not (link or title):
+        raise ToolError("give paper_ref, link or title")
+    return {"input": (link or title).strip(), "title": title.strip(), "link": link.strip(), "summary": (title or link)[:60]}
+
+
 def tag_label(tid, d):
     t = d["T"].get(tid)
     return f"{t['label']} / {t.get('labelEn', '')}" if t else tid
@@ -268,8 +279,13 @@ def brief(p, d):
             "tags": [tag_label(t, d) for t in paper_tags(p)], "open": f"{SITE}/#/paper/{p['id']}"}
 
 
-def term_for():
+def term_for(ref=""):
     d, day = DB.data(), date.today().isoformat()
+    if ref:
+        t = next((t for t in d["terms"] if t["id"] == ref), None)
+        if not t:
+            raise ToolError(f"unknown term {ref!r}; terms: {[x['id'] for x in d['terms']]}")
+        return t
     if not d["terms"]:
         raise ToolError("the lab has no diary terms — ask an admin to add one")
     return next((t for t in d["terms"] if t["start"] <= day <= t["end"]), d["terms"][-1])
@@ -281,6 +297,14 @@ def quota(u, term, d):
     if duty is None:
         raise ToolError("the server snapshot has no diary duty for this member and term — update the Labsidian server")
     return {k: v for k, v in duty.items() if k in ("exempt", "notYet", "left", "start", "end", "workdays", "target", "custom")}
+
+
+def _validate_dates(message, *values):
+    try:
+        for value in values:
+            date.fromisoformat(value)
+    except ValueError:
+        raise ToolError(message)
 
 
 # ------------------------------------------------------------------ read tools
@@ -419,9 +443,7 @@ def similar_papers(paper_ref: str = "", text: str = "", limit: int = 8) -> list[
 def lab_progress(term: str = "") -> dict:
     """Diary progress of every member for a term (default: current) — written / target, exemptions."""
     d = DB.data()
-    t = next((x for x in d["terms"] if x["id"] == term), None) if term else term_for()
-    if not t:
-        raise ToolError(f"unknown term {term!r}; terms: {[x['id'] for x in d['terms']]}")
+    t = term_for(term)
     rows = []
     for u in d["users"]:
         if u["id"] == "admin" or u.get("disabled"):
@@ -625,18 +647,12 @@ def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", no
     u = me()
     if status and status not in ("todo", "reading", "read"):
         raise ToolError("status: todo | reading | read")
-    if not (paper_ref or link or title):
-        raise ToolError("give paper_ref, link or title")
-    p = paper(paper_ref) if paper_ref else None
+    source = _paper_input(paper_ref, link, title)
     files = [_attach_pdf(pdf_path)] if pdf_path else []
-    if p:
-        return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "note": note, "status": status, "files": files,
-                               "summary": p["title"][:60]}), {"open": f"{SITE}/#/reading"})
     try:
-        op = DB.apply({"op": "reading.add", "actor": u["id"], "input": (link or title).strip(), "title": title.strip(), "link": link.strip(),
-                       "note": note, "status": status, "files": files, "summary": (title or link)[:60]})
+        op = DB.apply({"op": "reading.add", "actor": u["id"], **source, "note": note, "status": status, "files": files})
     except ToolError as e:
-        if "lookup.failed" in str(e):
+        if "input" in source and "lookup.failed" in str(e):
             raise ToolError("couldn't find the paper behind that link — call again with its title as well")
         raise
     return _done(op, {"open": f"{SITE}/#/reading"})
@@ -797,10 +813,7 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: s
     Explain what you'll open to the user before calling."""
     u = me()
     if on_date:
-        try:
-            date.fromisoformat(on_date)
-        except ValueError:
-            raise ToolError("on_date must be YYYY-MM-DD")
+        _validate_dates("on_date must be YYYY-MM-DD", on_date)
     if at_time and not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", at_time):
         raise ToolError("at_time must be HH:MM")
     g = _group(group_id) if group_id else None
@@ -931,14 +944,8 @@ def add_guide_item(guide_id: str, paper_ref: str = "", link: str = "", title: st
     sec = next((x["id"] for x in g["sections"] if section and section.strip().lower() in (x["title"].lower(), x["id"])), None)
     if section and not sec:
         raise ToolError(f"no section {section!r} — sections: {', '.join(x['title'] for x in g['sections'])}")
-    base = {"op": "guide.addItem", "actor": u["id"], "guideId": g["id"], "section": sec, "note": note[:300]}
-    if paper_ref:
-        p = paper(paper_ref)
-        return _done(DB.apply({**base, "paperId": p["id"], "summary": p["title"][:60]}), {"open": f"{SITE}/#/guide/{g['id']}"})
-    if not (link or title):
-        raise ToolError("give paper_ref, link or title")
-    return _done(DB.apply({**base, "input": (link or title).strip(), "title": title.strip(), "link": link.strip(), "summary": (title or link)[:60]}),
-                 {"open": f"{SITE}/#/guide/{g['id']}"})
+    return _done(DB.apply({"op": "guide.addItem", "actor": u["id"], "guideId": g["id"], "section": sec, "note": note[:300],
+                           **_paper_input(paper_ref, link, title)}), {"open": f"{SITE}/#/guide/{g['id']}"})
 
 
 @mcp.tool()
@@ -968,8 +975,7 @@ def admin_merge_tags(from_tag: str, into_tag: str) -> dict:
 def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color: str = "") -> dict:
     """[admin] Rename a tag (Korean and/or English label) or change its colour — a system colour name
     (red orange yellow green mint teal cyan blue indigo purple pink brown gray2), which follows the site's theme."""
-    if color and not _tag_color_ok(color):
-        raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
+    _validate_tag_color(color)
     u, d = require_admin(), DB.data()
     t = d["T"].get(tag_id)
     if not t:
@@ -984,8 +990,7 @@ def create_tag(axis: str, label_ko: str, label_en: str, color: str = "") -> dict
     user first and suggest the name. An existing tag with the same name is reused. color: a system colour name
     (red orange yellow green mint teal cyan blue indigo purple pink brown gray2), default: the next in turn.
     Returns tag_id to pass to create_draft. Admins tidy (merge / rename) tags monthly."""
-    if color and not _tag_color_ok(color):
-        raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
+    _validate_tag_color(color)
     u = me()
     if axis not in ("domain", "method"):
         raise ToolError("axis must be domain or method")
@@ -1007,10 +1012,7 @@ def admin_set_member_quota(name: str, exempt: bool | None = None, start_date: st
         if val.lower() == "none":
             q[key] = None
         elif val:
-            try:
-                date.fromisoformat(val)
-            except ValueError:
-                raise ToolError(f"{key}_date must be YYYY-MM-DD (or none)")
+            _validate_dates(f"{key}_date must be YYYY-MM-DD (or none)", val)
             q[key] = val
     if target is not None:
         q["targets"] = {(term or term_for()["id"]): int(target)}
@@ -1024,9 +1026,7 @@ def admin_list_members(term: str = "") -> list[dict]:
     """[admin] Every account with role, active/disabled, raw diary-duty settings and the duty for a term (default current)."""
     require_admin()
     d = DB.data()
-    t = next((x for x in d["terms"] if x["id"] == term), None) if term else term_for()
-    if not t:
-        raise ToolError(f"unknown term {term!r}; terms: {[x['id'] for x in d['terms']]}")
+    t = term_for(term)
     return [{"id": u["id"], "name": u["name"], "role": u.get("role"), "disabled": bool(u.get("disabled")),
              "dutySettings": u.get("quota") or {}, "term": t["id"], "duty": quota(u, t, d) if u["id"] in d["P"] else None,
              "written": sum(1 for r in d["reviews"] if r["person"] == u["id"] and t["start"] <= r["date"] <= t["end"])}
@@ -1058,10 +1058,7 @@ def admin_save_term(term_id: str, label: str, start: str, end: str, target: int 
     """[admin] Create or update a term (e.g. 2027H1, "2027 상반기", 2027-01-01, 2027-06-30). Leave target out (null)
     for the usual rule — one diary per working day (weekdays minus the lab's days off); a number fixes the target."""
     u = require_admin()
-    try:
-        date.fromisoformat(start), date.fromisoformat(end)
-    except ValueError:
-        raise ToolError("start and end must be YYYY-MM-DD")
+    _validate_dates("start and end must be YYYY-MM-DD", start, end)
     return _done(DB.apply({"op": "term.save", "actor": u["id"], "term": {"id": term_id, "label": label, "start": start, "end": end,
                                                                          "target": None if target is None else int(target)}, "summary": term_id}))
 
@@ -1085,10 +1082,7 @@ def admin_save_off_day(start: str, label: str, end: str = "", kind: str = "holid
     weekdays it covers."""
     u = require_admin()
     end = end or start
-    try:
-        date.fromisoformat(start), date.fromisoformat(end)
-    except ValueError:
-        raise ToolError("start and end must be YYYY-MM-DD")
+    _validate_dates("start and end must be YYYY-MM-DD", start, end)
     if date.fromisoformat(end) < date.fromisoformat(start):
         raise ToolError("end is before start")
     if kind not in ("holiday", "shutdown", "event"):

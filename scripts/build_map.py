@@ -19,37 +19,28 @@ There are no map regions: the graph draws each tag's papers as a density area (d
 """
 import hashlib
 import json
-import os
-import re
 import sys
-from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent.parent
-from build_site import norm_title, compile_tax, score, pick  # noqa: E402
+from build_site import DATA, read_json, write_json, s2_details, s2_key, norm_title, compile_tax, score, pick
 from taxonomy import DOMAINS, METHODS  # noqa: E402
 
-DATA = ROOT / os.environ.get("LABSIDIAN_DATA", "data")  # data/demo = the fake demo lab
 MODEL = "allenai/specter2"
 SEED = 42
 TAG_WEIGHT = 0.4
 
 
 def load_papers():
-    entries = json.loads((DATA / "diary.json").read_text(encoding="utf-8"))
-    s2 = {}
-    cache_p = DATA / "s2_cache.json"
-    if cache_p.exists():
-        c = json.loads(cache_p.read_text(encoding="utf-8"))
-        s2 = {k: c["detail"].get(v) for k, v in c["match"].items() if v}
+    entries = read_json(DATA / "diary.json")
+    s2 = s2_details(DATA / "s2_cache.json") if (DATA / "s2_cache.json").exists() else {}
     papers = {}
     for e in entries:
         k = norm_title(e["title"])
         p = papers.setdefault(k, {"key": k, "title": e["title"].strip(), "reviews": []})
         p["reviews"].append(e)
     for k, p in papers.items():
-        d = s2.get(re.sub(r"[^0-9a-z]+", "", k)) or {}
+        d = s2.get(s2_key(k)) or {}
         own = next((r["abstract"] for r in p["reviews"] if r.get("abstract")), "")  # demo entries carry one
         p["abstract"] = d.get("abstract") or own or ((d.get("tldr") or {}).get("text")) or ""
     return list(papers.values())
@@ -89,22 +80,21 @@ def main():
     fingerprint = hashlib.sha256(json.dumps([MODEL, [(p["title"], p["abstract"]) for p in papers]],
                                             ensure_ascii=False).encode("utf-8")).hexdigest()
     if not papers:
-        (DATA / "map.json").write_text(json.dumps({"model": MODEL, "inputs": fingerprint, "tagWeight": TAG_WEIGHT, "papers": {}}),
-                                      encoding="utf-8")
+        write_json(DATA / "map.json", {"model": MODEL, "inputs": fingerprint, "tagWeight": TAG_WEIGHT, "papers": {}})
         return
     print(f"{len(papers)} papers, {sum(1 for p in papers if p['abstract'])} with abstracts", file=sys.stderr)
 
     emb_p, keys_p = DATA / "emb_specter2.npy", DATA / "emb_keys.json"
     keys = [p["key"] for p in papers]
     map_p = DATA / "map.json"
-    old_map = json.loads(map_p.read_text(encoding="utf-8")) if "--reuse" in sys.argv and map_p.exists() else {}
+    old_map = read_json(map_p) if "--reuse" in sys.argv and map_p.exists() else {}
     if ("--reuse" in sys.argv and emb_p.exists() and keys_p.exists()
-            and json.loads(keys_p.read_text(encoding="utf-8")) == keys and old_map.get("inputs") == fingerprint):
+            and read_json(keys_p) == keys and old_map.get("inputs") == fingerprint):
         emb = np.load(emb_p)
     else:
         emb = embed_specter2(papers)
         np.save(emb_p, emb)
-        keys_p.write_text(json.dumps(keys), encoding="utf-8")
+        write_json(keys_p, keys)
     lengths = np.linalg.norm(emb, axis=1, keepdims=True)
     emb = emb / np.where(lengths > 0, lengths, 1)
     # SPECTER2 vectors all point roughly the same way; centring spreads them so a small tag weight can matter
@@ -147,7 +137,7 @@ def main():
             "mx": round(float(um[i, 0]), 2), "my": round(float(um[i, 1]), 2),
             "nb": [[papers[j]["key"], round(float(sims[i, j]), 3)] for j in nb[i]],
         }
-    (DATA / "map.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    write_json(DATA / "map.json", out)
     print(f"map.json: {len(papers)} papers on the field and method maps", file=sys.stderr)
 
 

@@ -1,15 +1,6 @@
-/* Labsidian Store — MOCK backend (browser localStorage).
- *
- * Everything the UI reads or writes goes through window.Store. Methods are async and return plain
- * objects, mirroring what the Supabase version will do, so later only this file is replaced
- * (store-supabase.js) and the pages stay the same.
- *
- * ⚠ Mock only: data lives in this browser, "login" is not security. Initial accounts are seeded from
- *   window.LAB.people (+ an "admin" account); their first password is MOCK_INITIAL_PASSWORD and must be
- *   changed on first login.
- *
- * Load order: data.js (read-only import of the docx diary) → store.js (merges local changes into
- * window.LAB) → app.js / pages / graph.js.
+/* Labsidian Store: shared browser API and headless MCP operations.
+ * Server-backed pages sync records to SQLite; static/demo pages use localStorage.
+ * Load after data.js, before app.js and pages. Static-host login is mock-only.
  */
 (() => {
   // a non-default dataset (e.g. the fake demo lab, LAB.dataset = "demo") keeps its own browser storage
@@ -532,8 +523,14 @@
   function session() { if (actingAs) return actingAs; if (SERVER) return state?.me || null; try { return localStorage.getItem(SESSION); } catch (e) { return null; } }
   const current = () => { const id = session(); const u = id && db.users[id]; return u && !u.disabled ? publicUser(u) : null; };
   const publicUser = u => ({ id: u.id, name: u.name, role: u.role, mustChange: !!u.mustChange });
-  const requireUser = () => { const u = current(); if (!u) throw new Error("auth"); return u; };
-  const requireAdmin = () => { const u = requireUser(); if (u.role !== "admin") throw new Error("forbidden"); return u; };
+  const requireUser = (allowed = true) => {
+    const u = current();
+    if (!u) throw new Error("auth");
+    if (!allowed) throw new Error("forbidden");
+    return u;
+  };
+  const requireAdmin = () => requireUser(current()?.role === "admin");
+  const canManageOwned = record => { const me = current(); return !!me && !!record && (record.owner === me.id || me.role === "admin"); };
   const findUser = name => Object.values(db.users).find(u => u.name.toLowerCase() === name.trim().toLowerCase() || u.id === name.trim());
 
   // ---------------------------------------------------------------- notifications
@@ -548,6 +545,15 @@
     || Object.values(db.reading).some(l => (l || []).some(x => x !== except && (x.files || []).some(f => f.id === fid)))
     || Object.values(db.studies).some(st => (st !== except && (st.files || []).some(f => f.id === fid))
       || Object.values(st.picks || {}).some(pk => pk !== except && (pk.files || []).some(f => f.id === fid)));
+  const removeFiles = (files, except, keep = []) => {
+    const ids = new Set(keep.map(f => f.id));
+    return Promise.all((files || []).filter(f => !ids.has(f.id) && !fileInUse(f.id, except)).map(f => Store.files.remove(f.id).catch(() => {})));
+  };
+  const replaceFiles = async (record, files) => {
+    const next = cleanFiles(files);
+    await removeFiles(record.files, record, next);
+    return next;
+  };
 
   // ---------------------------------------------------------------- lab calendar
   // a diary is owed on every weekday that isn't a public holiday (computed below) or one of the lab's own days off
@@ -741,11 +747,7 @@
         const clean = Object.fromEntries(fields.filter(f => f in patch).map(f => [f, f === "rating" ? cleanRating(patch[f]) : patch[f]]));
         if ("tags" in clean) clean.tags = (clean.tags || []).map(cleanTag).filter(Boolean);
         if ("date" in clean) { if (!isDate(clean.date)) delete clean.date; else clean.term = termOf(clean.date); }
-        if ("files" in clean) {
-          clean.files = cleanFiles(clean.files);
-          const keep = new Set(clean.files.map(f => f.id));
-          await Promise.all((r.files || []).filter(f => !keep.has(f.id) && !fileInUse(f.id, r)).map(f => Store.files.remove(f.id).catch(() => {})));
-        }
+        if ("files" in clean) clean.files = await replaceFiles(r, clean.files);
         if (db.reviews[id]) {
           Object.assign(db.reviews[id], clean, { updatedAt: now() });
           if (patch.meta && db.reviews[id].meta) Object.assign(db.reviews[id].meta, patch.meta);
@@ -756,7 +758,7 @@
         const me = requireUser();
         const r = reviewById(id); if (!r) return;
         if (r.person !== me.id && me.role !== "admin") throw new Error("forbidden");
-        await Promise.all((r.files || []).filter(f => !fileInUse(f.id, r)).map(f => Store.files.remove(f.id).catch(() => {})));
+        await removeFiles(r.files, r);
         if (db.reviews[id]) delete db.reviews[id]; else db.reviewEdits[id] = { ...(db.reviewEdits[id] || {}), deleted: true };
         log("review.delete", id); save();
       },
@@ -898,14 +900,10 @@
       },
       async update(id, patch) {
         const st = db.studies[id]; if (!st) throw new Error("study.missing");
-        requireUser(); if (!Store.studies.canManage(st)) throw new Error("forbidden");
+        requireUser(Store.studies.canManage(st));
         ["date", "time", "place", "desc", "presenter", "link"].forEach(k => { if (k in patch) st[k] = k === "date" ? (isDate(patch.date) ? patch.date : "") : String(patch[k] || ""); });
         ["blind", "bring"].forEach(k => { if (k in patch) st[k] = !!patch[k]; });
-        if ("files" in patch) {
-          const next = cleanFiles(patch.files), keep = new Set(next.map(f => f.id));
-          await Promise.all((st.files || []).filter(f => !keep.has(f.id) && !fileInUse(f.id, st)).map(f => Store.files.remove(f.id).catch(() => {})));
-          st.files = next;
-        }
+        if ("files" in patch) st.files = await replaceFiles(st, patch.files);
         if (st.presenter && !st.members.includes(st.presenter)) st.members.push(st.presenter);
         log("study.update", st.title); save();
       },
@@ -918,7 +916,7 @@
       async leave(id) {
         const me = requireUser(), st = db.studies[id]; if (!st || st.host === me.id || st.presenter === me.id) return;
         st.members = st.members.filter(u => u !== me.id);
-        if (st.picks?.[me.id]) { await Promise.all((st.picks[me.id].files || []).filter(f => !fileInUse(f.id, st.picks[me.id])).map(f => Store.files.remove(f.id).catch(() => {}))); delete st.picks[me.id]; }
+        if (st.picks?.[me.id]) { await removeFiles(st.picks[me.id].files, st.picks[me.id]); delete st.picks[me.id]; }
         save();
       },
       async close(id, closed = true) {
@@ -932,9 +930,9 @@
       },
       async remove(id) {
         const st = db.studies[id]; if (!st) return;
-        requireUser(); if (!Store.studies.canManage(st)) throw new Error("forbidden");
+        requireUser(Store.studies.canManage(st));
         delete db.studies[id];
-        await Promise.all([...(st.files || []), ...Object.values(st.picks || {}).flatMap(pk => pk.files || [])].filter(f => !fileInUse(f.id, st)).map(f => Store.files.remove(f.id).catch(() => {})));
+        await removeFiles([...(st.files || []), ...Object.values(st.picks || {}).flatMap(pk => pk.files || [])], st);
         Object.values(db.studyQs).forEach(q => q.studyId === id && delete db.studyQs[q.id]);
         log("study.delete", st.title); save();
       },
@@ -955,8 +953,8 @@
         const title = (data.title || "").trim(); if (!title) throw new Error("study.title");
         const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(title));
         const prev = (st.picks ||= {})[me.id];
-        const files = cleanFiles(data.files), keep = new Set(files.map(f => f.id));
-        if (prev) await Promise.all((prev.files || []).filter(f => !keep.has(f.id) && !fileInUse(f.id, prev)).map(f => Store.files.remove(f.id).catch(() => {})));
+        const files = cleanFiles(data.files);
+        if (prev) await removeFiles(prev.files, prev, files);
         st.picks[me.id] = { uid: me.id, title: known?.title || title, paperId: known?.id || null, paperKey: known?.key || normTitle(title), link: data.link || known?.link || "",
           why: (data.why || "").slice(0, 500), files, order: prev?.order ?? Object.keys(st.picks).length, at: prev?.at || now() };
         if (!st.members.includes(me.id)) st.members.push(me.id);
@@ -966,11 +964,11 @@
       async removePick(id, uid) {
         const me = requireUser(), st = db.studies[id]; const pk = st?.picks?.[uid]; if (!pk) return;
         if (uid !== me.id && !Store.studies.canManage(st)) throw new Error("forbidden");
-        await Promise.all((pk.files || []).filter(f => !fileInUse(f.id, pk)).map(f => Store.files.remove(f.id).catch(() => {})));
+        await removeFiles(pk.files, pk);
         delete st.picks[uid]; save();
       },
       async movePick(id, uid, dir) {
-        const st = db.studies[id]; requireUser(); if (!st || !Store.studies.canManage(st)) throw new Error("forbidden");
+        const st = db.studies[id]; requireUser(!!st && Store.studies.canManage(st));
         const list = Store.studies.picks(st), i = list.findIndex(x => x.uid === uid), j = i + dir;
         if (i < 0 || j < 0 || j >= list.length) return;
         [list[i], list[j]] = [list[j], list[i]]; list.forEach((x, k) => (st.picks[x.uid].order = k)); save();
@@ -1098,7 +1096,7 @@
     groups: {
       list() { return Object.values(db.groups).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); },
       get(id) { return db.groups[id] || null; },
-      canManage(g) { const me = current(); return !!me && !!g && (g.owner === me.id || me.role === "admin"); },
+      canManage: canManageOwned,
       member(g, uid) { const u = uid || current()?.id; return !!u && !!g?.members?.includes(u); },
       sessions(g) {
         return Object.values(db.studies).filter(st => st.groupId === g.id)
@@ -1138,11 +1136,11 @@
         return id;
       },
       async update(id, data) {
-        requireUser(); const g = db.groups[id]; if (!g || !Store.groups.canManage(g)) throw new Error("forbidden");
+        const g = db.groups[id]; requireUser(Store.groups.canManage(g));
         Store.groups._fields(g, data); log("group.update", g.title); save();
       },
       async remove(id) {  // its sessions stay, as one-off studies
-        requireUser(); const g = db.groups[id]; if (!g || !Store.groups.canManage(g)) throw new Error("forbidden");
+        const g = db.groups[id]; requireUser(Store.groups.canManage(g));
         Store.groups.sessions(g).forEach(st => (st.groupId = null));
         Object.keys(db.notifications).forEach(u => { db.notifications[u] = db.notifications[u].filter(n => n.groupId !== id); });  // they'd lead nowhere
         delete db.groups[id]; log("group.delete", g.title); save();
@@ -1161,7 +1159,7 @@
     guides: {
       list() { return Object.values(db.guides).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); },
       get(id) { return db.guides[id] || null; },
-      canManage(g) { const me = current(); return !!me && !!g && (g.owner === me.id || me.role === "admin"); },
+      canManage: canManageOwned,
       paperOf(it) { return paperIndex.get(it.paperId) || paperKeyIndex.get(it.key) || null; },
       titleOf(it) { return Store.guides.paperOf(it)?.title || it.meta?.title || "(untitled)"; },
       wroteBy(it, uid) { const p = Store.guides.paperOf(it); return !!p && p.readers.includes(uid); },
@@ -1193,7 +1191,7 @@
       },
       async update(id, patch) {
         requireUser(); const g = db.guides[id]; if (!g) throw new Error("guide.missing");
-        if (!Store.guides.canManage(g)) throw new Error("forbidden");
+        requireUser(Store.guides.canManage(g));
         if ("title" in patch && String(patch.title).trim()) g.title = String(patch.title).trim().slice(0, 120);
         if ("desc" in patch) g.desc = String(patch.desc || "").slice(0, 1000);
         if ("tags" in patch) g.tags = (patch.tags || []).map(cleanTag).filter(Boolean).slice(0, 8);
@@ -1206,7 +1204,7 @@
       },
       async remove(id) {
         requireUser(); const g = db.guides[id]; if (!g) return;
-        if (!Store.guides.canManage(g)) throw new Error("forbidden");
+        requireUser(Store.guides.canManage(g));
         delete db.guides[id]; log("guide.delete", g.title); save();
       },
       async addItem(id, data) {
@@ -1247,7 +1245,7 @@
         save(); return it.votes.length;
       },
       async moveItem(id, itemId, dir) {  // within its section, by the owner / an admin
-        requireUser(); const g = db.guides[id]; if (!g || !Store.guides.canManage(g)) throw new Error("forbidden");
+        const g = db.guides[id]; requireUser(Store.guides.canManage(g));
         const same = g.items.filter(x => x.section === g.items.find(y => y.id === itemId)?.section);
         const k = same.findIndex(x => x.id === itemId), j = k + dir; if (k < 0 || j < 0 || j >= same.length) return;
         const a = g.items.indexOf(same[k]), b = g.items.indexOf(same[j]); [g.items[a], g.items[b]] = [g.items[b], g.items[a]];
@@ -1320,11 +1318,7 @@
           if (patch.status === "todo") { delete x.startedAt; delete x.readAt; }
         }
         if ("note" in patch) x.note = String(patch.note || "").slice(0, 2000);
-        if ("files" in patch) {
-          const next = cleanFiles(patch.files), keep = new Set(next.map(f => f.id));
-          await Promise.all((x.files || []).filter(f => !keep.has(f.id) && !fileInUse(f.id, x)).map(f => Store.files.remove(f.id).catch(() => {})));
-          x.files = next;
-        }
+        if ("files" in patch) x.files = await replaceFiles(x, patch.files);
         if (!x.paperId) ["title", "link", "authors", "venue", "year", "abstract"].forEach(k => { if (k in patch) x[k] = String(patch[k] || "").slice(0, k === "abstract" ? 5000 : 500); });
         if ("title" in patch && !x.paperId) x.key = normTitle(x.title);
         save();
@@ -1333,7 +1327,7 @@
         const me = requireUser();
         const l = db.reading[me.id] || [], i = l.findIndex(y => (y.id || "rd_" + y.paperId) === id); if (i < 0) return;
         const [x] = l.splice(i, 1);
-        await Promise.all((x.files || []).filter(f => !fileInUse(f.id)).map(f => Store.files.remove(f.id).catch(() => {})));
+        await removeFiles(x.files);
         save();
       },
     },
@@ -1509,9 +1503,6 @@
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
-    const adminOnly = ["tag.merge", "tag.rename", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
-      "offday.save", "offday.remove"];
-    if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
     let res = {};
     try {

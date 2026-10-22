@@ -116,8 +116,7 @@
   }
 
   function wire() {
-    $("#rl-form", view).onsubmit = async e => {
-      e.preventDefault();
+    UI.submitOnce($("#rl-form", view), async () => {
       const input = $("#rl-input", view), v = input.value.trim(); if (!v) return;
       status(t("rl.finding"), true);
       const before = S.reading.list().length;
@@ -130,7 +129,7 @@
       input.value = "";
       status(S.reading.list().length > before ? t("rl.added") : t("rl.already"));
       render();
-    };
+    }, $("#rl-status", view));
     $("#rl-file", view).onchange = e => addPdfs(e.target.files);
     view.querySelectorAll(".rl-item").forEach(el => {
       const id = el.dataset.id;

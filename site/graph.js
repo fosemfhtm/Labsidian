@@ -131,6 +131,10 @@ function nodeOn(n, a = graph.getNodeAttributes(n)) {
 // ---------------- graph ----------------
 // a big lab draws its nodes a little smaller (1 up to ~900 papers, 0.8 at ~2300) so the overview doesn't turn into a carpet;
 // people shrink by the same factor — their size grows with their diary count, which grows with every term shown
+function paperCentroid(mine) {
+  return { x: mine.reduce((sum, p) => sum + anchorX(p), 0) / mine.length,
+    y: mine.reduce((sum, p) => sum + anchorY(p), 0) / mine.length };
+}
 function buildGraph() {
   if (graph) graph.clear(); else graph = new Graph();
   papers.forEach(p => graph.addNode(p.id, {
@@ -142,7 +146,7 @@ function buildGraph() {
   D.people.forEach(u => {
     const mine = papers.filter(p => p.readers.includes(u.id));
     if (!mine.length) return; // new members appear once they've written something
-    const x = mine.reduce((s, p) => s + anchorX(p), 0) / mine.length, y = mine.reduce((s, p) => s + anchorY(p), 0) / mine.length;
+    const { x, y } = paperCentroid(mine);
     graph.addNode("u:" + u.id, {
       kind: "person", type: "border", x, y, ax: x, ay: y, size: PAPER_SCALE * (10 + Math.sqrt(u.count) * 0.55), label: u.name, color: u.color,
       borderSize: 0.16, forceLabel: matchMedia("(min-width: 761px)").matches,   // phones: let sigma drop labels that would overlap
@@ -164,25 +168,24 @@ function neighborhood(start, depth) {
 
 // ---------------- physics ----------------
 const anchorOf = d => (d.kind === "paper" ? state.physics.anchor : 0.1); // people stay among the papers they read
+function syncPositions() {
+  graph.updateEachNodeAttributes((id, a) => {
+    const { x, y } = simById[id]; a.x = x; a.y = y; return a;
+  }, { attributes: ["x", "y"] });
+}
 function buildSim() {
   const ph = state.physics;
-  const nodes = [];
-  graph.forEachNode((n, a) => nodes.push({ id: n, kind: a.kind, x: a.x, y: a.y, ax: a.ax, ay: a.ay, r: a.size }));
+  const nodes = graph.mapNodes((id, a) => ({ id, kind: a.kind, x: a.x, y: a.y, ax: a.ax, ay: a.ay, r: a.size }));
   simById = Object.fromEntries(nodes.map(s => [s.id, s]));
-  const links = [];
-  graph.forEachEdge((e, a, s, tg) => links.push({ source: s, target: tg }));
+  const links = graph.mapEdges((e, a, source, target) => ({ source, target }));
   sim = forceSimulation(nodes)
     .force("charge", forceManyBody().strength(d => (d.kind === "paper" ? -ph.repel : -ph.repel * 3)).distanceMax(40).theta(0.9))
     .force("link", forceLink(links).id(d => d.id).distance(28).strength(() => ph.link * 0.05))
-    .force("ax", forceX(d => d.kind === "paper" ? anchorX(PA[d.id]) : d.ax).strength(anchorOf))
-    .force("ay", forceY(d => d.kind === "paper" ? anchorY(PA[d.id]) : d.ay).strength(anchorOf))
+    .force("ax", forceX(d => d.ax).strength(anchorOf))
+    .force("ay", forceY(d => d.ay).strength(anchorOf))
     .force("collide", forceCollide(d => d.r * 0.85 + 0.8).iterations(1))
     .alphaDecay(0.035)
-    .on("tick", () => graph.updateEachNodeAttributes((n, a) => {
-      const s = simById[n];
-      a.x = s.x; a.y = s.y;
-      return a;
-    }, { attributes: ["x", "y"] }));
+    .on("tick", syncPositions);
   sim.on("end", () => { computeTagAreas(); renderer.refresh(); });
 }
 function applyPhysics() {
@@ -352,6 +355,9 @@ function drawOverlay() {
     }));
     ctx.globalAlpha = 1;
   }
+  placeLabels(w, h, dimAll);
+}
+function placeLabels(w, h, dimAll) {
   const placed = [];
   const fits = (x, y, w2, h2) => {
     if (x < 0 || y < 0 || x + w2 > w || y + h2 > h) return false;
@@ -380,57 +386,52 @@ function drawOverlay() {
 function buildLabels() {
   labelLayer.innerHTML = areas.map(a =>
     `<button type="button" class="ui-btn plain tag-area-label" data-id="${esc(a.id)}" style="--c:${hex(T[a.id].color)}">${esc(UI.tl(T[a.id]))}</button>`).join("");
-  labelLayer.onclick = e => {
-    const button = e.target.closest("[data-id]"); if (!button || flipping) return;
-    const area = areas.find(a => a.id === button.dataset.id);
-    zoomTo(area.x, area.y, 0.32);
-    UI.openDrawer("topic", area.id, { fromGraph: true });
-  };
 }
+labelLayer.onclick = e => {
+  const button = e.target.closest("[data-id]"); if (!button || flipping) return;
+  const area = areas.find(a => a.id === button.dataset.id);
+  zoomTo(area.x, area.y, 0.32);
+  UI.openDrawer("topic", area.id, { fromGraph: true });
+};
 
 function flipAxis(axis) {
   if (axis === state.axis || flipping) return;
   sim.stop();
-  const nodes = sim.nodes(), count = nodes.length;
-  const sx = new Float64Array(count), sy = new Float64Array(count), tx = new Float64Array(count), ty = new Float64Array(count);
+  const nodes = sim.nodes(), starts = new Map();
   let cy = 0;
-  nodes.forEach((n, i) => { const a = graph.getNodeAttributes(n.id); sx[i] = a.x; sy[i] = a.y; cy += a.y; });
-  cy /= count;
+  graph.forEachNode((id, { x, y }) => { starts.set(id, { x, y }); cy += y; });
+  cy /= nodes.length;
   state.axis = axis;
   try { localStorage.setItem("lab.mapAxis", axis); } catch (e) {}
-  nodes.forEach((n, i) => {
-    if (n.kind === "paper") { tx[i] = anchorX(PA[n.id]); ty[i] = anchorY(PA[n.id]); }
-    else {
-      const mine = papers.filter(p => p.readers.includes(n.id.slice(2)));
-      tx[i] = mine.reduce((sum, p) => sum + anchorX(p), 0) / mine.length;
-      ty[i] = mine.reduce((sum, p) => sum + anchorY(p), 0) / mine.length;
-      n.ax = tx[i]; n.ay = ty[i];
-    }
+  nodes.forEach(n => {
+    const target = n.kind === "paper" ? { x: anchorX(PA[n.id]), y: anchorY(PA[n.id]) }
+      : paperCentroid(papers.filter(p => p.readers.includes(n.id.slice(2))));
+    n.ax = target.x; n.ay = target.y;
     n.fx = n.fy = null; n.vx = n.vy = 0;
   });
   flipping = true;
   labelLayer.hidden = true;
   $("#g-axis").querySelectorAll("button").forEach(b => { b.disabled = true; b.setAttribute("aria-pressed", b.dataset.v === axis); });
   renderPeopleLegend();
-  let index = 0, eased = 0, squash = 1;
+  let eased = 0, squash = 1;
   const writePosition = (id, a) => {
-    a.x = sx[index] + (tx[index] - sx[index]) * eased;
-    a.y = cy + ((eased < 0.5 ? sy[index] : ty[index]) - cy) * squash;
-    index++; return a;
+    const start = starts.get(id), target = simById[id];
+    a.x = start.x + (target.ax - start.x) * eased;
+    a.y = cy + ((eased < 0.5 ? start.y : target.ay) - cy) * squash;
+    return a;
   };
   const positionHints = { attributes: ["x", "y"] };
   const paint = progress => {
     eased = progress * progress * (3 - 2 * progress);
     squash = Math.abs(Math.cos(Math.PI * eased));
-    index = 0;
     graph.updateEachNodeAttributes(writePosition, positionHints);
   };
   const finish = finishFlip = () => {
     cancelAnimationFrame(axisFrame); axisFrame = 0; finishFlip = null;
     paint(1);
-    nodes.forEach((n, i) => { n.x = tx[i]; n.y = ty[i]; });
-    sim.force("ax").x(n => n.kind === "paper" ? anchorX(PA[n.id]) : n.ax);
-    sim.force("ay").y(n => n.kind === "paper" ? anchorY(PA[n.id]) : n.ay);
+    nodes.forEach(n => { n.x = n.ax; n.y = n.ay; });
+    sim.force("ax").x(n => n.ax);
+    sim.force("ay").y(n => n.ay);
     flipping = false; labelLayer.hidden = false;
     $("#g-axis").querySelectorAll("button").forEach(b => { b.disabled = false; });
     computeTagAreas(); renderer.refresh();
@@ -557,6 +558,16 @@ function changed() {
   renderer.refresh();
 }
 
+function updateYears() {
+  for (const [id, value] of [["#f-year-min", state.yearMin], ["#f-year-max", state.yearMax]]) {
+    Object.assign($(id), { min: YMIN, max: YMAX, value });
+  }
+  $("#f-year-v").textContent = `${state.yearMin} – ${state.yearMax}`;
+}
+function updateTimeline() {
+  Object.assign($("#t-range"), { min: 0, max: reviewDates.length - 1, value: state.timeIdx });
+  $("#t-label").textContent = reviewDates[state.timeIdx] || "";
+}
 function initUI() {
   const s = state;
   // popover open/close
@@ -591,13 +602,10 @@ function initUI() {
   $("#venue-q").oninput = renderPopovers;
 
   const ymin = $("#f-year-min"), ymax = $("#f-year-max");
-  [ymin, ymax].forEach(r => { r.min = YMIN; r.max = YMAX; });
-  const yl = () => ($("#f-year-v").textContent = `${s.yearMin} – ${s.yearMax}`);
-  const resetYear = () => { ymin.value = YMIN; ymax.value = YMAX; yl(); };
-  resetYear();
+  updateYears();
   ymin.oninput = ymax.oninput = () => {
     let a = +ymin.value, b = +ymax.value; if (a > b) [a, b] = [b, a];
-    s.yearMin = a; s.yearMax = b; yl(); changed();
+    s.yearMin = a; s.yearMax = b; updateYears(); changed();
   };
   $("#f-year-unknown").onchange = e => { s.yearUnknown = e.target.checked; changed(); };
 
@@ -616,7 +624,7 @@ function initUI() {
   $("#tb-reset").onclick = () => {
     Object.assign(s, { people: new Set(), tags: new Set(), methods: new Set(), venues: new Set(), vtypes: new Set(),
       yearMin: YMIN, yearMax: YMAX, yearUnknown: true, minRating: 0, sharedOnly: false });
-    resetYear(); $("#f-year-unknown").checked = true; $("#f-shared").checked = false;
+    updateYears(); $("#f-year-unknown").checked = true; $("#f-shared").checked = false;
     $("#f-rating").querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", i === 0));
     renderPopovers(); changed();
   };
@@ -643,7 +651,10 @@ function initUI() {
     el.checked = s.layers[k];
     el.onchange = () => {
       s.layers[k] = el.checked;
-      if (k === "timeline") { $(".timeline").hidden = !el.checked; if (!el.checked) { stopTimeline(); s.timeIdx = reviewDates.length - 1; $("#t-range").value = s.timeIdx; $("#t-label").textContent = reviewDates[s.timeIdx] || ""; } }
+      if (k === "timeline") {
+        $(".timeline").hidden = !el.checked;
+        if (!el.checked) { stopTimeline(); s.timeIdx = reviewDates.length - 1; updateTimeline(); }
+      }
       changed();
     };
   });
@@ -687,10 +698,9 @@ function initUI() {
   };
 
   // time-lapse
-  const tr = $("#t-range"), tlab = $("#t-label"), play = $("#t-play");
-  tr.min = 0; tr.max = reviewDates.length - 1; tr.value = s.timeIdx;
-  const setT = i => { s.timeIdx = i; tr.value = i; tlab.textContent = reviewDates[i]; changed(); };
-  tlab.textContent = reviewDates[s.timeIdx];
+  const tr = $("#t-range"), play = $("#t-play");
+  const setT = i => { s.timeIdx = i; updateTimeline(); changed(); };
+  updateTimeline();
   tr.oninput = () => setT(+tr.value);
   play.onclick = () => {
     if (timeTimer) { stopTimeline(); return; }
@@ -782,12 +792,7 @@ function refreshData() {
   graph.updateEachNodeAttributes((id, a) => Object.assign(a, positions.get(id)), { attributes: ["x", "y"] });
   buildSim(); sim.stop();
   if (papers.length) setBounds();
-  $("#f-year-min").min = $("#f-year-max").min = YMIN;
-  $("#f-year-min").max = $("#f-year-max").max = YMAX;
-  $("#f-year-min").value = state.yearMin; $("#f-year-max").value = state.yearMax;
-  $("#f-year-v").textContent = `${state.yearMin} – ${state.yearMax}`;
-  $("#t-range").max = reviewDates.length - 1; $("#t-range").value = state.timeIdx;
-  $("#t-label").textContent = reviewDates[state.timeIdx] || "";
+  updateYears(); updateTimeline();
   renderPopovers(); computeTagAreas(); select(state.selected); changed();
 }
 window.addEventListener("lab:data", refreshData);
@@ -836,7 +841,7 @@ function start() {
   sim.stop();
   const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()));
   for (let i = 0; i < ticks; i++) sim.tick();
-  graph.updateEachNodeAttributes((n, a) => { const s = simById[n]; a.x = s.x; a.y = s.y; return a; }, { attributes: ["x", "y"] });
+  syncPositions();
   computeTagAreas();
   updateToolbar();
   renderPeopleLegend();

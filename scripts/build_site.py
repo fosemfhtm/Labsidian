@@ -75,8 +75,25 @@ def year_from(s):
     return int(m.group(1)) if m else None
 
 
+def read_json(path):
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_json(path, value, *, indent=None):
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=indent), encoding="utf-8")
+
+
+def s2_key(title):
+    return re.sub(r"[^0-9a-z]+", "", norm_title(title.replace("ﬃ", "ffi")))
+
+
+def s2_details(path):
+    cache = read_json(path)
+    return {k: cache["detail"].get(v) for k, v in cache["match"].items() if v}
+
+
 def norm_title(t):
-    t = t.lower().replace("ﬁ", "fi").replace("ﬂ", "fl")
+    t = (t or "").lower().replace("ﬁ", "fi").replace("ﬂ", "fl")
     return re.sub(r"[^0-9a-z가-힣]+", "", t)
 
 
@@ -111,8 +128,8 @@ def main():
     ap.add_argument("--vault", action="store_true")
     a = ap.parse_args()
 
-    roster = json.loads((DATA / "roster.json").read_text(encoding="utf-8"))
-    entries = json.loads((DATA / "diary.json").read_text(encoding="utf-8"))
+    roster = read_json(DATA / "roster.json")
+    entries = read_json(DATA / "diary.json")
     name2id = {p["name"]: p["id"] for p in roster}
     dom, met = compile_tax(DOMAINS), compile_tax(METHODS)
 
@@ -148,16 +165,13 @@ def main():
         p["firstDate"] = min(rev_by_id[r]["date"] for r in p["reviews"])
 
     # ---- enrichment (Semantic Scholar) + semantic map ----
-    s2 = {}
-    if (DATA / "s2_cache.json").exists():
-        c = json.loads((DATA / "s2_cache.json").read_text(encoding="utf-8"))
-        s2 = {k: c["detail"].get(v) for k, v in c["match"].items() if v}
-    mp = json.loads((DATA / "map.json").read_text(encoding="utf-8")) if (DATA / "map.json").exists() else None
+    s2 = s2_details(DATA / "s2_cache.json") if (DATA / "s2_cache.json").exists() else {}
+    mp = read_json(DATA / "map.json") if (DATA / "map.json").exists() else None
     key2id = {k: papers[i]["id"] for k, i in by_key.items()}
     s2id2pid = {}
     for k, i in by_key.items():
         p = papers[i]
-        d = s2.get(re.sub(r"[^0-9a-z]+", "", k)) or {}
+        d = s2.get(s2_key(k)) or {}
         if d:
             s2id2pid[d["paperId"]] = p["id"]
         own_year, own_abstract = p.pop("_year"), p.pop("_abstract")
@@ -216,7 +230,7 @@ def main():
     data = {"dataset": DATASET, "relativeDates": bool(DATASET), "people": people, "topics": topics, "papers": papers, "reviews": reviews,
             "terms": sorted({r["term"] for r in reviews}), "taxonomy": taxonomy}
     if (DATA / "social.json").exists():  # demo only: example studies/comments the browser store seeds once
-        data["social"] = resolve_social(json.loads((DATA / "social.json").read_text(encoding="utf-8")), papers, reviews)
+        data["social"] = resolve_social(read_json(DATA / "social.json"), papers, reviews)
     out = ROOT / "site" / (f"data.{DATASET}.js" if DATASET else "data.js")
     out.write_text("window.LAB = " + json.dumps(data, ensure_ascii=False) + ";\n", encoding="utf-8")
     print(f"site/{out.name}: {len(people)} people, {len(papers)} papers, {len(reviews)} reviews, "
