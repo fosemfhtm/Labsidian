@@ -359,10 +359,14 @@
     // (one of the 30) replaces it only if nobody else has that colour — whoever has a colour keeps it; the rest get a free one
     const own = c => (PALETTE.includes(c) ? c : null), owner = new Map();
     people.forEach(p => { const u = db.users[p.id]; if (u?.name) p.name = u.name; p.c = own(p.color); if (owner.has(p.c)) p.c = null; if (p.c) owner.set(p.c, p.id); });
-    people.forEach(p => {
-      const pick = own(db.users[p.id]?.color);
-      if (pick && !owner.has(pick)) { owner.delete(p.c); p.c = pick; owner.set(pick, p.id); }
-    });
+    // picks move people off their default in rounds: a pick of a colour someone else is about to leave lands next round
+    for (let moved = true; moved;) {
+      moved = false;
+      people.forEach(p => {
+        const pick = own(db.users[p.id]?.color);
+        if (pick && pick !== p.c && !owner.has(pick)) { owner.delete(p.c); p.c = pick; owner.set(pick, p.id); moved = true; }
+      });
+    }
     people.forEach(p => { if (!p.c) owner.set(p.c = PALETTE.find(x => !owner.has(x)) || "gray", p.id); p.color = `rgb(var(--${p.c}))`; delete p.c; });
 
     // reviews: seed (with edits/deletes) + created on the site
@@ -1167,11 +1171,14 @@
         while (d < d0) d = addDays(d, step);
         return d;
       },
-      // presenters take turns in the members' order
+      // presenters take turns in the members' order; a disabled member is skipped (they can't be picked or present)
       nextPresenter(g) {
-        const ms = (g.members || []).filter(u => db.users[u]); if (!ms.length) return g.owner;
+        const ms = (g.members || []).filter(u => db.users[u]), active = u => !db.users[u].disabled;
+        if (!ms.some(active)) return g.owner;
         const last = Store.groups.sessions(g).filter(st => st.presenters.length).pop();
-        return ms[((last ? ms.indexOf(last.presenters.at(-1)) : -1) + 1) % ms.length];
+        let i = last ? ms.indexOf(last.presenters.at(-1)) : -1;
+        do i = (i + 1) % ms.length; while (!active(ms[i]));
+        return ms[i];
       },
       _fields(g, data) {
         const c = data.cadence, wd = c && c.weekday !== "" && c.weekday != null ? +c.weekday : null;

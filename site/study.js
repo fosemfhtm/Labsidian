@@ -244,7 +244,7 @@
     const box = paperSearch(title, $("#st-pop", view), $("#st-link", view), hint);
     box.id = pre?.id || null; hint();
     $("#st-invite", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c) c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); };
-    const presenters = new Set([presenter]);
+    const presenters = new Set([presenter].filter(u => UI.P[u]));   // a disabled member has no chip, so can't stay selected
     $("#st-presenters", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; if (presenters.has(c.dataset.u)) presenters.delete(c.dataset.u); else presenters.add(c.dataset.u); c.setAttribute("aria-pressed", presenters.has(c.dataset.u)); };
     const picker = $("#st-file", view);
     $("#st-pick", view).onclick = () => picker.click();
@@ -525,7 +525,7 @@
       <label class="fld"><span>${t("st.link")}</span><input id="ei-link" value="${esc(st.link)}"></label>
       <div class="form-foot"><span></span><button class="ui-btn" data-close>${t("st.n.cancel")}</button><button class="ui-btn prominent" id="ei-save">${t("st.save")}</button></div>`, { wide: true });
     m.querySelector(".modal").classList.add("write-form");
-    const presenters = new Set(st.presenters);
+    const presenters = new Set(st.presenters.filter(u => UI.P[u]));
     m.querySelector("#ei-presenters").onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; if (presenters.has(c.dataset.u)) presenters.delete(c.dataset.u); else presenters.add(c.dataset.u); c.setAttribute("aria-pressed", presenters.has(c.dataset.u)); };
     m.querySelector("#ei-save").onclick = async () => {
       const v = id => m.querySelector(id).value.trim();

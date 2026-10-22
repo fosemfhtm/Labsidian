@@ -337,7 +337,8 @@ function computeTagAreas() {
 // the tag area under a viewport point; where areas overlap, the smallest (most specific) one
 function areaAt(point) {
   const g = renderer.viewportToGraph(point);
-  return areas.filter(a => inside([g.x, g.y], a.rings[0])).sort((a, b) => a.size - b.size)[0]?.id || null;
+  const at = [g.x, g.y];
+  return areas.filter(a => inside(at, a.rings[0]) && !a.rings.slice(1).some(hole => inside(at, hole))).sort((a, b) => a.size - b.size)[0]?.id || null;
 }
 // a clicked area lights up with its papers (and their readers); the rest of the map turns gray
 function setArea(id) {

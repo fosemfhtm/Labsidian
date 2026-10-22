@@ -234,6 +234,13 @@ for (const user of ["alice", "bob", "carol", "admin"]) {
 const rotationId = await multi.store.groups.create({ title: "Rotation", members: ["bob", "carol"] });
 multi.store.studies.get(multiId).groupId = rotationId;
 assert.equal(multi.store.groups.nextPresenter(multi.store.groups.get(rotationId)), "alice");
+// a disabled member is skipped in the rotation and, as a stale presenter, can be replaced (on a copy of the data)
+const disabledDb = JSON.parse(JSON.stringify(multi.db()));
+disabledDb.users.alice.disabled = true; disabledDb.studies[multiId].presenters = ["alice"];
+const replacer = boot(disabledDb, "admin");
+assert.equal(replacer.store.groups.nextPresenter(replacer.store.groups.get(rotationId)), "bob");
+await replacer.store.studies.update(multiId, { presenters: ["bob"], place: "Room 1" });
+assert.equal(replacer.store.studies.get(multiId).presenters.join(","), "bob");
 await assert.rejects(multi.store.studies.create({ title: "Invalid presenters", presenters: "bob" }), /study.presenters/);
 await assert.rejects(multi.store.studies.update(multiId, { presenters: [] }), /study.presenters/);
 const mats = boot(multi.db(), "bob"), materialFiles = [];
@@ -323,4 +330,11 @@ repainted.db().users.carol.color = "cobalt";   // e.g. picked before the one-col
 const clash = boot(repainted.db(), "alice", colours());
 assert.equal(colourOf(clash, "alice"), "rgb(var(--cobalt))");
 assert.equal(new Set(clash.snapshot().people.map(p => p.color)).size, 3);
+// bob leaves red for lime; alice (earlier in the list) then picks red and gets it
+const trio = () => ({ ...seed(), people: [{ id: "alice", name: "Alice", color: "cobalt" }, { id: "bob", name: "Bob", color: "red" }, { id: "carol", name: "Carol", color: "teal" }] });
+const leaver = boot({}, "bob", trio());
+await leaver.store.users.setMyColor("lime");
+const taker = boot(leaver.db(), "alice", trio());
+await taker.store.users.setMyColor("red");
+assert.equal(colourOf(boot(taker.db(), "alice", trio()), "alice"), "rgb(var(--red))");
 console.log("store regression checks passed");

@@ -146,7 +146,10 @@
     view.innerHTML = page(g, me);
     const intro = $("#grp-intro", view), more = $("#grp-more", view);
     if (intro && more) {
-      more.hidden = intro.scrollHeight <= intro.clientHeight;
+      // clipped or not depends on the width: check again when it changes (window resize, phone rotation)
+      const fit = () => { more.hidden = intro.dataset.expanded !== "true" && intro.scrollHeight <= intro.clientHeight; };
+      const observer = new ResizeObserver(() => (intro.isConnected ? fit() : observer.disconnect()));
+      observer.observe(intro); fit();
       more.onclick = () => {
         const expanded = more.getAttribute("aria-expanded") !== "true";
         more.setAttribute("aria-expanded", expanded); intro.dataset.expanded = String(expanded);

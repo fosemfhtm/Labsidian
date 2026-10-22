@@ -46,6 +46,7 @@ assert.match(note, /<h2>📌 변경된 논문 세미나 진행 방식<\/h2>/);
 assert.match(note, /<strong>일시:<\/strong>/);
 assert.match(note, /<li><strong>Main Paper 발표 \(1명\)<\/strong><ul><li>AI 분야의 이론 논문 1편<\/li><\/ul><\/li>/);
 assert.equal(md("1. First\n\t- Nested\n2. Second"), "<ol><li>First<ul><li>Nested</li></ul></li><li>Second</li></ol>");
+assert.equal(md("- Parent\n  - First\n  1. Second\n- Next"), "<ul><li>Parent<ul><li>First</li></ul><ol><li>Second</li></ol></li><li>Next</li></ul>");
 assert.equal(md("Line one\nLine two\n\n*Italic* and `code`"), "<p>Line one<br>Line two</p><p><em>Italic</em> and <code>code</code></p>");
 const unsafeNote = md('<script>alert(1)</script>\n<img src=x onerror=alert(1)>\n[bad](javascript:alert(1))\n[ok](https://example.com/?a=1&b=2)\nhttps://example.org');
 assert.doesNotMatch(unsafeNote, /<(?:script|img)\b|href="javascript:/i);
@@ -310,7 +311,7 @@ assert.equal(published, 1);
 let studyCreates = 0, rejectStudy;
 const newStudy = load("study.js").split("  function newPage(params) {")[1].split("  // ---------------------------------------------------------------- detail")[0];
 const studyFormContext = vm.createContext({ view: groupView, $: groupNode, back: "", t: key => key, esc: String,
-  UI: { P: {}, PA: {}, avatar: () => "", submitOnce: formWindow.LabUI.submitOnce }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
+  UI: { P: { u: { id: "u", name: "User" } }, PA: {}, avatar: () => "", submitOnce: formWindow.LabUI.submitOnce }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
     findPaper: () => null, studies: { create: () => { studyCreates++; return new Promise((_, reject) => { rejectStudy = reject; }); } } },
   paperSearch: () => ({ id: null }), location: {}, LabToast() {}, URLSearchParams });
 vm.runInContext("function newPage(params) {" + newStudy + "\nnewPage(new URLSearchParams());", studyFormContext);

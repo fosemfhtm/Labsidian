@@ -42,7 +42,7 @@
         const m = item(lines[i]);
         if (!m || indent(m) < base || /^\d/.test(m[2]) !== ordered && indent(m) === base) break;
         html += `<li>${inline(m[3])}`; i++;
-        if (depth === 0 && i < lines.length && item(lines[i]) && indent(item(lines[i])) >= base + 2) html += list(indent(item(lines[i])), 1);
+        while (depth === 0 && i < lines.length && item(lines[i]) && indent(item(lines[i])) >= base + 2) html += list(indent(item(lines[i])), 1);   // "- a" then "1. b" under one parent
         html += "</li>";
       }
       return html + `</${tag}>`;
@@ -84,19 +84,22 @@
   window.addEventListener("lab:data", index);
 
   // ---------- render helpers ----------
-  const INK = {};   // avatar initials colour per data colour; the theme decides, so forget it when the theme changes
-  window.addEventListener("lab:theme", () => { for (const k in INK) delete INK[k]; });
+  // avatar initials: dark on light colours (yellow, lime…), white otherwise. The colour is a data colour name whose value
+  // depends on the theme, so on a theme change the cache is dropped and avatars already on screen are recoloured.
+  const INK = {};
+  const inkOf = name => INK[name] ||= (() => {
+    const [r, g, b] = getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim().split(/\s+/).map(Number);
+    const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
+    return (lum + .05) / .0607 > 1.05 / (lum + .05) ? "var(--ink-on-light)" : "var(--on-color)";   // whichever of black/white contrasts more
+  })();
+  const reink = () => { for (const k in INK) delete INK[k]; document.querySelectorAll(".avatar[data-ink]").forEach(el => (el.style.color = inkOf(el.dataset.ink))); };
+  window.addEventListener("lab:theme", reink);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => document.documentElement.dataset.theme === "auto" && reink());
   const avatar = (id, big) => {
     const p = P[id];
     if (!p) return `<span class="avatar unknown">?</span>`;
-    // initials: dark on light colours (yellow, lime…), white otherwise — the colour is a data colour name, read from the theme
     const name = /var\(--([a-z0-9]+)\)/.exec(p.color || "")?.[1] || "gray";
-    const ink = INK[name] ||= (() => {
-      const [r, g, b] = getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim().split(/\s+/).map(Number);
-      const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
-      return (lum + .05) / .0607 > 1.05 / (lum + .05) ? "var(--ink-on-light)" : "var(--on-color)";   // whichever of black/white contrasts more
-    })();
-    return `<span class="avatar${big ? " big" : ""}" title="${esc(p.name)}" style="background:${safeColor(p.color)};color:${ink};text-shadow:none">${esc(initial(p.name))}</span>`;
+    return `<span class="avatar${big ? " big" : ""}" data-ink="${name}" title="${esc(p.name)}" style="background:${safeColor(p.color)};color:${inkOf(name)};text-shadow:none">${esc(initial(p.name))}</span>`;
   };
   // a data colour that's safe inside style="": #hex or rgb(var(--name)); anything else → gray
   const safeColor = c => (/^#[0-9a-f]{3,8}$/i.test(c || "") || /^rgb\(var\(--[a-z0-9]+\)\)$/.test(c || "") ? c : "rgb(var(--gray2))");

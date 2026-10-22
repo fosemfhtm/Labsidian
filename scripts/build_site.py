@@ -48,7 +48,7 @@ def spread_colors(points, lab):
     only past 30 tags). points: tag -> [(x, y)] of its papers; tags without papers take what is left, in palette order."""
     cent = {k: (sum(x for x, _ in p) / len(p), sum(y for _, y in p) / len(p)) for k, p in points.items() if p}
     xs = [c for p in points.values() for xy in p for c in xy]
-    scale = (sum(v * v for v in xs) / len(xs)) ** 0.5 if xs else 1   # ~ the map's spread
+    scale = ((sum(v * v for v in xs) / len(xs)) ** 0.5 if xs else 0) or 1   # ~ the map's spread; a one-point map has none
     near = lambda a, b: math.exp(-(math.dist(cent[a], cent[b]) / (0.6 * scale)) ** 2) + 0.02
     out = {}
     for k in sorted(points, key=lambda k: -len(points[k])):
