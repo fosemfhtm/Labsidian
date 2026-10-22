@@ -34,6 +34,7 @@ rest (terms, tag ops, log …) · ops(id, at, actor, op, status, error, version)
 A backup is taken once a day on start (data[/demo]/_backup/, last 14 kept).
 Legacy AI drafts move onto reading items after that backup, before any clients are served.
 """
+import atexit
 import calendar
 import hashlib
 import hmac
@@ -84,6 +85,24 @@ def records_of(db):
     return out
 
 
+def valid_records(rows, size):
+    if not isinstance(rows, list):
+        return False
+    for row in rows:
+        if not isinstance(row, (list, tuple)) or len(row) != size:
+            return False
+        coll, id_ = row[:2]
+        if not isinstance(coll, str) or not isinstance(id_, str) or not id_ or coll not in (*COLLS, "_meta"):
+            return False
+        if coll == "_meta" and id_ in COLLS:
+            return False
+        if size == 3 and coll == "users":
+            u = row[2]
+            if not isinstance(u, dict) or u.get("id") != id_ or not isinstance(u.get("name"), str):
+                return False
+    return True
+
+
 def now_iso():
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -101,14 +120,23 @@ def hash_pw(pw):
 def check_pw(u, pw):
     """→ True / False, and whether the stored hash should be upgraded"""
     stored, pw = u.get("pw"), pw or ""
-    if stored and stored.startswith("pbkdf2$"):
-        _, rounds, salt, h = stored.split("$")
-        return hmac.compare_digest(hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt.encode(), int(rounds)).hex(), h), False
+    if not isinstance(pw, str) or (stored is not None and not isinstance(stored, str)):
+        return False, False
+    if isinstance(stored, str) and stored.startswith("pbkdf2$"):
+        try:
+            _, rounds, salt, h = stored.split("$")
+            rounds = int(rounds)
+            if not 0 < rounds <= 2_000_000:
+                return False, False
+            ok = hmac.compare_digest(hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt.encode(), rounds).hex().encode(), h.encode())
+            return ok, ok and rounds < PBKDF2_ROUNDS
+        except (ValueError, TypeError):
+            return False, False
     if stored:  # set in the browser by an older site/store.js: sha256("<id>:<password>")
-        ok = hmac.compare_digest(sha(f"{u['id']}:{pw}"), stored)
+        ok = hmac.compare_digest(sha(f"{u['id']}:{pw}").encode(), stored.encode())
         return ok, ok
-    if u.get("tempPw"):
-        return hmac.compare_digest(pw, u["tempPw"]), False
+    if isinstance(u.get("tempPw"), str):
+        return hmac.compare_digest(pw.encode("utf-8"), u["tempPw"].encode("utf-8")), False
     return DEMO and pw == INITIAL_PASSWORD, False
 
 
@@ -136,6 +164,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, type TEXT, data BLOB);
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
             CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, user TEXT, kind TEXT, created TEXT, used TEXT, label TEXT);""")
+        self.con.execute("CREATE INDEX IF NOT EXISTS ops_version ON ops(version)")
         if "label" not in [c[1] for c in self.con.execute("PRAGMA table_info(sessions)")]:
             self.con.execute("ALTER TABLE sessions ADD COLUMN label TEXT")
         self.snap = (None, None)
@@ -171,35 +200,47 @@ class Store:
             return False
         return not any(u.get("pw") for u in self.users().values())
 
-    def write(self, upserts, deletes):
+    def write(self, upserts, deletes, op=None):
         """one transaction, one new version → (prev, version)"""
         with self.lock:
-            prev = self.version()
-            v = prev + 1
-            self.con.execute("BEGIN IMMEDIATE")
+            own_transaction = not self.con.in_transaction
+            if own_transaction:
+                self.con.execute("BEGIN IMMEDIATE")
             try:
+                prev = self.version()
+                v = prev + 1
                 for coll, id_, value in upserts:
                     self.con.execute("INSERT OR REPLACE INTO records VALUES (?,?,?,?)", (coll, id_, json.dumps(value, ensure_ascii=False), v))
                 for coll, id_ in deletes:
                     self.con.execute("DELETE FROM records WHERE coll=? AND id=?", (coll, id_))
                 self.con.execute("INSERT OR REPLACE INTO meta VALUES ('version', ?)", (str(v),))
-                self.con.execute("COMMIT")
+                if op is not None:
+                    self.log_op(op, "ok", None, v)
+                if own_transaction:
+                    self.con.execute("COMMIT")
             except Exception:
-                self.con.execute("ROLLBACK")
+                if own_transaction:
+                    self.con.execute("ROLLBACK")
                 raise
             return prev, v
 
-    def replace(self, new_db):
+    def replace(self, new_db, op=None):
         """store a whole db (from the worker / an import) as the minimal set of record changes"""
         with self.lock:
             old, new = records_of(self.db()), records_of(new_db)
             ups = [(c, i, v) for (c, i), v in new.items() if (c, i) not in old or old[(c, i)] != v]
             dels = [k for k in old if k not in new]
-            return self.write(ups, dels) if ups or dels else (self.version(), self.version())
+            if ups or dels:
+                return self.write(ups, dels, op)
+            v = self.version()
+            if op is not None:
+                self.log_op(op, "ok", None, v)
+            return v, v
 
     def changes(self, since):
-        rows = self.con.execute("SELECT id, op, actor, status FROM ops WHERE version > ? ORDER BY version", (since,)).fetchall()
-        return {"version": self.version(), "ops": [{"id": i, "op": o, "actor": a, "status": s} for i, o, a, s in rows]}
+        version = self.version()
+        rows = self.con.execute("SELECT id, op, actor, status FROM ops WHERE version > ? ORDER BY version", (since,)).fetchall() if since < version else []
+        return {"version": version, "ops": [{"id": i, "op": o, "actor": a, "status": s} for i, o, a, s in rows]}
 
     def log_op(self, op, status, error, version):
         self.con.execute("INSERT OR REPLACE INTO ops VALUES (?,?,?,?,?,?,?,?)", (op["id"], op.get("at") or now_iso(),
@@ -241,8 +282,13 @@ class Store:
         if dst.exists():
             return
         dst.parent.mkdir(exist_ok=True)
-        with sqlite3.connect(dst) as b:
+        tmp = dst.with_suffix(".tmp")
+        b = sqlite3.connect(tmp)
+        try:
             self.con.backup(b)
+        finally:
+            b.close()  # Windows can't replace a file that is still open
+        tmp.replace(dst)
         for old in sorted(dst.parent.glob("labsidian-*.db"))[:-keep]:
             old.unlink()
 
@@ -252,15 +298,29 @@ class Worker:
     def __init__(self):
         self.p, self.lock = None, threading.Lock()
 
+    def close(self):
+        if self.p:
+            if self.p.poll() is None:
+                self.p.kill()
+            self.p.wait()
+            self.p.stdin.close()
+            self.p.stdout.close()
+            self.p = None
+
     def call(self, req):
         with self.lock:
             for attempt in (1, 2):
-                if not self.p or self.p.poll() is not None:
+                if self.p and self.p.poll() is not None:
+                    self.close()
+                if not self.p:
                     node = shutil.which("node")
                     if not node:
                         return {"ok": False, "error": "Node.js is needed to apply MCP requests (https://nodejs.org)"}
                     self.p = subprocess.Popen([node, str(ROOT / "scripts" / "store_worker.mjs"), str(SEED_JS)], stdin=subprocess.PIPE,
                                               stdout=subprocess.PIPE, text=True, encoding="utf-8")
+                timer = threading.Timer(90, self.p.kill)
+                timer.daemon = True
+                timer.start()
                 try:
                     self.p.stdin.write(json.dumps(req, ensure_ascii=False) + "\n")
                     self.p.stdin.flush()
@@ -269,11 +329,14 @@ class Worker:
                         return json.loads(line)
                 except (OSError, ValueError):
                     pass
-                self.p = None
+                finally:
+                    timer.cancel()
+                self.close()
             return {"ok": False, "error": "store worker crashed"}
 
 
 STORE, WORKER = None, Worker()
+atexit.register(WORKER.close)
 SECRET = None  # contents of LOCAL_SECRET
 FAILS = {}  # ip → recent failed sign-in times
 
@@ -359,23 +422,25 @@ def seed():
     row = STORE.con.execute("SELECT value FROM meta WHERE key='seed'").fetchone()
     if row and row[0] == mtime and STORE.users():
         return
-    r = WORKER.call({"cmd": "snapshot", "db": STORE.db()})
-    if not r.get("ok"):
-        print(f"  couldn't seed accounts: {r.get('error')}", flush=True)
-        return
-    STORE.replace(r["db"])
-    STORE.con.execute("INSERT OR REPLACE INTO meta VALUES ('seed', ?)", (mtime,))
+    with STORE.lock, STORE.con:
+        STORE.con.execute("BEGIN IMMEDIATE")
+        r = WORKER.call({"cmd": "snapshot", "db": STORE.db()})
+        if not r.get("ok"):
+            print(f"  couldn't seed accounts: {r.get('error')}", flush=True)
+            return
+        STORE.replace(r["db"])
+        STORE.con.execute("INSERT OR REPLACE INTO meta VALUES ('seed', ?)", (mtime,))
 
 
 def apply_op(op):
     """apply one command as its actor; the db only changes if it succeeds"""
-    if STORE.con.execute("SELECT 1 FROM ops WHERE id=? AND status='ok'", (op["id"],)).fetchone():
-        return {"ok": True, "id": op["id"], "version": STORE.version(), "duplicate": True}
-    with STORE.lock:
+    with STORE.lock, STORE.con:
+        STORE.con.execute("BEGIN IMMEDIATE")
+        if STORE.con.execute("SELECT 1 FROM ops WHERE id=? AND status='ok'", (op["id"],)).fetchone():
+            return {"ok": True, "id": op["id"], "version": STORE.version(), "duplicate": True}
         r = WORKER.call({"cmd": "apply", "db": STORE.db(), "op": op})
         if r.get("ok"):
-            _, v = STORE.replace(r["db"])
-            STORE.log_op(op, "ok", None, v)
+            _, v = STORE.replace(r["db"], op)
             return {"ok": True, "id": op["id"], "version": v, "result": r.get("result") or {}}
         STORE.log_op(op, "error", r.get("error"), STORE.version())
         return {"ok": False, "id": op["id"], "error": r.get("error")}
@@ -424,8 +489,13 @@ def guard(me, upserts, deletes):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(120)
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
 
     def log_message(self, fmt, *args):  # keep the console quiet except for writes
@@ -442,13 +512,17 @@ class Handler(SimpleHTTPRequestHandler):
             age = SESSION_DAYS * 86400 if cookie else 0
             self.send_header("Set-Cookie", f"{COOKIE}={cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age={age}{secure}")
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def body(self, limit=MAX_BODY):
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0 or n > limit:
             raise ValueError("body size")
-        return self.rfile.read(n)
+        data = self.rfile.read(n)
+        if len(data) != n:
+            raise ValueError("incomplete body")
+        return data
 
     def file_id(self):
         return unquote(urlparse(self.path).path[len("/api/files/"):])
@@ -468,34 +542,74 @@ class Handler(SimpleHTTPRequestHandler):
             return STORE.session_user(auth[7:].strip(), "mcp")
         local = self.headers.get("X-Lab-Local")
         if local:
-            return LOCAL if SECRET and hmac.compare_digest(local, SECRET) else None
+            return LOCAL if SECRET and hmac.compare_digest(local.encode(), SECRET.encode()) else None
         return STORE.session_user(self.cookie(), "web")
 
     def is_admin(self, who):
         return who == LOCAL or (STORE.user(who) or {}).get("role") == "admin"
 
+    def same_origin(self):
+        origin = self.headers.get("Origin")
+        if (origin and urlparse(origin).netloc.lower() != (self.headers.get("Host") or "").lower()) or self.headers.get("Sec-Fetch-Site") == "cross-site":
+            self.send_json({"error": "forbidden"}, 403)
+            return False
+        return True
+
+    def send_head(self):
+        target = Path(self.translate_path(self.path)).resolve()
+        if not target.is_relative_to(SITE.resolve()):
+            self.send_error(403)
+            return None
+        who = None
+        if target in (SITE / "data.js", SITE / "index.html", SITE):
+            with STORE.lock:
+                who = self.who()
+        if target == SITE / "data.js":
+            if DEMO:
+                self.path = "/data.demo.js"
+            elif not who:
+                self.send_error(401)
+                return None
+        elif target in (SITE, SITE / "index.html") and not who and not DEMO:
+            self.path = "/login.html"
+        elif target.is_dir() and target != SITE:
+            self.send_error(404)
+            return None
+        return super().send_head()
+
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_GET(self):
+        if not urlparse(self.path).path.startswith("/api/"):
+            return super().do_HEAD() if self.command == "HEAD" else super().do_GET()
         with STORE.lock:
-            return self._get()
+            try:
+                return self._get()
+            except (ValueError, TypeError, OverflowError):
+                return self.send_json({"error": "invalid query"}, 400)
 
     def do_POST(self):
+        if not self.same_origin():
+            return
+        try:
+            if self.headers.get_content_type() != "application/json":
+                raise ValueError("content type")
+            req = json.loads(self.body())
+            if not isinstance(req, dict):
+                raise ValueError("body")
+        except (ValueError, UnicodeError):
+            return self.send_json({"error": "invalid body"}, 400)
         with STORE.lock:
-            return self._post()
+            return self._post(req)
 
     def _get(self):
         u = urlparse(self.path)
         q = parse_qs(u.query)
         if u.path == "/api/login-info":
             return self.send_json({"demo": DEMO})
-        who = self.who() if u.path.startswith("/api/") or u.path in ("/", "/index.html", "/data.js") else None
-        if u.path in ("/", "/index.html") and not who and not DEMO:  # the demo lab's site has its own sign-in screen
-            self.path = "/login.html"
-        elif u.path == "/data.js":
-            if DEMO:
-                self.path = "/data.demo.js"  # the fake lab is public (it's on GitHub too); the login page shows its members
-            elif not who:
-                return self.send_error(401)
-        elif u.path.startswith("/api/") and not who:
+        who = self.who()
+        if not who:
             return self.send_json({"error": "signin"}, 401)
         elif u.path == "/api/whoami":
             return self.send_json({"user": public_user(STORE.user(who))} if who != LOCAL else {"user": None, "local": True})
@@ -521,30 +635,29 @@ class Handler(SimpleHTTPRequestHandler):
         elif u.path == "/api/ops":
             if not self.is_admin(who):
                 return self.send_json({"error": "forbidden"}, 403)
-            rows = STORE.con.execute("SELECT body, status, error, version FROM ops ORDER BY rowid DESC LIMIT ?", (int((q.get("limit") or ["50"])[0]),))
+            limit = max(0, min(1000, int((q.get("limit") or ["50"])[0])))
+            rows = STORE.con.execute("SELECT body, status, error, version FROM ops ORDER BY rowid DESC LIMIT ?", (limit,))
             return self.send_json([{**json.loads(b), "status": s, "error": e, "version": v} for b, s, e, v in rows])
         elif u.path.startswith("/api/files/"):
             row = STORE.con.execute("SELECT type, data FROM files WHERE id=?", (self.file_id(),)).fetchone()
             if not row:
                 return self.send_error(404)
             self.send_response(200)
-            self.send_header("Content-Type", row[0] or "application/octet-stream")
+            mime = (row[0] or "").split(";")[0].lower()
+            if mime not in ("application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"):
+                mime = "application/octet-stream"
+                self.send_header("Content-Disposition", "attachment")
+            self.send_header("Content-Type", mime)
             self.send_header("Content-Length", str(len(row[1])))
             self.end_headers()
-            self.wfile.write(row[1])
+            if self.command != "HEAD":
+                self.wfile.write(row[1])
             return
         elif u.path.startswith("/api/"):
             return self.send_error(404)
-        super().do_GET()
 
-    def _post(self):
+    def _post(self, req):
         u = urlparse(self.path)
-        try:
-            req = json.loads(self.body())
-        except ValueError:
-            return self.send_error(400, "invalid body")
-        if not isinstance(req, dict):
-            return self.send_error(400, "invalid body")
         if u.path == "/api/login":
             return self.login(req)
         if u.path == "/api/logout":
@@ -557,6 +670,8 @@ class Handler(SimpleHTTPRequestHandler):
             me = STORE.user(who) if who != LOCAL else None
             if not me:
                 return self.send_json({"error": "signin"}, 401)
+            if any(not isinstance(req.get(k, ""), str) for k in ("old", "new")):
+                return self.send_json({"error": "invalid body"}, 400)
             if not check_pw(me, req.get("old"))[0]:
                 return self.send_json({"error": "pw.wrong"}, 403)
             if len(req.get("new") or "") < 6:
@@ -575,7 +690,10 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/api/state":
             if who == LOCAL:
                 return self.send_json({"error": "forbidden"}, 403)
-            ups, dels = guard(who, [tuple(x) for x in req.get("upserts") or []], [tuple(x) for x in req.get("deletes") or []])
+            ups, dels = req.get("upserts") or [], req.get("deletes") or []
+            if not valid_records(ups, 3) or not valid_records(dels, 2):
+                return self.send_json({"error": "invalid records"}, 400)
+            ups, dels = guard(who, ups, dels)
             prev, v = STORE.write(ups, dels)
             return self.send_json({"version": v, "prev": prev})
         if u.path == "/api/state/import":
@@ -583,6 +701,11 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"error": "forbidden"}, 403)
             if not STORE.seed_only():
                 return self.send_json({"error": "the server already has data"}, 409)
+            db = req.get("db")
+            if not isinstance(db, dict) or any(not isinstance(db.get(c, {}), dict) for c in COLLS):
+                return self.send_json({"error": "invalid db"}, 400)
+            if not valid_records([(c, i, v) for (c, i), v in records_of(db).items()], 3):
+                return self.send_json({"error": "invalid records"}, 400)
             STORE.backup()
             _, v = STORE.replace(req["db"])
             print(f"imported this browser's earlier data (version {v})", flush=True)
@@ -591,7 +714,7 @@ class Handler(SimpleHTTPRequestHandler):
                 LEGACY.rename(LEGACY.with_name("live_snapshot.migrated.json"))
             return self.send_json({"version": STORE.version(), "db": without_secrets(STORE.db())})
         if u.path == "/api/ops":
-            if not req.get("id") or not req.get("op"):
+            if any(not isinstance(req.get(k), str) or not req[k] for k in ("id", "op")) or not isinstance(req.get("actor", ""), str):
                 return self.send_json({"ok": False, "error": "op needs id and op"}, 400)
             if who != LOCAL:
                 req["actor"] = who  # a token or a browser acts as its own member, whatever the op says
@@ -602,10 +725,16 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def login(self, req):
+        if any(not isinstance(req.get(k, ""), str) for k in ("id", "name", "password")):
+            return self.send_json({"error": "invalid body"}, 400)
         ip, t = self.client_address[0], time.time()
         if ip == "127.0.0.1" and self.headers.get("X-Forwarded-For"):  # behind a reverse proxy (Caddy) on this machine
             ip = self.headers["X-Forwarded-For"].split(",")[-1].strip()
-        FAILS[ip] = [x for x in FAILS.get(ip, []) if t - x < 600]
+        for address in list(FAILS):
+            FAILS[address] = [x for x in FAILS[address] if t - x < 600]
+            if not FAILS[address]:
+                del FAILS[address]
+        FAILS.setdefault(ip, [])
         if len(FAILS[ip]) >= 10:
             return self.send_json({"error": "login.tooMany"}, 429)
         seed()
@@ -623,22 +752,35 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"error": "login.fail"}, 403)
         if upgrade:
             STORE.write([("users", u["id"], {**u, "pw": hash_pw(req["password"])})], [])
+        FAILS.pop(ip, None)
+        STORE.con.execute("DELETE FROM sessions WHERE kind='web' AND used < ?", (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t - SESSION_DAYS * 86400)),))
         return self.send_json({"user": public_user(u)}, cookie=STORE.new_session(u["id"], "web"))
 
     def do_PUT(self):
+        if not self.same_origin():
+            return
         if not self.path.startswith("/api/files/"):
             return self.send_error(404)
-        if not self.who():
-            return self.send_json({"error": "signin"}, 401)
+        with STORE.lock:
+            if not self.who():
+                return self.send_json({"error": "signin"}, 401)
         try:
             data = self.body(MAX_FILE)
         except ValueError:
             return self.send_error(413)
         with STORE.lock:
+            if not self.who():
+                return self.send_json({"error": "signin"}, 401)
             STORE.con.execute("INSERT OR REPLACE INTO files VALUES (?,?,?)", (self.file_id(), self.headers.get("Content-Type"), data))
         self.send_json({"ok": True})
 
     def do_DELETE(self):
+        if not self.same_origin():
+            return
+        with STORE.lock:
+            return self._delete()
+
+    def _delete(self):
         who = self.who()
         if self.path.startswith("/api/tokens/"):
             tid = self.path[len("/api/tokens/"):]

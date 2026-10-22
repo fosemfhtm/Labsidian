@@ -63,9 +63,10 @@
   view.id = "view-me"; view.className = "view page";
   document.querySelector("main").appendChild(view);
   let termId = null;
+  let calendarEvents = null;
 
   const days = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
-  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+  const addDays = (d, n) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 
   function render() {
     const me = S.auth.current();
@@ -198,6 +199,7 @@
 
   // calendar cells: hover → that day's entries (or the day off); click → open the entry, or write one for that day
   function calendarTips(mine, person) {
+    calendarEvents?.abort(); calendarEvents = new AbortController();
     const cal = $("#me-cal", view), tip = $(".cal-tip", cal), byDay = {};
     mine.forEach(r => (byDay[r.date] ||= []).push(r));
     let pinned = null;
@@ -225,13 +227,13 @@
       };
     });
     tip.onclick = e => { const a = e.target.closest(".cal-rv"); if (a) window.LabOpenReview?.(a.dataset.paper, a.dataset.review); };
-    document.addEventListener("click", e => { if (pinned && !tip.contains(e.target)) { pinned = null; tip.hidden = true; } });
+    document.addEventListener("click", e => { if (pinned && !tip.contains(e.target)) { pinned = null; tip.hidden = true; } }, { signal: calendarEvents.signal });
   }
 
   function calendar(term, mine, person) {
     const counts = {};
     mine.forEach(r => (counts[r.date] = (counts[r.date] || 0) + 1));
-    const start = new Date(term.start), dow = (start.getDay() + 6) % 7; // Monday = 0
+    const start = new Date(term.start), dow = (start.getUTCDay() + 6) % 7; // Monday = 0
     const first = addDays(term.start, -dow), weeks = Math.ceil((days(first, term.end) + 1) / 7);
     const color = person?.color || "rgb(var(--indigo))";
     // weekdays only (no diary is owed on weekends); the lab's days off are shaded and named in the tooltip

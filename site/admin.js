@@ -66,7 +66,7 @@
   function render(params) {
     const me = S.auth.current();
     if (!me || me.role !== "admin") { view.innerHTML = `<div class="ui-empty">${t("ad.only")}</div>`; return; }
-    tab = params.get("tab") || tab;
+    tab = ["members", "tags", "terms", "data", "log"].includes(params.get("tab")) ? params.get("tab") : tab;
     const tabs = ["members", "tags", "terms", "data", "log"];
     view.innerHTML = `<div class="page-head"><h1>${t("ad.title")}</h1></div>
       <div class="ui-seg page-tabs">${tabs.map(x => `<a href="#/admin?tab=${x}" aria-current="${x === tab ? "page" : "false"}">${t("ad.tab." + x)}</a>`).join("")}</div>
@@ -109,13 +109,13 @@
     $("#ad-mterm", el).onchange = e => { memberTerm = e.target.value; members(el); };
     el.querySelectorAll("[data-act]").forEach(b => {
       const tr = b.closest("tr"), id = tr?.dataset.id, f = k => tr.querySelector(`[data-f="${k}"]`)?.value;
-      if (b.dataset.act === "role") b.onchange = async () => { await S.users.setRole(id, b.value); LabToast(t("ad.done")); };
+      if (b.dataset.act === "role") b.onchange = async () => { const u = users.find(u => u.id === id), role = b.value; if (!await LabConfirm(t("ad.role"), { message: `${u.name}: ${u.role} → ${role}`, ok: t("ad.save") })) { b.value = u.role; return; } await S.users.setRole(id, role); u.role = role; LabToast(t("ad.done")); };
       if (b.dataset.act === "quota") b.onclick = async () => {
         await S.users.setQuota(id, { exempt: f("exempt") === "1", start: f("start") || null, end: f("end") || null, targets: { [term.id]: f("target") === "" ? null : +f("target") } });
         LabToast(t("ad.done")); members(el);
       };
-      if (b.dataset.act === "reset") b.onclick = async () => { const r = await S.users.resetPassword(id); showTemp(users.find(u => u.id === id).name, r.tempPassword); members(el); };
-      if (b.dataset.act === "toggle") b.onclick = async () => { await S.users.setDisabled(id, !users.find(u => u.id === id).disabled); members(el); };
+      if (b.dataset.act === "reset") b.onclick = async () => { if (!await LabConfirm(t("ad.reset"), { message: users.find(u => u.id === id).name, ok: t("ad.reset"), destructive: true })) return; const r = await S.users.resetPassword(id); showTemp(users.find(u => u.id === id).name, r.tempPassword); members(el); };
+      if (b.dataset.act === "toggle") b.onclick = async () => { const u = users.find(u => u.id === id); if (!u.disabled && !await LabConfirm(t("ad.disable"), { message: u.name, ok: t("ad.disable"), destructive: true })) return; await S.users.setDisabled(id, !u.disabled); members(el); };
     });
     $("#ad-add", el).onsubmit = async e => {
       e.preventDefault();
@@ -226,7 +226,7 @@
           <button class="ui-btn prominent small">${t("ad.addOff")}</button></form>
         <p class="hint ad-holidays"><b>${t("ad.autoHolidays", { y: S.today().slice(0, 4) })}</b> · ${S.calendar.holidays(S.today().slice(0, 4))
           .filter(h => !S.calendar.isWeekend(h.date)).map(h => `${+h.date.slice(5, 7)}/${+h.date.slice(8)} ${esc(h.label)}`).join(", ")}</p></div>`;
-    el.querySelectorAll('[data-act="off-del"]').forEach(b => b.onclick = async () => { await S.calendar.remove(b.closest("tr").dataset.off); terms(el); });
+    el.querySelectorAll('[data-act="off-del"]').forEach(b => b.onclick = async () => { const id = b.closest("tr").dataset.off; if (!await LabConfirm(t("ad.remove"), { message: S.calendar.list().find(o => o.id === id)?.label || "", ok: t("ad.remove"), destructive: true })) return; await S.calendar.remove(id); terms(el); });
     $("#ad-off", el).onsubmit = async e => {
       e.preventDefault(); const f = e.target;
       try { await S.calendar.save({ start: f.start.value, end: f.end.value || f.start.value, label: f.label.value, kind: f.kind.value }); terms(el); }
@@ -254,7 +254,7 @@
       const blob = new Blob([S.admin.exportJSON()], { type: "application/json" });
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `labsidian-${S.today()}.json`; a.click();
     };
-    $("#ad-imp", el).onchange = async e => { const f = e.target.files[0]; if (!f) return; await S.admin.importJSON(await f.text()); LabReload("#/admin?tab=data", t("ad.done")); };
+    $("#ad-imp", el).onchange = async e => { const f = e.target.files[0]; if (!f) return; e.target.value = ""; if (!await LabConfirm(t("ad.import"), { message: f.name, ok: t("ad.import"), destructive: true })) return; await S.admin.importJSON(await f.text()); LabReload("#/admin?tab=data", t("ad.done")); };
     $("#ad-reset", el).onclick = async () => { if (await LabConfirm(t("ad.resetConfirm"), { destructive: true })) { await S.admin.reset(); LabReload("#/home"); } };
   }
 

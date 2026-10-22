@@ -96,8 +96,10 @@ def js_findings(path):
     text = path.read_text(encoding="utf-8")
     # "// design-lint: off (reason)" … "// design-lint: on" hides a block from js-color — only for data tables that
     # must hold hex (legacy palettes, person colours); each such block is listed in docs/design/decisions.md
-    off = [(m.start(), (text.find("design-lint: on", m.end()) % (len(text) + 1)) or len(text))
-           for m in re.finditer(r"design-lint: off", text)]
+    off = []
+    for m in re.finditer(r"design-lint: off", text):
+        end = text.find("design-lint: on", m.end())
+        off.append((m.start(), end if end >= 0 else len(text)))
     out = []
 
     def add(check, pos, snippet):
@@ -160,7 +162,10 @@ def main(argv):
                 print(f"site/{f}:{ln}  {s}")
         return 0
 
-    if "--update" in argv or not BASELINE.exists():
+    if not BASELINE.exists() and "--update" not in argv:
+        print(f"Missing baseline: {BASELINE.relative_to(ROOT)}; restore it or create it explicitly with --update.")
+        return 1
+    if "--update" in argv:
         BASELINE.write_text(json.dumps(counts, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         print(f"baseline written: {BASELINE.relative_to(ROOT)}")
         for c, fs in counts.items():

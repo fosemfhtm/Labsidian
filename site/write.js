@@ -25,6 +25,7 @@
       "w.dup": "이미 연구실에서 읽은 논문이에요", "w.dupBy": "{names} 님이 읽었어요", "w.dupOpen": "다이어리 보기",
       "w.suggest": "추천 태그", "w.suggestHint": "비슷한 논문들의 태그 + 키워드 규칙 (클릭해서 추가)", "w.similar": "비슷한 논문", "w.forbidden": "내 다이어리만 편집할 수 있어요",
       "w.signin": "로그인이 필요해요", "w.forStudy": "📚 \"{title}\" 스터디에서 같이 읽는 논문의 다이어리예요. 평소 다이어리와 똑같이 쌓여요.", "w.forPick": "📚 \"{title}\" 스터디에 가져온 논문의 다이어리예요. 평소 다이어리와 똑같이 쌓여요.", "w.fromMcp": "내 AI(MCP)가 만든 초안이에요. 논문을 직접 읽고 내용을 확인·수정한 뒤 게시해주세요.",
+      "w.leave": "저장하지 않은 변경 사항을 버릴까요?", "w.leaveMsg": "이 화면을 나가면 입력한 변경 사항이 사라져요.", "w.leaveOk": "버리기",
     },
     en: {
       "w.new": "Write diary", "w.edit": "Edit review", "w.sub": "{term} · review #{n} this term",
@@ -42,6 +43,7 @@
       "w.dup": "Someone in the lab already read this paper", "w.dupBy": "Read by {names}", "w.dupOpen": "See reviews",
       "w.suggest": "Suggested tags", "w.suggestHint": "From similar papers' tags + keyword rules (click to add)", "w.similar": "Similar papers", "w.forbidden": "You can only edit your own reviews",
       "w.signin": "Please sign in", "w.forStudy": "📚 Diary entry on the paper read together in the \"{title}\" study — it's a regular entry.", "w.forPick": "📚 Diary entry on the paper you bring to the \"{title}\" study — it's a regular entry.", "w.fromMcp": "Drafted by your AI (MCP). Read the paper, check and edit before publishing.",
+      "w.leave": "Discard unsaved changes?", "w.leaveMsg": "Leaving this page will lose your changes.", "w.leaveOk": "Discard",
     },
   });
 
@@ -51,10 +53,42 @@
 
   let files = [], addedNow = new Set(), study = null, pick = null, fromDraft = false, prePaper = null;
   let form = null, tags = [], rating = 0, editing = null, saveTimer = null, suggestTimer = null, fromReading = null;
+  let dirty = false, uploading = 0, publishing = false, leaving = false;
+  let growObservers = [];
+  const autoDraft = () => !editing && !study && !fromReading && (!prePaper || fromDraft);
+  function saveDraft() {
+    clearTimeout(saveTimer); saveTimer = null;
+    const at = S.drafts.save(collect());
+    if (at) $("#w-saved", view).textContent = t("w.saved", { time: new Date(at).toLocaleTimeString(lang === "ko" ? "ko-KR" : "en-US", { hour: "2-digit", minute: "2-digit" }) });
+  }
+  function leave() {
+    if (uploading || publishing) return false;
+    if (dirty && !autoDraft()) {
+      if (!leaving) {
+        const next = location.hash; leaving = true;
+        LabConfirm(t("w.leave"), { message: t("w.leaveMsg"), ok: t("w.leaveOk"), destructive: true }).then(ok => {
+          leaving = false;
+          if (ok) { dirty = false; location.hash = next; }
+        });
+      }
+      return false;
+    }
+    if (saveTimer) saveDraft();
+    clearTimeout(suggestTimer);
+    growObservers.forEach(o => o.disconnect()); growObservers = [];
+    dirty = false;
+  }
+  window.addEventListener("beforeunload", e => {
+    if (saveTimer) saveDraft();
+    if (uploading || publishing || dirty) { e.preventDefault(); e.returnValue = ""; }
+  });
 
   const field = (id, label, input) => `<label class="fld" for="${id}"><span>${label}</span>${input}</label>`;
 
   function render(params) {
+    clearTimeout(saveTimer); saveTimer = null; clearTimeout(suggestTimer);
+    growObservers.forEach(o => o.disconnect()); growObservers = [];
+    dirty = false;
     const me = S.auth.current();
     if (!me) { view.innerHTML = `<div class="ui-empty">${t("w.signin")}</div>`; return; }
     editing = params.get("review") ? UI.R[params.get("review")] : null;
@@ -168,7 +202,7 @@
 
   function paintStars() { UI.paintRatingInput($("#w-stars", view), rating); }
   const topicLabel = id => { const x = UI.T[id]; return x ? UI.tl(x) : id.slice(2); };
-  const topicColor = id => UI.T[id]?.color || "rgb(var(--gray2))";
+  const topicColor = id => UI.safeColor(UI.T[id]?.color);
   function paintTags() {
     $("#w-tags", view).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${esc(id)}"><span class="dot" style="background:${topicColor(id)}"></span>${esc(topicLabel(id))} ✕</button>`).join("");
   }
@@ -194,6 +228,8 @@
     } catch (e) { return file; }
   }
   async function addFiles(list) {
+    if (publishing) return;
+    uploading++;
     const err = $("#w-err", view); err.textContent = "";
     for (let f of list) {
       if (files.length >= MAX_FILES) { err.textContent = t("w.fileMax", { n: MAX_FILES }); break; }
@@ -207,6 +243,7 @@
         files.push(meta); addedNow.add(meta.id);
       } catch (e) { err.textContent = e.message === "file.size" ? t("w.fileSize", { name: f.name }) : t("w.fileType"); }
     }
+    uploading--;
     $("#w-saved", view).textContent = "";
     paintFiles(); changed();
   }
@@ -241,13 +278,11 @@
   }
 
   function changed() {
+    dirty = true;
     clearTimeout(suggestTimer); suggestTimer = setTimeout(refreshSide, 350);
-    if (editing || study || fromReading || (prePaper && !fromDraft)) return;
+    if (!autoDraft()) return;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      const at = S.drafts.save(collect());
-      if (at) $("#w-saved", view).textContent = t("w.saved", { time: new Date(at).toLocaleTimeString(lang === "ko" ? "ko-KR" : "en-US", { hour: "2-digit", minute: "2-digit" }) });
-    }, 700);
+    saveTimer = setTimeout(saveDraft, 700);
   }
 
   function wire() {
@@ -272,13 +307,14 @@
     view.querySelectorAll("textarea.grow").forEach(el => {
       const grow = () => { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; };
       let w = 0;
-      new ResizeObserver(() => { if (el.clientWidth && el.clientWidth !== w) { w = el.clientWidth; grow(); } }).observe(el);
+      const observer = new ResizeObserver(() => { if (el.clientWidth && el.clientWidth !== w) { w = el.clientWidth; grow(); } });
+      observer.observe(el); growObservers.push(observer);
       el.addEventListener("input", grow);
     });
     UI.wireRatingInput($("#w-stars", view), n => { rating = n; changed(); });
     $("#w-tags", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
     $("#w-suggest", view).onclick = e => { const c = e.target.closest("[data-add]"); if (c) addTag(c.dataset.add); };
-    $("#w-discard", view)?.addEventListener("click", () => { files.forEach(f => S.files.remove(f.id).catch(() => {})); S.drafts.clear(); render(new URLSearchParams()); });
+    $("#w-discard", view)?.addEventListener("click", () => { if (uploading || publishing) return; clearTimeout(saveTimer); saveTimer = null; S.drafts.clear(); render(new URLSearchParams()); });
 
     // tag autocomplete
     const q = $("#w-tag-q", view), pop = $("#w-tag-pop", view);
@@ -287,7 +323,7 @@
       if (!s) { pop.hidden = true; return; }
       const hits = Object.values(UI.T).filter(x => (x.label + " " + x.labelEn).toLowerCase().includes(s) && !tags.includes(x.id)).slice(0, 8);
       pop.hidden = false;
-      pop.innerHTML = hits.map(x => `<div data-id="${esc(x.id)}"><span class="dot" style="background:${x.color}"></span>${esc(UI.tl(x))} <span class="muted">${x.axis}</span></div>`).join("") +
+      pop.innerHTML = hits.map(x => `<div data-id="${esc(x.id)}"><span class="dot" style="background:${UI.safeColor(x.color)}"></span>${esc(UI.tl(x))} <span class="muted">${x.axis}</span></div>`).join("") +
         `<div data-new="1">＋ “${esc(q.value.trim())}” <span class="muted">${lang === "ko" ? "키워드 태그로 추가" : "add as keyword tag"}</span></div>`;
     };
     pop.onclick = e => {
@@ -303,10 +339,12 @@
 
     // metadata lookup
     $("#w-fetch", view)?.addEventListener("click", async () => {
+      const sourceForm = form;
       const st = $("#w-fetch-status", view), input = val("w-lookup") || val("w-title");
       if (!input) return;
       st.textContent = t("w.fetching");
       const m = await S.lookup(input);
+      if (form !== sourceForm) return;
       if (!m || !m.title) { st.textContent = t("w.notFound"); if (/^https?:/.test(input)) $("#w-link", view).value = input; return; }
       const set = (id, v) => { if (v) $("#" + id, view).value = v; };
       if (!$("#w-title", view).readOnly) set("w-title", m.title);
@@ -321,34 +359,39 @@
     // submit / delete
     form.onsubmit = async e => {
       e.preventDefault();
+      if (uploading || publishing) return;
       const d = collect(), err = $("#w-err", view);
       if (!d.title) return (err.textContent = t("w.need.title"));
       if (!d.rating) return (err.textContent = t("w.need.rating"));
       if (!d.content.trim() && !d.memo.trim()) return (err.textContent = t("w.need.body"));
       const btn = form.querySelector("button.ui-btn.prominent"); if (btn.disabled) return;
-      btn.disabled = true; clearTimeout(saveTimer);
+      publishing = true; btn.disabled = true; clearTimeout(saveTimer); saveTimer = null;
       try {
         const paper = editing ? UI.PA[editing.paper] : study && prePaper ? prePaper :
           window.LAB.allPapers.find(p => p.key === S.normTitle(d.title));
         const metadata = paper ? Object.fromEntries(["venue", "year", "preprintVenue", "preprintYear", "link", "authors"]
           .filter(f => String(d[f] || "") !== String((f === "venue" ? paper.venueNorm || paper.venue : paper[f]) || ""))
           .map(f => [f, d[f]])) : {};
+        if (paper && Object.keys(metadata).length) await S.papers.update(paper.id, metadata);
         if (editing) await S.reviews.update(editing.id, d);
         else await S.reviews.create(d);
-        if (paper && Object.keys(metadata).length) await S.papers.update(paper.id, metadata);
+        dirty = false; publishing = false;
         LabReload(editing ? "#/me" : study ? "#/study/" + study.id : "#/me", t(editing ? "w.updated" : "w.done"));
       } catch (error) {
         console.warn("diary save failed", error);
         err.textContent = t("pm.failed");
         btn.disabled = false;
+      } finally {
+        publishing = false;
       }
     };
     $("#w-del", view)?.addEventListener("click", async () => {
       if (!(await LabConfirm(t("w.confirmDelete"), { ok: t("w.delete"), destructive: true }))) return;
       await S.reviews.remove(editing.id);
+      dirty = false;
       LabReload("#/me", t("w.deleted"));
     });
   }
 
-  (window.LabPages ||= {}).write = { render };
+  (window.LabPages ||= {}).write = { render, leave };
 })();

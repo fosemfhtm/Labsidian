@@ -47,7 +47,8 @@
 
   // ---- map areas (≤ 8): clockwise from the top in the order they sit around the map's centre, so neighbouring
   // petals are neighbouring areas; named after their biggest region unless an admin named them
-  let areaCache = null;
+  let areaCache = null, methodCache = null;
+  window.addEventListener("lab:data", () => { areaCache = methodCache = null; });
   function areas() {
     if (areaCache?.d === D()) return areaCache.list;
     const papers = D().papers.filter(p => p.a), size = {}, sx = {}, sy = {};
@@ -68,12 +69,13 @@
   }
   // ---- methods: the lab's 7 most used, then "other"
   function methodAxes() {
+    if (methodCache) return methodCache;
     const n = {};
     D().papers.forEach(p => p.methods.forEach(m => (n[m] = (n[m] || 0) + 1)));
     const top = Object.entries(n).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([m, c]) => {
       const x = UI.T["m:" + m]; return { id: "m:" + m, name: x ? UI.tl(x) : m, full: x ? UI.tl(x) : m, color: x?.color || OTHER, n: c };
     });
-    return [...top, { id: "other", name: t("pf.other"), full: t("pf.other"), color: OTHER, n: 0, other: true }];
+    return (methodCache = [...top, { id: "other", name: t("pf.other"), full: t("pf.other"), color: OTHER, n: 0, other: true }]);
   }
   const axesOf = kind => (kind === "method" ? methodAxes() : areas());
   // shares of a set of papers over the axes (methods: a paper with two methods counts half to each)

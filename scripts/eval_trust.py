@@ -5,15 +5,15 @@ import json, re, sys
 from pathlib import Path
 import numpy as np
 
-ROOT = Path(r"C:/dev/기타/Labsidian")
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+from build_site import norm_title
 D = json.loads(re.sub(r"^[^=]*=\s*", "", (ROOT / "site/data.js").read_text(encoding="utf-8")).rstrip().rstrip(";"))
 E = np.load(ROOT / "data/emb_specter2.npy"); keys = json.loads((ROOT / "data/emb_keys.json").read_text(encoding="utf-8"))
-norm = lambda t: re.sub(r"[^0-9a-z가-힣]+", "", (t or "").lower().replace("ﬁ", "fi").replace("ﬂ", "fl"))
 kidx = {k: i for i, k in enumerate(keys)}
-papers = [p for p in D["papers"] if norm(p["title"]) in kidx and p.get("x") is not None]
+papers = [p for p in D["papers"] if norm_title(p["title"]) in kidx and p.get("x") is not None]
 pid = {p["id"]: i for i, p in enumerate(papers)}
-X = E[[kidx[norm(p["title"])] for p in papers]]; X = X / np.linalg.norm(X, axis=1, keepdims=True)
+X = E[[kidx[norm_title(p["title"])] for p in papers]]; X = X / np.linalg.norm(X, axis=1, keepdims=True)
 S = X @ X.T; np.fill_diagonal(S, -np.inf)
 XY = np.array([[p["x"], p["y"]] for p in papers]); n = len(papers)
 D2 = np.linalg.norm(XY[:, None] - XY[None], axis=2); np.fill_diagonal(D2, np.inf)

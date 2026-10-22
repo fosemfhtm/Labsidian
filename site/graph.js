@@ -40,7 +40,7 @@ const state = {
   timeIdx: reviewDates.length - 1, selected: null, depth: 1, hovered: null, find: null,
 };
 let focusSet = null, hoverSet = null, matchCache = new Map();
-let graph, renderer, sim, simById = {}, started = false;
+let graph, renderer, sim, simById = {}, started = false, visible = false, timeTimer = null, centroids = null;
 
 // ---------------- colours ----------------
 // sigma's WebGL blending makes low-alpha colours look nearly opaque → pre-blend over the background
@@ -171,7 +171,7 @@ function buildSim() {
     .alphaDecay(0.035)
     .on("tick", () => graph.updateEachNodeAttributes((n, a) => {
       const s = simById[n];
-      a.x = s.x; a.y = s.y;
+      a.x = s.x; a.y = s.y; centroids = null;
       return a;
     }, { attributes: ["x", "y"] }));
 }
@@ -273,15 +273,16 @@ function computeRegions() {
   }).filter(Boolean);
 }
 function clusterCentroids() {
+  if (centroids) return centroids;
   const acc = {};
   papers.forEach(p => {
     const a = graph.getNodeAttributes(p.id);
     [p.c, p.f].forEach(cid => { const o = (acc[cid] ||= [0, 0, 0]); o[0] += a.x; o[1] += a.y; o[2]++; });
   });
-  return Object.fromEntries(Object.entries(acc).map(([k, [x, y, n]]) => [k, { x: x / n, y: y / n }]));
+  return (centroids = Object.fromEntries(Object.entries(acc).map(([k, [x, y, n]]) => [k, { x: x / n, y: y / n }])));
 }
 function drawOverlay() {
-  if (!renderer) return;
+  if (!renderer || !visible) return;
   const el = $("#graph"), dpr = window.devicePixelRatio || 1, w = el.clientWidth, h = el.clientHeight;
   if (regionCanvas.width !== w * dpr || regionCanvas.height !== h * dpr) {
     regionCanvas.width = w * dpr; regionCanvas.height = h * dpr;
@@ -533,7 +534,7 @@ function initUI() {
     el.checked = s.layers[k];
     el.onchange = () => {
       s.layers[k] = el.checked;
-      if (k === "timeline") { $(".timeline").hidden = !el.checked; if (!el.checked) { s.timeIdx = reviewDates.length - 1; $("#t-range").value = s.timeIdx; } }
+      if (k === "timeline") { $(".timeline").hidden = !el.checked; if (!el.checked) { stopTimeline(); s.timeIdx = reviewDates.length - 1; $("#t-range").value = s.timeIdx; $("#t-label").textContent = reviewDates[s.timeIdx] || ""; } }
       changed();
     };
   });
@@ -582,16 +583,19 @@ function initUI() {
   const setT = i => { s.timeIdx = i; tr.value = i; tlab.textContent = reviewDates[i]; changed(); };
   tlab.textContent = reviewDates[s.timeIdx];
   tr.oninput = () => setT(+tr.value);
-  let timer = null;
   play.onclick = () => {
-    if (timer) { clearInterval(timer); timer = null; play.textContent = "▶"; return; }
+    if (timeTimer) { stopTimeline(); return; }
     if (s.timeIdx >= reviewDates.length - 1) setT(0);
     play.textContent = "❚❚";
-    timer = setInterval(() => {
-      if (s.timeIdx >= reviewDates.length - 1) { clearInterval(timer); timer = null; play.textContent = "▶"; return; }
+    timeTimer = setInterval(() => {
+      if (s.timeIdx >= reviewDates.length - 1) { stopTimeline(); return; }
       setT(s.timeIdx + 1);
     }, 140);
   };
+}
+function stopTimeline() {
+  clearInterval(timeTimer); timeTimer = null;
+  $("#t-play").textContent = "▶";
 }
 
 // ---------------- drag ----------------
@@ -664,7 +668,7 @@ function start() {
     defaultDrawNodeLabel: drawLabel, defaultDrawNodeHover: drawHover,
     labelRenderedSizeThreshold: 8, labelDensity: 0.35, labelGridCellSize: 160,
     minCameraRatio: 0.03, maxCameraRatio: 3, stagePadding: 30,
-    allowInvalidContainer: true, // the graph keeps simulating while another page is shown
+    allowInvalidContainer: true, // routes can hide the container before Sigma's next frame
   });
   const xs = papers.map(p => p.x), ys = papers.map(p => p.y), m = 1.25;
   renderer.setCustomBBox({ x: [Math.min(...xs) * m, Math.max(...xs) * m], y: [Math.min(...ys) * m, Math.max(...ys) * m] });
@@ -691,6 +695,7 @@ function start() {
   const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()));
   for (let i = 0; i < ticks; i++) sim.tick();
   graph.updateEachNodeAttributes((n, a) => { const s = simById[n]; a.x = s.x; a.y = s.y; return a; }, { attributes: ["x", "y"] });
+  centroids = null;
   sim.on("end", () => { computeRegions(); renderer.refresh(); });   // later restarts (drag, physics, time-lapse) still animate
   computeRegions();
   updateToolbar();
@@ -704,6 +709,7 @@ const demo = {
   scatter(radius = 520) {
     Object.values(simById).forEach(s => { const a = Math.random() * 2 * Math.PI, r = radius * Math.sqrt(Math.random()); s.x = Math.cos(a) * r; s.y = Math.sin(a) * r; });
     graph.updateEachNodeAttributes((n, a) => { const s = simById[n]; a.x = s.x; a.y = s.y; return a; }, { attributes: ["x", "y"] });
+    centroids = null;
     sim.alpha(1).restart();
   },
   fit: (ms = 900) => fitNodes(ms),
@@ -721,8 +727,8 @@ const demo = {
 
 window.LabGraph = {
   demo,
-  show() { setTimeout(() => { start(); renderer?.resize(); renderer?.refresh(); }, 0); },
-  hide() { sim?.stop(); },   // nothing keeps simulating on other pages
+  show() { visible = true; setTimeout(() => { if (!visible) return; start(); renderer?.resize(); renderer?.refresh(); }, 0); },
+  hide() { visible = false; stopTimeline(); sim?.stop(); },
   select(id, opts) { start(); if (renderer) select(id, opts); },
 };
 if (UI.currentView() === "graph") window.LabGraph.show();

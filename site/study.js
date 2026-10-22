@@ -508,7 +508,7 @@
   // a question / notes draft from someone's AI (MCP) just arrived → show it without a reload
   let last = null;
   window.addEventListener("lab:mcp", () => {
-    if (UI.currentView() !== "study" || !last) return;
+    if (UI.currentView() !== "study" || !last || last[1] === "new") return;
     const typing = editNotes || editPick || [...view.querySelectorAll("textarea, input:not([type=hidden]):not([type=checkbox]):not([type=file])")].some(el => el.value.trim() && !el.readOnly && el.id !== "st-title");
     if (!typing) render(...last);
   });

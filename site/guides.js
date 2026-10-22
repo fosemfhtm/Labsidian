@@ -74,11 +74,11 @@
   // ---------------- list + create
   function tagPicker(selected) {
     const D = window.LAB, opt = axis => D.topics.filter(x => x.axis === axis).map(x => `<option value="${x.id}">${esc(UI.tl(x))}</option>`).join("");
-    return `<div class="gd-tagpick"><div class="chips" id="gd-tags">${selected.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${id}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</button>`).join("")}</div>
+    return `<div class="gd-tagpick"><div class="chips" id="gd-tags">${selected.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${esc(id)}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</button>`).join("")}</div>
       <select id="gd-tag-add"><option value="">＋ ${t("gd.tags")}</option><optgroup label="${t("tp.fields")}">${opt("domain")}</optgroup><optgroup label="${t("tp.methods")}">${opt("method")}</optgroup></select></div>`;
   }
   function wireTagPicker(root, tags) {
-    const paint = () => { $("#gd-tags", root).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${id}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</button>`).join(""); };
+    const paint = () => { $("#gd-tags", root).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${esc(id)}">${esc(UI.T[id] ? UI.tl(UI.T[id]) : id)} ✕</button>`).join(""); };
     $("#gd-tag-add", root).onchange = e => { const v = e.target.value; if (v && !tags.includes(v)) tags.push(v); e.target.value = ""; paint(); };
     $("#gd-tags", root).onclick = e => { const c = e.target.closest("[data-id]"); if (c) { tags.splice(tags.indexOf(c.dataset.id), 1); paint(); } };
   }
@@ -128,7 +128,7 @@
   function itemRow(g, it, canManage, me) {
     const p = S.guides.paperOf(it), title = S.guides.titleOf(it), done = me && S.guides.wroteBy(it, me.id);
     const meta = p ? [p.authors?.split(",").slice(0, 3).join(","), S.paperCitation(p)].filter(Boolean).join(" · ") : [it.meta?.authors, S.paperCitation(it.meta || {})].filter(Boolean).join(" · ");
-    const link = p?.link || it.meta?.link || "", studies = S.guides.studiesFor(it), voted = me && (it.votes || []).includes(me.id);
+    const rawLink = p?.link || it.meta?.link || "", link = /^https?:\/\//i.test(rawLink) ? rawLink : "", studies = S.guides.studiesFor(it), voted = me && (it.votes || []).includes(me.id);
     const inReading = me && (p ? S.reading.has(p.id) : S.reading.list().some(x => S.normTitle(x.title) === it.key));
     const sameSec = g.items.filter(x => x.section === it.section).length;
     const group = S.guides.isGroup(g), stt = group ? S.guides.itemState(g, it) : null;

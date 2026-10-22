@@ -17,6 +17,7 @@ Pipeline
      and coarse clusters sharing a tag get a keyword that tells them apart ("distinct")
   6. top-k cosine neighbors per paper (for "similar papers" and local-graph edges)
 """
+import hashlib
 import json
 import os
 import re
@@ -116,34 +117,45 @@ def ctfidf(docs_by_cluster, topn=3):
 
 
 def main():
+    papers = load_papers()
+    fingerprint = hashlib.sha256(json.dumps([(p["title"], p["abstract"]) for p in papers],
+                                            ensure_ascii=False).encode("utf-8")).hexdigest()
+    if not papers:
+        (DATA / "map.json").write_text(json.dumps({"model": MODEL, "inputs": fingerprint, "papers": {}, "clusters": []}),
+                                      encoding="utf-8")
+        return
     from sklearn.cluster import AgglomerativeClustering
     import umap
-
-    papers = load_papers()
     print(f"{len(papers)} papers, {sum(1 for p in papers if p['abstract'])} with abstracts", file=sys.stderr)
 
     emb_p, keys_p = DATA / "emb_specter2.npy", DATA / "emb_keys.json"
     keys = [p["key"] for p in papers]
-    if "--reuse" in sys.argv and emb_p.exists() and keys_p.exists() and json.loads(keys_p.read_text()) == keys:
+    map_p = DATA / "map.json"
+    old_map = json.loads(map_p.read_text(encoding="utf-8")) if "--reuse" in sys.argv and map_p.exists() else {}
+    if ("--reuse" in sys.argv and emb_p.exists() and keys_p.exists()
+            and json.loads(keys_p.read_text(encoding="utf-8")) == keys and old_map.get("inputs") == fingerprint):
         emb = np.load(emb_p)
     else:
         emb = embed_specter2(papers)
         np.save(emb_p, emb)
-        keys_p.write_text(json.dumps(keys))
+        keys_p.write_text(json.dumps(keys), encoding="utf-8")
     emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
 
     # more papers → look at more neighbours, so the big topic structure survives (18 up to ~900 papers)
-    u2 = umap.UMAP(n_components=2, n_neighbors=max(18, round(0.6 * np.sqrt(len(papers)))), min_dist=0.12, spread=1.2,
-                   metric="cosine", random_state=SEED).fit_transform(emb)
-    # ~±250 canvas for up to ~900 papers, then the area grows with the count: same spacing between papers, so the
-    # graph's collision force (node radii are in these units) doesn't shove a crowded map out of shape
-    u2 = (u2 - u2.mean(0)) / u2.std(0) * 100 * np.sqrt(max(1, len(papers) / 900))
+    if len(papers) < 4:
+        u2 = np.column_stack((np.arange(len(papers), dtype=float), np.zeros(len(papers))))
+    else:
+        u2 = umap.UMAP(n_components=2, n_neighbors=min(len(papers) - 1, max(18, round(0.6 * np.sqrt(len(papers))))),
+                       min_dist=0.12, spread=1.2, metric="cosine", random_state=SEED).fit_transform(emb)
+    # Same density as the corpus grows; keep flat axes finite for tiny datasets.
+    spread = u2.std(0)
+    u2 = (u2 - u2.mean(0)) / np.where(spread > 0, spread, 1) * 100 * np.sqrt(max(1, len(papers) / 900))
 
-    n_fine = max(8, int(round(np.sqrt(len(papers)) * 1.3)))
-    fine = AgglomerativeClustering(n_clusters=n_fine, linkage="ward").fit_predict(u2)
+    n_fine = min(len(papers), max(8, int(round(np.sqrt(len(papers)) * 1.3))))
+    fine = AgglomerativeClustering(n_clusters=n_fine, linkage="ward").fit_predict(u2) if len(papers) > 1 else np.zeros(1, dtype=int)
     cent = np.stack([u2[fine == c].mean(0) for c in range(n_fine)])
-    n_coarse = max(4, min(14, int(round(n_fine / 3.2))))  # more regions than ~14 stop being readable
-    coarse_of_fine = AgglomerativeClustering(n_clusters=n_coarse, linkage="ward").fit_predict(cent)
+    n_coarse = min(n_fine, max(4, min(14, int(round(n_fine / 3.2)))))  # more regions than ~14 stop being readable
+    coarse_of_fine = AgglomerativeClustering(n_clusters=n_coarse, linkage="ward").fit_predict(cent) if n_fine > 1 else np.zeros(1, dtype=int)
     coarse = coarse_of_fine[fine]
     # areas: the coarse regions merged once more (≤ 8, neighbours on the map) — one fixed set of axes for the whole lab,
     # so people can be compared (the radar on the person page). Named on the site after their biggest region.
@@ -156,7 +168,7 @@ def main():
     dom, met = compile_tax(DOMAINS), compile_tax(METHODS)
     ptags = []
     for p in papers:
-        body = " ".join(r["content"] + " " + r["memo"] for r in p["reviews"])
+        body = " ".join((r.get("content") or "") + " " + (r.get("memo") or "") for r in p["reviews"])
         ds = score(dom, p["title"], body)
         # a region's provisional name comes from its most common field; general AI papers have none → their top method
         ms = score(met, p["title"], body) if not ds else {}
@@ -208,11 +220,11 @@ def main():
 
     # neighbors
     sims = emb @ emb.T
-    np.fill_diagonal(sims, -1)
-    k = 6
+    np.fill_diagonal(sims, -np.inf)
+    k = min(6, len(papers) - 1)
     nb = np.argsort(-sims, axis=1)[:, :k]
 
-    out = {"model": MODEL, "papers": {}, "clusters": clusters}
+    out = {"model": MODEL, "inputs": fingerprint, "papers": {}, "clusters": clusters}
     for i, p in enumerate(papers):
         out["papers"][p["key"]] = {
             "x": round(float(u2[i, 0]), 2), "y": round(float(u2[i, 1]), 2),

@@ -19,7 +19,7 @@ a { color: inherit; }
 .kv a, .rv-body a, a.link { color: var(--link-text); }
 
 /* ---------- glass helpers (applied to existing classes) ---------- */
-.top, .tb-search input, .tb-count, .legend, .focus-bar, .g-people, .graph-ctl, .timeline {
+.top, .tb-search input, .tb-count, .legend, .focus-bar, .g-people, .timeline {
   background: var(--glass-sheen), var(--glass-tint);
   -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
   box-shadow: var(--glass-rim), var(--glass-shadow); border: 0;
@@ -37,10 +37,6 @@ nav { gap: 2px; padding: 3px; border-radius: var(--r-full); background: var(--fi
 nav a { padding: 6px 13px; border-radius: var(--r-full); font-size: var(--fs-body); font-weight: 500; color: var(--label-2); transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
 nav a:hover { background: var(--fill-3); color: var(--label); }
 nav a.on { background: var(--seg-on); color: var(--label); font-weight: 600; box-shadow: var(--shadow-seg); }
-#search { border: 0; border-radius: var(--r-full); background: var(--fill-3) no-repeat 12px 50% / 15px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
-  padding: 8px 14px 8px 34px; font-size: var(--fs-body); color: var(--label); }
-#search::placeholder { color: var(--label-3); }
-#search:focus { box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / .4); border: 0; }
 .top-right { gap: 6px; }
 .term-btn, .top .top-icon.bell, .user-btn { background: var(--fill-4); border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: var(--r-full); color: var(--label); min-height: 34px; }
 .term-btn { padding: 0 12px; font-size: var(--fs-body); }
@@ -61,7 +57,7 @@ main { padding-top: var(--top-h); }
 .g-filter .n { background: var(--on-color); color: var(--accent); }
 .tb-search input { padding: 8px 14px; min-height: 34px; }
 .tb-count { border-radius: var(--r-full); padding: 6px 12px; font-size: var(--fs-callout); color: var(--label-2); }
-.g-people, .legend, .graph-ctl, .timeline { border-radius: var(--r-sheet); }
+.g-people, .legend, .timeline { border-radius: var(--r-sheet); }
 .focus-bar { border-radius: var(--r-full); }
 .pl.on { background: rgb(var(--accent-rgb) / .16); color: var(--label); }
 .lg-note i.ring { box-shadow: 0 0 0 2px var(--label) inset; }
@@ -77,9 +73,9 @@ main { padding-top: var(--top-h); }
 body:has(#drawer.open) .legend { right: 548px; }
 
 /* ---------- content layer: cards, rows, reviews ---------- */
-.paper-row, .person-card, .feed-item.act, .stat { border: 0; border-radius: var(--r-card); }
-.paper-row, .person-card, .feed-item.act { background: var(--panel); box-shadow: var(--shadow-1); }
-.paper-row:hover, .person-card:hover, .feed-item.act:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); border: 0; transform: none; }
+.paper-row, .feed-item.act, .stat { border: 0; border-radius: var(--r-card); }
+.paper-row, .feed-item.act { background: var(--panel); box-shadow: var(--shadow-1); }
+.paper-row:hover, .feed-item.act:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); border: 0; transform: none; }
 .drawer .ui-card, .modal .ui-card { background: var(--fill-4); box-shadow: none; }
 .review { border-left: 0; background: var(--panel); border-radius: var(--r-card); padding: 14px 16px; box-shadow: var(--shadow-1); }
 .ui-card .review, .drawer .review, .shared-item .review, .pk-diary .review, .modal .review { background: none; box-shadow: none; border-radius: 0; border-top: .5px solid var(--separator); padding-inline: 0; }
@@ -102,7 +98,6 @@ body:has(#drawer.open) .legend { right: 548px; }
 .cal-grid i.today { outline-color: var(--label); }
 
 /* ---------- buttons (roles: normal / primary / destructive) ---------- */
-  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
 .ui-btn.text.back { display: inline-flex; align-items: center; min-height: 28px; }
 .err { color: var(--danger); }
 
@@ -133,7 +128,6 @@ body:has(#drawer.open) .legend { right: 548px; }
 .pk-n { background: var(--accent); }
 .st-q .vote { background: var(--panel); border: 0; box-shadow: inset 0 0 0 1px var(--separator); }
 .st-q .vote.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
-.st-card:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); }
 
 /* ---------- icons (Lucide) inside existing controls ---------- */
 .ic { width: 1.15em; height: 1.15em; stroke-width: 2; flex: none; vertical-align: -.18em; }

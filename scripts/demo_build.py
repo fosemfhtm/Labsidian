@@ -33,9 +33,10 @@ def profiles(entries):
     for e in entries:
         body = (e["content"] or "") + " " + (e["memo"] or "")
         v = out.setdefault(e["author"], Counter())
-        for t in pick(score(dom, e["title"], body), 3, 3) if score(dom, e["title"], body) else []:
+        ds, ms = score(dom, e["title"], body), score(met, e["title"], body)
+        for t in pick(ds, 3, 3) if ds else []:
             v[f"d:{t}"] += 1
-        for t in pick(score(met, e["title"], body), 2, 3) if score(met, e["title"], body) else []:
+        for t in pick(ms, 2, 3) if ms else []:
             v[f"m:{t}"] += 1
     return out
 
@@ -73,6 +74,8 @@ def main():
             entries.append({f: e.get(f) for f in FIELDS} | {"dateNote": None, "term": "2026H1",
                                                               "memo": e.get("memo") or "", "link": e.get("link") or "",
                                                               "venue": e.get("venue") or "", "authors": e.get("authors") or ""})
+    if problems:
+        raise SystemExit("\n".join(problems))
     # A 2026 paper can't be read before it came out; for reused ones the lab's real first read is the proxy.
     # Reshuffle each member's own dates so those constraints hold, keeping everyone else near their slot.
     first_read = {}
@@ -96,14 +99,14 @@ def main():
     entries.sort(key=lambda e: (e["date"], e["author"]))
 
     # ---- leak check ----
-    names = [p["name"] for p in real_roster]
+    names = {n for p in real_roster for n in [p["name"], *p.get("aliases", [])] if n}
     real_grams = set()
     for r in real:
         real_grams |= grams(r["content"]) | grams(r["memo"])
     real_titles = {norm_title(r["title"]) for r in real}
     leaks = []
     for e in entries:
-        text = " ".join(str(e[f] or "") for f in ("content", "memo", "author"))
+        text = " ".join(str(e[f] or "") for f in FIELDS)
         for n in names:
             if n in text:
                 leaks.append(f"{e['author']} {e['date']}: real name {n}")
@@ -143,14 +146,14 @@ def main():
     real_prof, demo_prof = profiles(real), profiles(entries)
     print("closest real member (topic cosine):")
     for name, v in demo_prof.items():
-        sim = max(cosine(v, r) for r in real_prof.values())
+        sim = max((cosine(v, r) for r in real_prof.values()), default=0)
         print(f"  {name:<14} {sim:.2f}{'  ← too close' if sim >= MIRROR else ''}")
         if sim >= MIRROR:
             leaks.append(f"{name}: topic profile mirrors a real member ({sim:.2f})")
-    for p in problems:
-        print("  ! " + p)
     for l in leaks:
         print("  LEAK " + l)
+    if leaks:
+        raise SystemExit(1)
 
     DEMO.joinpath("diary.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
     DEMO.joinpath("roster.json").write_text(json.dumps([{"id": p["id"], "name": p["name"]} for p in personas],
@@ -165,7 +168,7 @@ def main():
     demo_c["detail"].update({v: c["detail"][v] for v in match.values() if v and v in c["detail"]})
     cache_p.write_text(json.dumps(demo_c, ensure_ascii=False), encoding="utf-8")
     print(f"wrote data/demo/diary.json, roster.json, s2_cache.json ({len(demo_c['detail'])} S2 records)")
-    sys.exit(1 if leaks or problems else 0)
+    return 0
 
 
 if __name__ == "__main__":

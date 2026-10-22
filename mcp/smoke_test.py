@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -32,11 +33,13 @@ def tiny_pdf(path):
     return path
 
 
-async def main():
-    if WRITES and ":8766" not in URL:
+async def main(tmpdir):
+    target = urlparse(URL)
+    if WRITES and (target.scheme != "http" or target.hostname not in ("localhost", "127.0.0.1", "::1") or target.port != 8766 or target.path not in ("", "/") or target.query or target.fragment):
         sys.exit("--writes only runs against the demo lab (LABSIDIAN_URL=http://localhost:8766)")
     # tests talk to the demo lab's server unless LABSIDIAN_URL says otherwise, so they never write into real data
-    env = {**os.environ, "LABSIDIAN_URL": URL, "LABSIDIAN_USER": ARGS[0] if ARGS else "한서윤", "PYTHONIOENCODING": "utf-8"}
+    env = {**os.environ, "LABSIDIAN_URL": URL, "LABSIDIAN_USER": ARGS[0] if ARGS else "한서윤",
+           "LABSIDIAN_DOWNLOADS": os.path.join(tmpdir, "downloads"), "PYTHONIOENCODING": "utf-8"}
     params = StdioServerParameters(command=sys.executable, args=[str(SERVER)], env=env)
     async with stdio_client(params) as (r, w):
         async with ClientSession(r, w) as s:
@@ -52,11 +55,16 @@ async def main():
                 failed.append("draft tool schema")
             if "reading_item_id" not in delete_fields or "draft_id" in delete_fields:
                 failed.append("delete draft tool schema")
+            for name in ("search_papers", "recommend_papers", "similar_papers", "list_tags", "my_inbox", "my_drafts",
+                         "my_reading_list", "list_studies", "list_guides", "admin_list_members", "admin_list_clusters"):
+                schema = next((getattr(t, "output_schema", None) or getattr(t, "outputSchema", {}) for t in tools if t.name == name), {})
+                if schema.get("properties", {}).get("result", {}).get("type") != "array":
+                    failed.append(f"{name} list output schema")
 
             async def call(tool, expect_ok=True, **args):
                 res = await s.call_tool(tool, args)
                 sc = getattr(res, "structured_content", None) or getattr(res, "structuredContent", None)
-                if sc:   # a list comes back as {"result": [...]}
+                if sc is not None:   # a list comes back as {"result": [...]}, including [] and a single item
                     text = json.dumps(sc["result"] if isinstance(sc, dict) and set(sc) == {"result"} else sc, ensure_ascii=False)
                 elif len(res.content or []) > 1:   # …or as one text item per element
                     text = "[" + ",".join(getattr(c, "text", "") for c in res.content) + "]"
@@ -75,6 +83,10 @@ async def main():
             # ---- reads
             await call("whoami")
             hits = await call("search_papers", query="graph forecasting", limit=3)
+            single = await call("search_papers", query="graph forecasting", limit=1)
+            empty = await call("search_papers", query="no-such-paper-" + os.urandom(12).hex())
+            if not isinstance(single, list) or len(single) != 1 or empty != []:
+                failed.append("empty and single-item list results")
             await call("get_person", name="박지호")
             await call("lab_progress")
             await call("my_inbox", limit=3)
@@ -84,6 +96,8 @@ async def main():
             await call("create_draft", expect_ok=False, title="x", summary="x", memo="", rating=9)
             await call("get_paper", expect_ok=False, paper_ref="graph")          # ambiguous → lists candidates
             await call("open_study", expect_ok=False)
+            await call("open_study", expect_ok=False, title="Invalid time", at_time="99:99")
+            await call("download_pdf", expect_ok=False, file_id="../snapshot")
             if not WRITES:
                 return
 
@@ -100,7 +114,16 @@ async def main():
             item = await call("add_to_reading_list", title=title, note="smoke")
             iid = item.get("item_id") if isinstance(item, dict) else None
             await call("update_reading_item", item_id=iid, status="reading")
-            pdf = tiny_pdf(os.path.join(tempfile.gettempdir(), "labsidian_smoke.pdf"))
+            pdf = tiny_pdf(os.path.join(tmpdir, "labsidian_smoke.pdf"))
+            oversized = os.path.join(tmpdir, "oversized.pdf")
+            with open(oversized, "wb") as f:
+                f.write(b"%PDF-1.4\n")
+                f.truncate(20 * 1024 * 1024 + 1)
+            await call("create_draft", expect_ok=False, title="Oversized attachment", summary="x", memo="memo", pdf_path=oversized)
+            refused = await call("create_draft", expect_ok=False, title="Invalid memo", summary="x", memo="",
+                                 pdf_path=os.path.join(tmpdir, "missing.pdf"))
+            if "memo" not in str(refused):
+                failed.append("draft validates before uploading")
             inbox_before = await call("my_inbox", limit=100)
             reading_before = await call("my_reading_list")
             # Explicit target, matching title without an id, and genuinely new paper.
@@ -125,6 +148,15 @@ async def main():
             reading = await call("my_reading_list")
             saved_item = next((x for x in reading if x.get("id") == iid), {}) if isinstance(reading, list) else {}
             new_item = next((x for x in reading if x.get("id") == fresh_id), {}) if isinstance(reading, list) else {}
+            attached = saved_item.get("pdfs") or []
+            if attached:
+                first = await call("download_pdf", file_id=attached[0]["file_id"])
+                second = await call("download_pdf", file_id=attached[0]["file_id"])
+                paths = [x.get("path") for x in (first, second) if isinstance(x, dict)]
+                if len(paths) != 2 or paths[0] == paths[1] or any(Path(p).read_bytes() != Path(pdf).read_bytes() for p in paths):
+                    failed.append("PDF downloads preserve duplicate filenames")
+            else:
+                failed.append("draft attachment available to download")
             if not saved_item.get("hasDraft") or saved_item.get("note") != "smoke" or saved_item.get("status") != "reading":
                 failed.append("draft preserves existing reading state")
             if not new_item.get("hasDraft") or new_item.get("status") != "read":
@@ -165,6 +197,7 @@ async def main():
                     break
 
 
-asyncio.run(main())
+with tempfile.TemporaryDirectory(prefix="labsidian_smoke_") as tmpdir:
+    asyncio.run(main(tmpdir))
 print("\nFAILED: " + ", ".join(failed) if failed else "\nall as expected")
 sys.exit(1 if failed else 0)

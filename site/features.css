@@ -36,7 +36,7 @@ em.hint { font-style: normal; display: block; margin-top: 4px; }
 .temp-pw.secret { margin: 0 0 var(--s-4); }
 .temp-pw.secret code { font: var(--t-footnote); font-family: var(--font-mono); letter-spacing: 0; word-break: break-all; }
 .copy-buffer { position: fixed; top: 0; left: 0; opacity: 0; pointer-events: none; }  /* LabCopy on http:// */
-body.locked main, body.locked .top nav, body.locked #search { visibility: hidden; }
+body.locked main, body.locked .top nav { visibility: hidden; }
 .gate { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: var(--bg); }
 .gate-card { width: min(360px, 100%); background: var(--glass-tint-strong); border: 1px solid var(--line); border-radius: var(--r-card); padding: 28px 24px 20px; position: relative; }
 .gate-logo { display: flex; align-items: center; gap: 10px; font-size: var(--fs-title2); font-weight: 800; }
@@ -124,7 +124,6 @@ details.fld summary { cursor: pointer; }
 .me-head .btn-row { margin: 0; }
 .me-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-6); margin: var(--s-6) 0; }
 .page .ui-card h3 { margin: 0 0 var(--s-3); font: var(--t-title3); letter-spacing: var(--tr-title3); }
-.side-col { display: grid; gap: 14px; align-content: start; }
 .big-num { display: flex; align-items: baseline; gap: 10px; }
 .big-num b { font-size: var(--fs-large-title); letter-spacing: -.03em; }
 .big-num span { color: var(--text-2); }
@@ -178,12 +177,10 @@ details.fld summary { cursor: pointer; }
 
 /* ---- v5: full pages, term picker, MCP, duties ---- */
 .drawer-tools { position: sticky; top: 0; float: right; display: flex; gap: 6px; z-index: 3; }
-  display: grid; place-items: center; text-decoration: none; font-size: var(--fs-body); }
 .drawer h2 { padding-right: 76px; }
 .term-btn { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-full); padding: 5px 11px; color: var(--text-2); cursor: pointer; font-size: var(--fs-body); }
 .term-btn.active { border-color: var(--accent-2); color: var(--text); background: rgb(var(--accent-rgb) / .16); }
 .term-btn .caret { font-size: var(--fs-subhead); color: var(--text-3); }
-.menu-terms { right: auto; left: auto; width: 260px; }
 .menu-check { padding: 6px 10px; margin: 0; }
 .menu-foot { display: flex; justify-content: flex-end; padding: 6px 8px 4px; }
 .mcp-banner { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 85; display: flex; gap: 12px; align-items: center;
@@ -193,7 +190,6 @@ details.fld summary { cursor: pointer; }
 .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 2px var(--bg-2); }
 .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .row-between .hint { margin: 0; flex: 1; min-width: 240px; }
-.tbl-wrap { overflow-x: auto; }
 .ui-table b.ok { color: var(--success); } .ui-table b.warn { color: var(--danger); }
 
 /* full-screen detail pages */
@@ -297,8 +293,6 @@ details.fld summary { cursor: pointer; }
 .cand-row .t { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-form { max-width: 820px; }
 .st-form .tag-input { position: relative; }
-.st-head h1 a { color: inherit; text-decoration: none; }
-.st-head h1 a:hover { text-decoration: underline; }
 .btn-row .spacer { flex: 1; }
 .st-rate { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: var(--fs-callout); color: var(--star); font-weight: 600; }
 .st-rate .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); }
@@ -329,10 +323,8 @@ details.fld summary { cursor: pointer; }
   .cand-row .t { grid-column: 1 / -1; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: var(--fs-footnote); line-height: 1.4; }
 }
 .st-notes textarea, .st-q-form textarea { width: 100%; resize: vertical; line-height: 1.55; }
-.st-detail .sim-row .ui-pill { white-space: nowrap; margin-left: 4px; }
 .st-form .tag-input { background: none; border: 0; padding: 0; }
 #st-invite .ui-chip[aria-pressed="true"]::after { content: " ✓"; color: var(--accent); }
-@media (max-width: 900px) { .st-detail .dp-side { order: -1; } }
 
 /* study options, write-first, brought papers */
 .st-opts { display: grid; gap: 8px; margin: 4px 0 6px; }
@@ -442,8 +434,8 @@ details.fld summary { cursor: pointer; }
   .term-btn { padding: 5px 8px; }
   header.top :is(.term-btn, .top-icon.bell, .user-btn) { background: none; }   /* plain icons on the bar; only 'write' keeps a fill */
   .menu { top: calc(var(--top-h) + 4px); }
-  .ui-card:has(> .ui-table), .tbl-wrap { overflow-x: auto; }
-  .ui-card > .ui-table, .tbl-wrap > .ui-table { min-width: 560px; }
+  .ui-card:has(> .ui-table) { overflow-x: auto; }
+  .ui-card > .ui-table { min-width: 560px; }
 }
 
 @media (max-width: 760px) { .lang.ui-seg.gate-lang { display: inline-grid; } }
@@ -660,7 +652,6 @@ details.fld summary { cursor: pointer; }
 /* ---------- core-paper guides (guides.js) ---------- */
 .gd-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s-3); }
 .gd-card { display: grid; gap: var(--s-2); align-content: start; margin: 0; color: var(--label); text-decoration: none; transition: background var(--dur-fast) var(--ease); }
-.gd-card:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); }
 .gd-card-t { font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .gd-card-d { font: var(--t-callout); letter-spacing: var(--tr-callout); color: var(--label-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .gd-card-f { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); font: var(--t-callout); color: var(--label-2); }
@@ -672,7 +663,6 @@ details.fld summary { cursor: pointer; }
 .gd-form, .gd-me, .gd-sec, .gd-add { margin-bottom: var(--s-4); }
 .gd-tagpick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .gd-tagpick select { max-width: 220px; }
-.gd-head .row-head { align-items: flex-start; }
 .gd-by { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
 .gd-desc { margin: var(--s-1) 0 var(--s-3); max-width: 672px; color: var(--label-2); font: var(--t-body); letter-spacing: var(--tr-body); line-height: 1.5; white-space: pre-line; }
 .gd-manage .menu-pop .ui-btn.text { display: block; text-decoration: none; min-height: var(--hit); line-height: var(--hit); }

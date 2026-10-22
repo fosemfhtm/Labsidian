@@ -129,7 +129,7 @@
       </div>
       <div class="ui-card"><h4>${t("h.studies")}</h4>
         ${S.studies.list().filter(st => !st.closed).sort((a, b) => ((a.date && a.date >= S.today()) ? 0 : 1) - ((b.date && b.date >= S.today()) ? 0 : 1) || (a.date || "9").localeCompare(b.date || "9")).slice(0, 4).map(st => `<a class="ui-row two side-st" href="#/study/${st.id}"><b>${esc(st.title.slice(0, 60))}</b>
-          <span class="m">${[st.date, st.time].filter(Boolean).join(" ") || "—"} · ${st.members.length}${lang === "ko" ? "명" : ""}${st.members.includes(me.id) ? " ✓" : ""}</span></a>`).join("")
+          <span class="m">${esc([st.date, st.time].filter(Boolean).join(" ")) || "—"} · ${st.members.length}${lang === "ko" ? "명" : ""}${st.members.includes(me.id) ? " ✓" : ""}</span></a>`).join("")
           || `<p class="muted">${t("h.noStudies")}</p>`}
         <a class="ui-btn text" href="#/study/new">＋ ${t("h.openStudy")}</a></div>
       <div class="ui-card"><h4>${t("h.openQ")}</h4>
