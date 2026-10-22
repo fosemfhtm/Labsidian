@@ -350,10 +350,12 @@
       if ((u.role === "admin" && u.id === "admin") || u.disabled) return;
       if (!people.some(p => p.id === u.id)) people.push({ id: u.id, name: u.name, color: null, count: 0, avgRating: 0, topics: {}, dates: [], similar: [] });
     });
-    // colour: the member's own pick (one of the 30), else the build's default (near their most-read field), else a free one
-    const own = c => (PALETTE.includes(c) ? c : null), used = new Set();
-    people.forEach(p => { const u = db.users[p.id]; if (u?.name) p.name = u.name; p.color = own(u?.color) || own(p.color); if (p.color) used.add(p.color); });
-    people.forEach(p => { p.color ||= PALETTE.find(c => !used.has(c)) || "gray"; used.add(p.color); p.color = `rgb(var(--${p.color}))`; });
+    // colour, one per person: own picks first (one of the 30), then the build's defaults (near their most-read field)
+    // that nobody picked, then — only for those left — a colour nobody has, so one clash never pushes everyone along
+    const own = c => (PALETTE.includes(c) ? c : null), used = new Set(), take = c => (c && !used.has(c) ? (used.add(c), c) : null);
+    people.forEach(p => { const u = db.users[p.id]; if (u?.name) p.name = u.name; p.pick = take(own(u?.color)); });
+    people.forEach(p => { p.pick ||= take(own(p.color)); });
+    people.forEach(p => { p.color = `rgb(var(--${p.pick || take(PALETTE.find(x => !used.has(x))) || "gray"}))`; delete p.pick; });
 
     // reviews: seed (with edits/deletes) + created on the site
     const allReviews = [];
@@ -706,6 +708,7 @@
       async setMyColor(color) {
         const me = requireUser();
         if (!PALETTE.includes(color)) throw new Error("color");
+        if (SEED.people.some(p => p.id !== me.id && p.color === `rgb(var(--${color}))`)) throw new Error("color.taken");   // one colour per person
         db.users[me.id].color = color; log("user.color", `${me.name} ${color}`); save();
       },
       async setDisabled(id, disabled) {

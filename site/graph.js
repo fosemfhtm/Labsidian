@@ -325,10 +325,9 @@ function computeTagAreas() {
         x: x0 + members.reduce((s, i) => s + pts[i][0] * weights[i], 0) / total,
         y: y0 + members.reduce((s, i) => s + pts[i][1] * weights[i], 0) / total };
     }).filter(Boolean).sort((a, b) => b.count - a.count);
-    // one connected area per tag, holding ~90% of its papers: where the tag sits in two places, lower the outline
-    // until the two patches join (at most ~6×), then keep the main one
-    let threshold = [...weights].sort((a, b) => a - b)[Math.floor(pts.length * 0.1)], blobs = blobsAt(threshold);
-    for (let i = 0; i < 5 && blobs[1] && blobs[1].count >= blobs[0].count * 0.35; i++) blobs = blobsAt(threshold *= 0.7);
+    // one area per tag: the main patch of the outline around ~90% of its papers. A tag spread over several places
+    // (CAV·V2X, UAM) keeps only its biggest patch — lowering the outline until they join drew long snakes across the map
+    const blobs = blobsAt([...weights].sort((a, b) => a - b)[Math.floor(pts.length * 0.1)]);
     if (blobs.length) areas.push({ id, blobs: blobs.slice(0, 1), ...blobs[0] });
   });
   areas = areas.sort((a, b) => b.count - a.count);

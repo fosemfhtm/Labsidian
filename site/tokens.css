@@ -396,6 +396,8 @@
 :where([data-ui]) .ui-swatches button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--c); cursor: pointer; }
 :where([data-ui]) .ui-swatches button[aria-checked="true"] { box-shadow: 0 0 0 2px var(--sys-bg), 0 0 0 4px var(--label); }
 :where([data-ui]) .ui-swatches button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+:where([data-ui]) .ui-swatches button:disabled { cursor: default; }   /* someone else's colour: shows their avatar (initials) instead */
+:where([data-ui]) .ui-swatches .avatar { width: 100%; height: 100%; font: var(--t-caption2); font-weight: 600; pointer-events: none; }
 
 /* ---------- alert (≤3 buttons; Cancel leading, action trailing) & sheet ---------- */
 :where([data-ui]).ui-scrim, :where([data-ui]) .ui-scrim { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: var(--scrim); animation: ui-fade var(--dur) var(--ease); }

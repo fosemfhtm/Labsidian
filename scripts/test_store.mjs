@@ -260,4 +260,19 @@ assert.ok(hidden.users.some(u => u.id === "bob" && u.disabled), "admins still se
 await hidingAdmin.store.users.setDisabled("bob", false);
 const shownAgain = hidingAdmin.snapshot();
 assert.ok(shownAgain.reviews.some(r => r.person === "bob") && shownAgain.comments.some(c => c.author === "bob"));
+
+// One colour per person, from the 30: an old hex falls back to a free one, a taken colour can't be picked,
+// and a default someone else picked moves out of the way.
+const colours = () => ({ ...seed(), people: [{ id: "alice", name: "Alice", color: "cobalt" }, { id: "bob", name: "Bob", color: "red" }, { id: "carol", name: "Carol", color: "#000000" }] });
+const painter = boot({}, "bob", colours());
+const colourOf = (s, id) => s.snapshot().people.find(p => p.id === id).color;
+assert.match(colourOf(painter, "carol"), /^rgb\(var\(--[a-z]+\)\)$/);
+await assert.rejects(painter.store.users.setMyColor("cobalt"), /color.taken/);
+await assert.rejects(painter.store.users.setMyColor("#ff0000"), /color/);
+await painter.store.users.setMyColor("lime");
+const repainted = boot(painter.db(), "alice", colours());
+assert.equal(colourOf(repainted, "bob"), "rgb(var(--lime))");
+repainted.db().users.alice.color = "lime";   // an older pick that clashes: the pick that came first in the list keeps it
+const clash = boot(repainted.db(), "alice", colours());
+assert.equal(new Set(clash.snapshot().people.map(p => p.color)).size, 3);
 console.log("store regression checks passed");

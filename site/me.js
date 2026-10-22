@@ -114,8 +114,9 @@
           <select id="me-term" aria-label="${t("me.term")}">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
           <a class="ui-btn prominent" href="#/write">✎ ${t("me.write")}</a>
           ${person ? `<details class="color-pick"><summary class="ui-btn"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}</summary>
-            <div class="ui-popover ui-swatches" role="radiogroup" aria-label="${t("me.color")}">${S.palette.map(c => `<button type="button" role="radio" data-c="${c}"
-              aria-checked="${person.color === `rgb(var(--${c}))`}" aria-label="${t("c." + c)}" title="${t("c." + c)}" style="--c:rgb(var(--${c}))"></button>`).join("")}</div></details>` : ""}
+            <div class="ui-popover ui-swatches" role="radiogroup" aria-label="${t("me.color")}">${S.palette.map(c => { const v = `rgb(var(--${c}))`, who = Object.values(UI.P).find(p => p.id !== me.id && p.color === v);
+              return `<button type="button" role="radio" data-c="${c}" aria-checked="${person.color === v}" ${who ? "disabled" : ""}
+              aria-label="${t("c." + c)}${who ? " · " + esc(who.name) : ""}" title="${t("c." + c)}${who ? " · " + esc(who.name) : ""}" style="--c:${v}">${who ? UI.avatar(who.id) : ""}</button>`; }).join("")}</div></details>` : ""}
         </div>
       </div>
       ${draft ? `<div class="ui-notice draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
