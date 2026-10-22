@@ -1,4 +1,4 @@
-"""Semantic map: papers -> embeddings -> 2D layout + 2-level clusters + labels + neighbors.
+"""Semantic maps: papers -> embeddings (+ their field / method tags) -> two 2D layouts + neighbours.
 
 Usage (needs the ML venv):
     .venv/Scripts/python scripts/build_map.py [--reuse]   # --reuse: skip re-embedding if papers unchanged
@@ -8,20 +8,19 @@ Pipeline
   1. text = title + S2 abstract/TLDR (if enriched) — the *paper itself*, NOT the reviews.
      Review text made neighbours cluster by reviewer & review language (see eval_embeddings.py),
      so reviewer perspective is shown as person nodes/edges and tags instead of positions.
-  2. SPECTER2 embeddings (AllenAI; trained on citation links -> "academically related")
-  3. UMAP 2-d, cosine, fixed seed
-  4. fine clusters (Ward, ~sqrt(n)) -> coarse clusters by merging fine centroids -> always nested. Clustered on the
-     2-d layout itself, so each region is one patch of the map (10-d clusters interleaved on screen: two regions with
-     the same topic drawn on top of each other) — at the same semantic coherence in the embedding space.
-  5. labels: c-TF-IDF keywords (English) + dominant lab tag (ko/en); fine clusters are named against their siblings
-     and coarse clusters sharing a tag get a keyword that tells them apart ("distinct")
-  6. top-k cosine neighbors per paper (for "similar papers" and local-graph edges)
+  2. SPECTER2 embeddings (AllenAI; trained on citation links -> "academically related"), mean-centred
+  3. the paper's field / method tags (keyword rules, same as build_site.py) appended as a weighted tag vector, so
+     papers people file under the same tag pull together while the text still orders them within it
+     (weight 0.4 kept ~ the same text neighbours; 1.0 split the map into one island per tag — 2026-10-22 test)
+  4. UMAP 2-d, cosine, fixed seed: the field map (x, y); the method map (mx, my) starts from the field map so the
+     graph can flip between them with papers staying roughly in their column
+  5. top-k cosine neighbours per paper on the text alone (for "similar papers" and local-graph edges)
+There are no map regions: the graph draws each tag's papers as a density area (docs/design/decisions.md 2026-10-22).
 """
 import json
 import os
 import re
 import sys
-from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -29,21 +28,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
 from build_site import norm_title, compile_tax, score, pick  # noqa: E402
-from taxonomy import DOMAINS, METHODS, EN  # noqa: E402
+from taxonomy import DOMAINS, METHODS  # noqa: E402
 
 DATA = ROOT / os.environ.get("LABSIDIAN_DATA", "data")  # data/demo = the fake demo lab
 MODEL = "allenai/specter2"
 SEED = 42
-STOP = set("""a an the of for and or in on to with by from via using based approach approaches model models method methods
-framework study analysis new novel towards toward under its their this that is are be as at into we our learning data
-paper results result proposed propose show shows than more over can also which these those between through two one
-toward multi large real time vehicle vehicles traffic system systems problem problems network networks driving
-available code github https http www com org extensive experiment experiments experimental demonstrate demonstrates
-outperforms outperform existing however while such both across various several achieve achieves achieved significant
-significantly effective effectively efficient efficiently performance dependencies crucial often likely most role
-abstract investigated investigate responses trends key important first further well work works recent recently
-address addresses challenge challenges paper's here thus specifically respectively improve improves improved
-considered consider consists consist local learned learn solving solve have has had conditions user users operational public""".split())
+TAG_WEIGHT = 0.4
 
 
 def load_papers():
@@ -82,42 +72,21 @@ def embed_specter2(papers):
     return np.concatenate(out)
 
 
-def ctfidf(docs_by_cluster, topn=3):
-    """class-based TF-IDF over English 1-2 grams."""
-    tok = lambda s: [w for w in re.findall(r"[a-z][a-z\-]{2,}", s.lower()) if w not in STOP]
-    tf = {}
-    for c, docs in docs_by_cluster.items():
-        cnt = Counter()
-        for d in docs:
-            ws = tok(d)
-            cnt.update(set(ws))
-            cnt.update(set(f"{a} {b}" for a, b in zip(ws, ws[1:])))
-        tf[c] = cnt
-    df = Counter()
-    for cnt in tf.values():
-        df.update(set(cnt))
-    n = len(tf)
-    avg = np.mean([sum(c.values()) for c in tf.values()]) or 1
-    out = {}
-    for c, cnt in tf.items():
-        size = len(docs_by_cluster[c])
-        scores = {w: (v / size) * np.log(1 + avg / (df[w] * 1.0)) * (1.25 if " " in w else 1)
-                  for w, v in cnt.items() if v >= max(2, size * 0.08) and df[w] < n * 0.6}
-        best = []
-        for w, _ in sorted(scores.items(), key=lambda x: -x[1]):
-            # skip unigrams already covered by a chosen bigram (and vice versa)
-            if any(set(w.split()) & set(b.split()) for b in best):
-                continue
-            best.append(w)
-            if len(best) == topn:
-                break
-        out[c] = best
-    return out
+def tag_matrix(papers, tax, k):
+    """one row per paper: its tags under the keyword rules (as build_site.py picks them), unit length; empty = zeros"""
+    rules, keys = compile_tax(tax), list(tax)
+    m = np.zeros((len(papers), len(keys)))
+    for i, p in enumerate(papers):
+        s = score(rules, p["title"], " ".join(r["content"] + " " + r["memo"] for r in p["reviews"]))
+        for t in (pick(s, k, 3) if s else []):
+            m[i, keys.index(t)] = 1
+    n = np.linalg.norm(m, axis=1, keepdims=True)
+    return m / np.where(n == 0, 1, n)
 
 
 def main():
-    from sklearn.cluster import AgglomerativeClustering
     import umap
+    from scipy.linalg import orthogonal_procrustes
 
     papers = load_papers()
     print(f"{len(papers)} papers, {sum(1 for p in papers if p['abstract'])} with abstracts", file=sys.stderr)
@@ -131,80 +100,22 @@ def main():
         np.save(emb_p, emb)
         keys_p.write_text(json.dumps(keys))
     emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
+    # SPECTER2 vectors all point roughly the same way; centring spreads them so a small tag weight can matter
+    ec = emb - emb.mean(0)
+    ec /= np.linalg.norm(ec, axis=1, keepdims=True)
+    fields, methods = tag_matrix(papers, DOMAINS, 3), tag_matrix(papers, METHODS, 2)
 
     # more papers → look at more neighbours, so the big topic structure survives (18 up to ~900 papers)
-    u2 = umap.UMAP(n_components=2, n_neighbors=max(18, round(0.6 * np.sqrt(len(papers)))), min_dist=0.12, spread=1.2,
-                   metric="cosine", random_state=SEED).fit_transform(emb)
+    fit = lambda tags, init="spectral": umap.UMAP(n_components=2, n_neighbors=max(18, round(0.6 * np.sqrt(len(papers)))), min_dist=0.12,
+                                                  spread=1.2, metric="cosine", init=init, random_state=SEED).fit_transform(np.hstack([ec, TAG_WEIGHT * tags]))
+    uf = fit(fields)
+    um = fit(methods, init=uf)
     # ~±250 canvas for up to ~900 papers, then the area grows with the count: same spacing between papers, so the
     # graph's collision force (node radii are in these units) doesn't shove a crowded map out of shape
-    u2 = (u2 - u2.mean(0)) / u2.std(0) * 100 * np.sqrt(max(1, len(papers) / 900))
-
-    n_fine = max(8, int(round(np.sqrt(len(papers)) * 1.3)))
-    fine = AgglomerativeClustering(n_clusters=n_fine, linkage="ward").fit_predict(u2)
-    cent = np.stack([u2[fine == c].mean(0) for c in range(n_fine)])
-    n_coarse = max(4, min(14, int(round(n_fine / 3.2))))  # more regions than ~14 stop being readable
-    coarse_of_fine = AgglomerativeClustering(n_clusters=n_coarse, linkage="ward").fit_predict(cent)
-    coarse = coarse_of_fine[fine]
-    # areas: the coarse regions merged once more (≤ 8, neighbours on the map) — one fixed set of axes for the whole lab,
-    # so people can be compared (the radar on the person page). Named on the site after their biggest region.
-    n_area = min(8, n_coarse)
-    ccent = np.stack([u2[coarse == c].mean(0) for c in range(n_coarse)])
-    area_of_coarse = AgglomerativeClustering(n_clusters=n_area, linkage="ward").fit_predict(ccent) if n_coarse > n_area else np.arange(n_coarse)
-    area = area_of_coarse[coarse]
-
-    # labels
-    dom, met = compile_tax(DOMAINS), compile_tax(METHODS)
-    ptags = []
-    for p in papers:
-        body = " ".join(r["content"] + " " + r["memo"] for r in p["reviews"])
-        ds = score(dom, p["title"], body)
-        # a region's provisional name comes from its most common field; general AI papers have none → their top method
-        ms = score(met, p["title"], body) if not ds else {}
-        ptags.append(pick(ds, 2, 3) if ds else ["m:" + pick(ms, 1, 1)[0]] if ms else ["etc"])
-    en_text = [re.sub(r"https?://\S+|www\.\S+", " ", p["title"] + " " + p["abstract"]) for p in papers]  # no URLs in names
-
-    def cluster_info(assign, level):
-        docs = defaultdict(list)
-        for i, c in enumerate(assign):
-            docs[int(c)].append(en_text[i])
-        kw = ctfidf(docs)
-        out = []
-        for c in sorted(docs):
-            idx = np.where(assign == c)[0]
-            tagc = Counter(t for i in idx for t in ptags[i][:1])
-            top_tag, top_n = tagc.most_common(1)[0]
-            label = (METHODS[top_tag[2:]][0], EN[top_tag[2:]]) if top_tag.startswith("m:") else ("기타", "Other") if top_tag == "etc" \
-                else (DOMAINS[top_tag][0], EN[top_tag])
-            xy = np.median(u2[idx], axis=0)
-            out.append({"id": f"{level}{c}", "level": level, "size": int(len(idx)),
-                        "x": round(float(xy[0]), 2), "y": round(float(xy[1]), 2),
-                        "keywords": kw[c], "tag": top_tag, "tagShare": round(top_n / len(idx), 2),
-                        "ko": label[0], "en": label[1]})
-        return out
-
-    def keywords_within(assign, group_of):
-        """c-TF-IDF among the clusters of one group only → the words that tell siblings apart"""
-        out = {}
-        for g in set(group_of.values()):
-            members = [c for c in group_of if group_of[c] == g]
-            if len(members) > 1:
-                out.update(ctfidf({c: [en_text[i] for i in np.where(assign == c)[0]] for c in members}))
-        return out
-
-    clusters = cluster_info(area, "a") + cluster_info(coarse, "c") + cluster_info(fine, "f")
-    tag_of = {int(cl["id"][1:]): cl["tag"] for cl in clusters if cl["level"] == "c"}
-    distinct = keywords_within(coarse, tag_of)
-    siblings = keywords_within(fine, {f: int(coarse_of_fine[f]) for f in range(n_fine)})
-    for cl in clusters:
-        i = int(cl["id"][1:])
-        if cl["level"] == "c" and distinct.get(i):
-            cl["distinct"] = distinct[i][0]
-        if cl["level"] == "c":
-            cl["parent"] = f"a{int(area_of_coarse[i])}"
-        if cl["level"] == "f":
-            cl["parent"] = f"c{int(coarse_of_fine[i])}"
-            own = siblings.get(i) or []
-            cl["keywords"] = (own + [w for w in cl["keywords"] if w not in own])[:3]
+    norm = lambda u: (u - u.mean(0)) / u.std(0) * 100 * np.sqrt(max(1, len(papers) / 900))
+    uf, um = norm(uf), norm(um)
+    rot, _ = orthogonal_procrustes(um, uf)  # turn / mirror the method map onto the field map: the flip only moves what changed
+    um = um @ rot
 
     # neighbors
     sims = emb @ emb.T
@@ -212,18 +123,15 @@ def main():
     k = 6
     nb = np.argsort(-sims, axis=1)[:, :k]
 
-    out = {"model": MODEL, "papers": {}, "clusters": clusters}
+    out = {"model": MODEL, "tagWeight": TAG_WEIGHT, "papers": {}}
     for i, p in enumerate(papers):
         out["papers"][p["key"]] = {
-            "x": round(float(u2[i, 0]), 2), "y": round(float(u2[i, 1]), 2),
-            "a": f"a{int(area[i])}", "c": f"c{int(coarse[i])}", "f": f"f{int(fine[i])}",
+            "x": round(float(uf[i, 0]), 2), "y": round(float(uf[i, 1]), 2),
+            "mx": round(float(um[i, 0]), 2), "my": round(float(um[i, 1]), 2),
             "nb": [[papers[j]["key"], round(float(sims[i, j]), 3)] for j in nb[i]],
         }
     (DATA / "map.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
-    print(f"map.json: {n_coarse} coarse / {n_fine} fine clusters", file=sys.stderr)
-    for cl in clusters:
-        if cl["level"] == "c":
-            print(f"  {cl['id']:>4} {cl['size']:>4}  {cl['ko']:<14} {', '.join(cl['keywords'])}", file=sys.stderr)
+    print(f"map.json: {len(papers)} papers on the field and method maps", file=sys.stderr)
 
 
 if __name__ == "__main__":

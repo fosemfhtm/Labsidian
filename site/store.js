@@ -47,7 +47,6 @@
     if (name) return `rgb(var(--${name}))`;
     return /^#[0-9a-f]{3}([0-9a-f]{3})?$/.test(k) ? k : "rgb(var(--gray2))";   // a hex an admin picked stays as it is
   };
-  (SEED.clusters || []).forEach(c => { if (c.color) c.color = dataColor(c.color); });
   const PERSON_COLORS = ["#f78c6c", "#82aaff", "#c3e88d", "#c792ea", "#ffcb6b", "#89ddff", "#ff5370", "#f07178",
     "#b2ccd6", "#addb67", "#7fdbca", "#e2b93d", "#ff9cac", "#a6accd", "#ffd580", "#80cbc4"];
   // design-lint: on
@@ -61,9 +60,10 @@
   const empty = () => ({
     version: 1, users: {}, reviews: {}, reviewEdits: {}, comments: {}, reactions: {}, reading: {},
     notifications: {}, drafts: {}, tagOps: [], terms: null, log: [], seq: 1, studies: {}, studyQs: {},
-    paperTags: {}, paperMeta: {}, clusterNames: {},  // shared paper corrections · map region names
+    paperTags: {}, paperMeta: {},  // shared paper corrections
     offDays: {},  // the lab's weekdays off (public holidays, shutdowns, conferences): no diary owed
     guides: {},   // core-paper guides the lab curates together (docs/PEOPLE_TOPICS_GUIDES.md)
+    groups: {},   // regular studies (정기 스터디): a schedule and members; its sessions are studies with groupId
   });
   // Labsidian server (scripts/serve.py, on this machine or the lab's): the source of truth is its SQLite file. The page
   // loads it once, sends only the records it changed, and picks up changes made elsewhere (MCP ops, other tabs). The
@@ -71,7 +71,7 @@
   // the headless copy the server runs for MCP ops (scripts/store_worker.mjs): localStorage.
   // A record = one entry of a collection below (a user, a review, one member's notifications …) or one other top-level key.
   const COLLS = ["users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "studies", "studyQs",
-    "paperTags", "paperMeta", "clusterNames", "offDays", "guides"];
+    "paperTags", "paperMeta", "offDays", "guides", "groups"];
   const recordsOf = d => {
     const m = new Map();
     Object.entries(d).forEach(([k, v]) => {
@@ -231,10 +231,33 @@
       changed = true;
     }
     if (SEED.social && !db.socialSeeded) { seedSocial(SEED.social); db.socialSeeded = true; changed = true; }
+    if (splitGroups()) changed = true;
+    if ("clusterNames" in db) { delete db.clusterNames; changed = true; }  // map regions are gone (2026-10-22)
     if (SEED.social?.guides && !db.guidesSeeded) { seedGuides(SEED.social.guides); db.guidesSeeded = true; changed = true; }  // added after the rest
     if (changed) save();
   }
-  const seededStudies = {};  // demo: social.json study key → its id, so guides can point at sessions
+  // 2026-10-22: a reading group used to be a guide with `group` on; it is its own record now (docs/design/decisions.md)
+  function splitGroups() {
+    let moved = false;
+    Object.values(db.guides).forEach(g => {
+      if (g.group?.on) {
+        const gr = g.group, id = g.id.replace(/^g_/, "grp_");
+        db.groups[id] ||= { id, title: g.title, desc: g.desc || "", owner: g.owner, members: [...new Set([g.owner, ...(gr.members || [])])],
+          cadence: gr.cadence || null, place: gr.place || "", reminded: gr.reminded || {}, createdAt: g.createdAt, updatedAt: g.updatedAt };
+      }
+      if ("group" in g || g.items.some(it => it.from)) { delete g.group; g.items.forEach(it => delete it.from); moved = true; }
+    });
+    Object.values(db.studies).forEach(st => {
+      if (!("guideId" in st)) return;
+      const id = st.guideId && st.guideId.replace(/^g_/, "grp_");
+      st.groupId = id && db.groups[id] ? id : null; delete st.guideId; moved = true;
+    });
+    Object.values(db.notifications).forEach(list => list.forEach(n => {
+      if (n.type !== "guideSession" && n.type !== "guideJoin") return;
+      n.type = n.type === "guideSession" ? "groupSession" : "groupJoin"; n.groupId = (n.guideId || "").replace(/^g_/, "grp_"); delete n.guideId; moved = true;
+    }));
+    return moved;
+  }
   // demo dataset only: example core-paper guides (lab papers by id, outside ones by their details)
   function seedGuides(list) {
     list.forEach((x, i) => {
@@ -245,16 +268,10 @@
         const p = it.paperId && SEED.papers.find(q => q.id === it.paperId);
         if (it.paperId && !p) return null;
         const base = { id: `gi_demo_${x.key}_${k}`, section: sections[it.section]?.id || "s1", key: normTitle(p ? p.title : it.meta.title), note: it.note || "",
-          ...(it.fromStudy && seededStudies[it.fromStudy] ? { from: { studyId: seededStudies[it.fromStudy], kind: it.fromKind || "next" } } : {}),
           by: db.users[it.by] ? it.by : x.owner, at: new Date(Date.parse(at) + k * 36e5).toISOString(), votes: (it.votes || []).filter(u => db.users[u]) };
         return p ? { ...base, paperId: p.id } : { ...base, meta: { title: it.meta.title, link: it.meta.link || "", authors: it.meta.authors || "", venue: it.meta.venue || "", year: String(it.meta.year || "") } };
       }).filter(Boolean);
       db.guides[id] = { id, title: x.title, desc: x.desc || "", tags: x.tags || [], owner: x.owner, sections, items, createdAt: at, updatedAt: items.at(-1)?.at || at };
-      if (x.group) {  // a reading group: its weekday follows the seeded upcoming session (dates are relative to today)
-        const next = Object.values(db.studies).filter(st => st.guideId === id && !st.closed && st.date).map(st => st.date).sort()[0];
-        db.guides[id].group = { on: true, members: (x.group.members || []).filter(u => db.users[u]), place: x.group.place || "", reminded: {},
-          cadence: { weekday: next ? new Date(next + "T00:00:00Z").getUTCDay() : 4, time: x.group.time || "", every: x.group.every === 2 ? 2 : 1 } };
-      }
     });
   }
   // demo dataset only: example studies / comments / reactions, dated relative to today so they never look stale
@@ -268,7 +285,6 @@
     (s.studies || []).forEach((x, i) => {
       const p = paper(x.paperId); if (!p) return;
       const id = uid("s_"), members = known([...new Set([x.host, x.presenter, ...(x.members || [])])]);
-      if (x.key) seededStudies[x.key] = id;
       // a past study comes after its members' diaries on the common paper
       const lastRev = SEED.reviews.filter(r => r.paper === p.id && members.includes(r.person)).map(r => r.date).sort().pop();
       if (x.closed && lastRev && day(x.dayOffset) <= lastRev && addDays(lastRev, 2) < today()) x = { ...x, dayOffset: offsetOf(addDays(lastRev, 2)) };
@@ -277,7 +293,7 @@
         date: day(x.dayOffset), time: x.time || "", place: x.place || "", desc: x.desc || "", files: [], members,
         closed: !!x.closed, closedAt: x.closed ? at(x.dayOffset + 1) : null, reminded: {}, createdAt: x.closed ? at(x.dayOffset - 10, i) : at(-2 - i, i),
         notes: x.notes ? { conclusion: x.notes.conclusion || "", open: x.notes.open || "", next: x.notes.next || "", by: x.notes.by, at: at(x.dayOffset + 1) } : null,
-        notesDraft: null, blind: !!x.blind, bring: !!x.bring, guideId: x.guide ? "g_demo_" + x.guide : null,
+        notesDraft: null, blind: !!x.blind, bring: !!x.bring, groupId: x.group ? "grp_demo_" + x.group : null,
         picks: Object.fromEntries((x.picks || []).filter(pk => paper(pk.paperId) && db.users[pk.uid]).map((pk, k) => { const q = paper(pk.paperId);
           return [pk.uid, { uid: pk.uid, title: q.title, paperId: q.id, paperKey: normTitle(q.title), link: q.link || "", why: pk.why || "", files: [], order: k, at: x.closed ? at(x.dayOffset - 5, k) : at(-1, 2 + k * 6) }]; })),
       };
@@ -285,6 +301,13 @@
         read: false, actor: x.host, type: "studyInvite", studyId: id, paperId: p.id, excerpt: p.title }));
       (x.questions || []).forEach((q, k) => { const qid = uid("q_");
         db.studyQs[qid] = { id: qid, studyId: id, author: q.author, body: q.body, votes: known(q.votes), done: !!q.done, at: x.closed ? at(x.dayOffset - 3, k) : at(-1, 1 + k * 5) }; });
+    });
+    // regular studies: the weekday follows the seeded upcoming session (dates are relative to today)
+    (s.groups || []).forEach(x => {
+      const id = "grp_demo_" + x.key, at = new Date(Date.now() + (x.dayOffset || -40) * 864e5).toISOString();
+      const next = Object.values(db.studies).filter(st => st.groupId === id && !st.closed && st.date).map(st => st.date).sort()[0];
+      db.groups[id] = { id, title: x.title, desc: x.desc || "", owner: x.owner, members: known([...new Set([x.owner, ...(x.members || [])])]), place: x.place || "", reminded: {},
+        cadence: { weekday: next ? new Date(next + "T00:00:00Z").getUTCDay() : 4, time: x.time || "", every: x.every === 2 ? 2 : 1 }, createdAt: at, updatedAt: at };
     });
     const ids = {};
     (s.comments || []).forEach((c, k) => {
@@ -448,33 +471,6 @@
       terms: sel.length ? sel : [...new Set(allReviews.map(r => r.term))].sort(),
       termDefs: db.terms, viewTerms: sel,
     });
-    nameClusters();
-  }
-
-  // map regions get new ids every time the map is rebuilt, so a name is kept with the papers the region had when it
-  // was named; each current region takes the name whose papers it shares most (Jaccard >= 0.5, one name per region)
-  function clusterMembers() {
-    const m = {};
-    SEED.allPapers.forEach(p => ["a", "c", "f"].forEach(k => p[k] && (m[p[k]] ||= new Set()).add(p.id)));
-    return m;
-  }
-  function nameClusters() {
-    const members = clusterMembers(), pairs = [];
-    (SEED.clusters || []).forEach(c => { delete c.custom; delete c.customKey; });
-    Object.entries(db.clusterNames).forEach(([key, n]) => (SEED.clusters || []).forEach(c => {
-      if (c.level !== n.level) return;
-      const cur = members[c.id] || new Set();
-      const shared = n.members.filter(id => cur.has(id)).length;
-      const j = shared / (cur.size + n.members.length - shared || 1);
-      if (j >= 0.5) pairs.push([j, key, c]);
-    }));
-    const usedKeys = new Set();
-    pairs.sort((a, b) => b[0] - a[0]).forEach(([, key, c]) => {
-      if (c.custom || usedKeys.has(key)) return;
-      usedKeys.add(key);
-      const n = db.clusterNames[key];
-      c.custom = { ko: n.ko, en: n.en, ...(n.keywords?.length ? { keywords: n.keywords } : {}) }; c.customKey = key;
-    });
   }
 
   // ---------------------------------------------------------------- lexical similarity (no ML in the browser)
@@ -503,17 +499,20 @@
     return L.vecs.map((v, i) => { let s = 0; for (const w in q) if (v[w]) s += v[w] * q[w] / n; return [L.papers[i], s]; })
       .filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).slice(0, k);
   }
-  // new papers: temporary map position = weighted mean of lexically similar papers (the nightly batch fixes it later)
+  // papers written on the site aren't in the map build: place them at the weighted mean of lexically similar papers,
+  // on each map favouring the neighbours that share its fields (field map) or methods (method map), like the build does
   function place(fresh, base) {
     fresh.forEach((p, i) => {
-      const nb = lexSimilar(p.title + " " + (p.abstract || ""), base, 8).filter(([q]) => q.x != null);
-      if (!nb.length) { p.x = (i % 7) * 6; p.y = -260 - Math.floor(i / 7) * 6; p.c = null; p.f = null; p.nb = []; return; }
-      const w = nb.slice(0, 5), W = w.reduce((s, [, x]) => s + x, 0);
-      p.x = w.reduce((s, [q, x]) => s + q.x * x, 0) / W + (Math.random() - 0.5) * 6;
-      p.y = w.reduce((s, [q, x]) => s + q.y * x, 0) / W + (Math.random() - 0.5) * 6;
-      const vote = key => { const c = {}; w.forEach(([q, x]) => q[key] && (c[q[key]] = (c[q[key]] || 0) + x)); return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
-      p.c = vote("c"); p.f = vote("f");
+      const nb = lexSimilar(p.title + " " + (p.abstract || ""), base, 12).filter(([q]) => q.x != null);
       p.nb = nb.slice(0, 6).map(([q, s]) => [q.id, Math.round(s * 1000) / 1000]);
+      if (!nb.length) { p.x = p.mx = (i % 7) * 6; p.y = p.my = -260 - Math.floor(i / 7) * 6; return; }
+      const at = (tags, kx, ky) => {
+        const w = nb.map(([q, s]) => [q, s * (1 + q[tags].filter(x => p[tags].includes(x)).length)]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const W = w.reduce((s, [, x]) => s + x, 0);
+        p[kx] = w.reduce((s, [q, x]) => s + q[kx] * x, 0) / W + (Math.random() - 0.5) * 6;
+        p[ky] = w.reduce((s, [q, x]) => s + q[ky] * x, 0) / W + (Math.random() - 0.5) * 6;
+      };
+      at("domains", "x", "y"); at("methods", "mx", "my");
     });
   }
   const RULES = Object.fromEntries(Object.entries(SEED.taxonomy || {}).map(([k, pats]) => [k, pats.map(p => { try { return new RegExp(p, "i"); } catch (e) { return null; } }).filter(Boolean)]));
@@ -857,7 +856,7 @@
           id, title: known?.title || title, paperId: known?.id || null, paperKey: known?.key || normTitle(title), link: data.link || known?.link || "",
           host: me.id, presenter: data.presenter || me.id, date: isDate(data.date) ? data.date : "", time: (data.time || "").slice(0, 5), place: (data.place || "").slice(0, 80),
           desc: (data.desc || "").slice(0, 2000), files: cleanFiles(data.files), members, closed: false, notes: null, notesDraft: null, reminded: {}, createdAt: now(),
-          blind: data.blind !== false, bring: !!data.bring, picks: {}, guideId: data.guideId && db.guides[data.guideId] ? data.guideId : null,
+          blind: data.blind !== false, bring: !!data.bring, picks: {}, groupId: data.groupId && db.groups[data.groupId] ? data.groupId : null,
         };
         members.filter(u => u !== me.id).forEach(u => notify(u, { type: "studyInvite", studyId: id, paperId: known?.id, excerpt: db.studies[id].title }));
         if (known) Store.reading._add(known.id);
@@ -894,7 +893,6 @@
         if (!Store.studies.canManage(st)) throw new Error("forbidden");
         st.closed = closed; st.closedAt = closed ? now() : null;
         if (closed) st.members.filter(u => u !== me.id).forEach(u => notify(u, { type: "studyClosed", studyId: id, excerpt: st.title }));
-        if (closed) await Store.guides.harvest(st);
         log("study.close", `${st.title} ${closed}`); save();
       },
       async remove(id) {
@@ -956,7 +954,6 @@
         if (!st.members.includes(me.id) && me.role !== "admin") throw new Error("forbidden");
         st.notes = { conclusion: notes.conclusion || "", open: notes.open || "", next: notes.next || "", by: me.id, at: now() };
         if (st.notesDraft?.by === me.id) st.notesDraft = null;
-        await Store.guides.harvest(st);
         save();
       },
       notesDraft(id) { const me = current(), st = db.studies[id]; return st?.notesDraft && st.notesDraft.by === me?.id ? st.notesDraft : null; },
@@ -1012,12 +1009,12 @@
             type: (st.date === d0 ? "studyToday" : "studyTomorrow") + (todo ? "Todo" : ""), studyId: st.id, excerpt: st.title });
           changed = true;
         });
-        // reading groups: whoever presents next hears "time to set up the next session", up to 3 days before its date
-        Object.values(db.guides).forEach(g => {
-          if (!g.group?.on || !g.group.cadence || Store.guides.upcoming(g) || Store.guides.nextPresenter(g) !== me.id) return;
-          const nd = Store.guides.nextDate(g); if (!nd || nd > addDays(d0, 3) || (g.group.reminded ||= {})[me.id] === nd) return;
-          g.group.reminded[me.id] = nd;
-          (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: null, type: "guideSession", guideId: g.id, excerpt: g.title });
+        // regular studies: whoever presents next hears "time to set up the next session", up to 3 days before its date
+        Object.values(db.groups).forEach(g => {
+          if (!g.cadence || Store.groups.upcoming(g) || Store.groups.nextPresenter(g) !== me.id) return;
+          const nd = Store.groups.nextDate(g); if (!nd || nd > addDays(d0, 3) || (g.reminded ||= {})[me.id] === nd) return;
+          g.reminded[me.id] = nd;
+          (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: null, type: "groupSession", groupId: g.id, excerpt: g.title });
           changed = true;
         });
         // admins: once a month, a nudge to tidy tags and map region names (by hand, or by asking their own AI)
@@ -1060,6 +1057,66 @@
       },
     },
 
+    // ---- regular studies (정기 스터디): members and a rhythm; each session is a study with groupId.
+    // group = { id, title, desc, owner, members[], cadence: { weekday 0–6, time, every 1|2 weeks } | null, place, reminded }
+    groups: {
+      list() { return Object.values(db.groups).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || "")); },
+      get(id) { return db.groups[id] || null; },
+      canManage(g) { const me = current(); return !!me && !!g && (g.owner === me.id || me.role === "admin"); },
+      member(g, uid) { const u = uid || current()?.id; return !!u && !!g?.members?.includes(u); },
+      sessions(g) {
+        return Object.values(db.studies).filter(st => st.groupId === g.id)
+          .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999") || a.createdAt.localeCompare(b.createdAt));
+      },
+      roundOf(st) { const g = st?.groupId && db.groups[st.groupId]; return g ? Store.groups.sessions(g).indexOf(st) + 1 : 0; },
+      upcoming(g) { return Store.groups.sessions(g).find(st => !st.closed) || null; },
+      // the next date on the group's rhythm (after its latest session), on its weekday
+      nextDate(g) {
+        const c = g.cadence; if (!c) return "";
+        const d0 = today(), step = 7 * (c.every || 1), last = Store.groups.sessions(g).map(st => st.date).filter(Boolean).sort().pop();
+        let d = last ? addDays(last, step) : d0;
+        while (d < d0) d = addDays(d, step);
+        return addDays(d, (c.weekday - new Date(d + "T00:00:00Z").getUTCDay() + 7) % 7);
+      },
+      // presenters take turns in the members' order
+      nextPresenter(g) {
+        const ms = (g.members || []).filter(u => db.users[u]); if (!ms.length) return g.owner;
+        const last = Store.groups.sessions(g).filter(st => st.presenter).pop();
+        return ms[((last ? ms.indexOf(last.presenter) : -1) + 1) % ms.length];
+      },
+      _fields(g, data) {
+        const c = data.cadence, wd = c && c.weekday !== "" && c.weekday != null ? Math.max(0, Math.min(6, +c.weekday)) : null;
+        g.title = String(data.title || "").trim().slice(0, 120) || g.title; if (!g.title) throw new Error("group.title");
+        g.desc = String(data.desc || "").slice(0, 1000);
+        g.members = [...new Set([g.owner, ...(data.members || g.members || [])])].filter(u => db.users[u]);
+        g.cadence = wd == null ? null : { weekday: wd, time: /^\d{2}:\d{2}$/.test(c.time || "") ? c.time : "", every: +c.every === 2 ? 2 : 1 };
+        g.place = String(data.place || "").slice(0, 80); g.updatedAt = now();
+      },
+      async create(data) {
+        const me = requireUser(), id = uid("grp_");
+        const g = { id, title: "", owner: me.id, reminded: {}, createdAt: now() };
+        Store.groups._fields(g, data); db.groups[id] = g;
+        log("group.create", g.title); save();
+        return id;
+      },
+      async update(id, data) {
+        requireUser(); const g = db.groups[id]; if (!g || !Store.groups.canManage(g)) throw new Error("forbidden");
+        Store.groups._fields(g, data); log("group.update", g.title); save();
+      },
+      async remove(id) {  // its sessions stay, as one-off studies
+        requireUser(); const g = db.groups[id]; if (!g || !Store.groups.canManage(g)) throw new Error("forbidden");
+        Store.groups.sessions(g).forEach(st => (st.groupId = null));
+        Object.keys(db.notifications).forEach(u => { db.notifications[u] = db.notifications[u].filter(n => n.groupId !== id); });  // they'd lead nowhere
+        delete db.groups[id]; log("group.delete", g.title); save();
+      },
+      async join(id, on = true) {
+        const me = requireUser(), g = db.groups[id]; if (!g) return;
+        if (on && !g.members.includes(me.id)) { g.members.push(me.id); notify(g.owner, { type: "groupJoin", groupId: g.id, excerpt: g.title }); }
+        if (!on && me.id !== g.owner) g.members = g.members.filter(u => u !== me.id);
+        save();
+      },
+    },
+
     // ---- core-paper guides: an ordered, sectioned list of key papers for a topic, curated by the lab.
     // Anyone adds papers and 👍s them; the guide's owner (or an admin) edits its title, sections and order and removes
     // others' items. An item is a lab paper or one from outside (link / title); progress = papers you wrote a diary on.
@@ -1077,83 +1134,10 @@
       },
       forTag(tid) { return Store.guides.list().filter(g => (g.tags || []).includes(tid)); },
       forPaper(p) { return Store.guides.list().filter(g => g.items.some(it => Store.guides.paperOf(it)?.id === p.id || (it.key && it.key === p.key))); },
-
-      // ---- reading group: a guide can run as a series of studies (its sessions), and its list grows with them.
-      // group = { on, members, cadence: { weekday 0–6, time, every 1|2 weeks } | null, place, reminded }
-      isGroup(g) { return !!g?.group?.on; },
-      member(g, uid) { const u = uid || current()?.id; return !!u && !!g?.group?.members?.includes(u); },
-      sessions(g) {
-        return Object.values(db.studies).filter(st => st.guideId === g.id)
-          .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999") || a.createdAt.localeCompare(b.createdAt));
-      },
-      roundOf(st) { const g = st?.guideId && db.guides[st.guideId]; return g ? Store.guides.sessions(g).indexOf(st) + 1 : 0; },
-      upcoming(g) { return Store.guides.sessions(g).find(st => !st.closed) || null; },
-      // where an item stands: on the coming session · read (in round n if it was one of these sessions) · brought up by round n
-      itemState(g, it) {
-        const sts = Store.guides.studiesFor(it), rounds = Store.guides.sessions(g);
-        const next = sts.find(st => !st.closed && st.guideId === g.id), read = sts.filter(st => st.closed), here = read.find(st => st.guideId === g.id);
-        const from = it.from && db.studies[it.from.studyId];
-        return { next: next || null, nextRound: next ? rounds.indexOf(next) + 1 : 0, read: here || read[0] || null, round: here ? rounds.indexOf(here) + 1 : 0,
-          fromRound: from?.guideId === g.id && from !== here ? rounds.indexOf(from) + 1 : 0 };
-      },
-      // what the next session could read: nothing a study covered yet; most 👍 first, then fewest lab readers, then list order
-      suggestNext(g, n = 5) {
-        return g.items.map((it, i) => ({ it, i, p: Store.guides.paperOf(it) })).filter(x => !Store.guides.studiesFor(x.it).length)
-          .sort((a, b) => (b.it.votes || []).length - (a.it.votes || []).length || (a.p?.readers.length || 0) - (b.p?.readers.length || 0) || a.i - b.i)
-          .slice(0, n).map(x => x.it);
-      },
-      // the next date on the group's rhythm (after its latest session), on its weekday
-      nextDate(g) {
-        const c = g.group?.cadence; if (!c) return "";
-        const d0 = today(), step = 7 * (c.every || 1), last = Store.guides.sessions(g).map(st => st.date).filter(Boolean).sort().pop();
-        let d = last ? addDays(last, step) : d0;
-        while (d < d0) d = addDays(d, step);
-        return addDays(d, (c.weekday - new Date(d + "T00:00:00Z").getUTCDay() + 7) % 7);
-      },
-      // presenters take turns in the members' order
-      nextPresenter(g) {
-        const ms = (g.group?.members || []).filter(u => db.users[u]); if (!ms.length) return g.owner;
-        const last = Store.guides.sessions(g).filter(st => st.presenter).pop();
-        return ms[((last ? ms.indexOf(last.presenter) : -1) + 1) % ms.length];
-      },
-      async setGroup(id, data) {
-        requireUser(); const g = db.guides[id]; if (!g || !Store.guides.canManage(g)) throw new Error("forbidden");
-        const prev = g.group || {}, c = data.cadence, wd = c && c.weekday !== "" && c.weekday != null ? Math.max(0, Math.min(6, +c.weekday)) : null;
-        g.group = { on: !!data.on, members: [...new Set([g.owner, ...(prev.members || [])])].filter(u => db.users[u]),
-          cadence: wd == null ? null : { weekday: wd, time: /^\d{2}:\d{2}$/.test(c.time || "") ? c.time : "", every: +c.every === 2 ? 2 : 1 },
-          place: String(data.place ?? prev.place ?? "").slice(0, 80), reminded: prev.reminded || {} };
-        g.updatedAt = now(); log("guide.group", `${g.title} ${g.group.on}`); save();
-      },
-      async joinGroup(id, on = true) {
-        const me = requireUser(), g = db.guides[id]; if (!g?.group?.on) return;
-        const ms = (g.group.members ||= []);
-        if (on && !ms.includes(me.id)) { ms.push(me.id); notify(g.owner, { type: "guideJoin", guideId: g.id, excerpt: g.title }); }
-        if (!on && me.id !== g.owner) g.group.members = ms.filter(u => u !== me.id);
-        save();
-      },
-      // after a session: its paper, the papers members brought and what the notes say to read next join the list
-      // (lines of "next" that name a lab paper or carry a link / DOI; anything else stays in the notes)
-      async harvest(st) {
-        const g = st?.guideId && db.guides[st.guideId]; if (!g) return 0;
-        const before = g.items.length, from = kind => ({ studyId: st.id, kind });
-        const p = Store.studies.paperOf(st);
-        Store.guides._add(g, { ...(p ? { paperId: p.id } : { title: st.title, link: st.link }), from: from("paper") }, st.host, true);
-        Store.studies.picks(st).forEach(pk => Store.guides._add(g, { ...(pk.paperId ? { paperId: pk.paperId } : { title: pk.title, link: pk.link }), note: pk.why, from: from("pick") }, pk.uid, true));
-        for (const line of String(st.notes?.next || "").split("\n")) {
-          const text = line.replace(/^[\s\-*•·\d.)]+/, "").trim(); if (!text) continue;
-          const key = normTitle(text), lab = SEED.allPapers.find(q => q.key.length > 12 && key.includes(q.key));
-          const url = (text.match(/https?:\/\/\S+|\b10\.\d{4,9}\/\S+/) || [])[0];
-          if (lab) Store.guides._add(g, { paperId: lab.id, from: from("next") }, st.notes.by || st.host, true);
-          else if (url) { const meta = await Store.lookup(url).catch(() => null); if (meta?.title) Store.guides._add(g, { ...meta, link: meta.link || url, from: from("next") }, st.notes.by || st.host, true); }
-        }
-        if (g.items.length > before) { g.updatedAt = now(); save(); }
-        return g.items.length - before;
-      },
       // items nobody in the lab has read yet, no study covered, and 2+ members 👍 — study candidates
-      // (not a reading group's: its own sessions take those)
       studyCandidates(limit = 4) {
         const out = [];
-        Store.guides.list().filter(g => !g.group?.on).forEach(g => g.items.forEach(it => {
+        Store.guides.list().forEach(g => g.items.forEach(it => {
           const p = Store.guides.paperOf(it);
           if ((!p || !p.readers.length) && (it.votes || []).length >= 2 && !Store.guides.studiesFor(it).length) out.push({ guide: g, item: it });
         }));
@@ -1192,20 +1176,18 @@
         const itemId = Store.guides._add(g, data, me.id);
         save(); return itemId;
       },
-      // one item in (the same paper twice = the first one); harvested items go to the last section, quietly.
-      // The owner (and a group's members) hear about items others add.
-      _add(g, data, by, quiet = false) {
+      // one item in (the same paper twice = the first one); the owner hears about items others add
+      _add(g, data, by) {
         const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(data.title || ""));
         const title = known?.title || String(data.title || "").trim().slice(0, 300); if (!title) throw new Error("guide.itemTitle");
         const key = known?.key || normTitle(title);
         const dup = g.items.find(it => it.key === key); if (dup) return dup.id;
-        const section = g.sections.some(x => x.id === data.section) ? data.section : (data.from ? g.sections.at(-1) : g.sections[0]).id;
+        const section = g.sections.some(x => x.id === data.section) ? data.section : g.sections[0].id;
         const it = { id: uid("gi_"), section, key, note: String(data.note || "").slice(0, 300), by, at: now(), votes: [] };
-        if (data.from) it.from = { studyId: data.from.studyId, kind: data.from.kind };
         if (known) it.paperId = known.id;
         else it.meta = { title, link: String(data.link || "").slice(0, 500), authors: String(data.authors || "").slice(0, 500), venue: String(data.venue || "").slice(0, 200), year: String(data.year || "").slice(0, 4) };
         g.items.push(it); g.updatedAt = now();
-        if (!quiet) new Set([g.owner, ...(g.group?.on ? g.group.members || [] : [])]).forEach(u => u !== by && notify(u, { type: "guideItem", guideId: g.id, excerpt: title.slice(0, 80) }));
+        if (g.owner !== by) notify(g.owner, { type: "guideItem", guideId: g.id, excerpt: title.slice(0, 80) });
         log("guide.addItem", `${g.title} ← ${title.slice(0, 60)}`);
         return it.id;
       },
@@ -1330,10 +1312,19 @@
         if (from === into || from[0] !== into[0]) throw new Error("tag.mergeAxis");
         db.tagOps.push({ op: "merge", from, into, at: now() }); log("tag.merge", `${from} → ${into}`); save();
       },
+      // anyone signed in: when no field/method fits a paper, the writer (or their AI) adds one; admins tidy up monthly
       async create({ axis, label, labelEn, color }) {
-        requireAdmin();
+        requireUser();
+        if (axis !== "domain" && axis !== "method") throw new Error("tag.axis");
+        label = String(label || "").trim().slice(0, 40); labelEn = String(labelEn || "").trim().slice(0, 60);
+        if (!label) throw new Error("tag.label");
+        const same = SEED.topics.find(t => t.axis === axis && [t.label, t.labelEn].some(x => x && [label, labelEn].some(y => y && x.toLowerCase() === y.toLowerCase())));
+        if (same) return same.id;
         const id = `${axis[0]}:${slug(labelEn || label) || uid("t")}`;
-        db.tagOps.push({ op: "create", id, axis, label, labelEn, color: safeColor(color), at: now() }); log("tag.create", label); save();
+        color = color || SYS_NAMES[SEED.topics.filter(t => t.axis === axis).length % SYS_NAMES.length];
+        db.tagOps.push({ op: "create", id, axis, label, labelEn: labelEn || label, color: safeColor(color), at: now() }); log("tag.create", label); save();
+        buildDataset();
+        if (!HEADLESS) window.dispatchEvent(new Event("lab:data"));
         return id;
       },
       async undo(index) { requireAdmin(); const op = db.tagOps.splice(index, 1)[0]; log("tag.undo", JSON.stringify(op)); save(); },
@@ -1446,10 +1437,11 @@
     const users = Object.values(db.users).map(u => ({ id: u.id, name: u.name, role: u.role, color: u.color || null, quota: u.quota || {}, disabled: !!u.disabled }));
     return {
       at: now(), users, people: SEED.people, topics: SEED.topics, papers: SEED.allPapers, reviews: SEED.allReviews,
-      clusters: SEED.clusters, terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
+      terms: db.terms, comments: Object.values(db.comments), reactions: db.reactions,
       reading: Object.fromEntries(Object.keys(db.reading).map(u => [u, Store.reading.list(u)])), notifications: db.notifications,
       guides: Object.values(db.guides).map(g => ({ ...g, items: g.items.map(it => ({ ...it, title: Store.guides.titleOf(it), paperId: Store.guides.paperOf(it)?.id || null,
         readers: Store.guides.paperOf(it)?.readers || [], studies: Store.guides.studiesFor(it).map(st => st.id) })) })), tagOps: db.tagOps, offDays: Object.values(db.offDays),
+      groups: Object.values(db.groups).map(g => ({ ...g, nextDate: Store.groups.nextDate(g), nextPresenter: Store.groups.nextPresenter(g) })),
       // computed here so the MCP server never re-implements the duty rules (working days, holidays, start/end dates)
       duties: Object.fromEntries((db.terms || []).map(t => [t.id, Object.fromEntries(Object.keys(db.users).map(u => [u, Store.quota(u, t)]))])),
       holidays: [...new Set((db.terms || []).flatMap(t => [+t.start.slice(0, 4), +t.end.slice(0, 4)]))].flatMap(y => Store.calendar.holidays(y)),
@@ -1462,13 +1454,13 @@
   // and stores the result; a hosted DB would do the same in an RPC / edge function. Returns what it made (ids) for the caller.
   const OPS = new Set(["draft", "draft.delete", "comment", "react", "inbox.read", "reading.add", "study.question", "study.questionVote",
     "study.notesDraft", "study.create", "study.join",
-    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
+    "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
     "paper.meta", "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
-    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
+    const adminOnly = ["tag.merge", "tag.rename", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
       "offday.save", "offday.remove"];
     if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
@@ -1524,22 +1516,20 @@
       }
       if (op.op === "study.join") { const st = db.studies[op.studyId]; if (!st || st.closed) throw new Error("study.missing"); await Store.studies.join(op.studyId); }
       if (op.op === "study.create") {
-        // a reading group's next session gets the same defaults as the site's "next session" form
-        const g = op.guideId ? db.guides[op.guideId] : null, grp = g && Store.guides.isGroup(g) ? g.group : null;
-        if (op.guideId && !g) throw new Error("guide.missing");
-        if (grp) {
-          if (Store.guides.upcoming(g)) throw new Error("guide.upcoming");
-          if (!Store.guides.member(g) && !Store.guides.canManage(g)) throw new Error("forbidden");
+        // a regular study's next session gets the same defaults as the site's "next session" form
+        const g = op.groupId ? db.groups[op.groupId] : null;
+        if (op.groupId && !g) throw new Error("group.missing");
+        if (g) {
+          if (Store.groups.upcoming(g)) throw new Error("group.upcoming");
+          if (!Store.groups.member(g) && !Store.groups.canManage(g)) throw new Error("forbidden");
         }
-        const it = g ? (g.items.find(x => x.id === op.itemId) || (grp && !op.title && !op.paperId ? Store.guides.suggestNext(g)[0] : null)) : null;
-        const p = op.paperId ? SEED.allPapers.find(x => x.id === op.paperId) : it ? Store.guides.paperOf(it) : null;
-        const title = p?.title || op.title || (it ? Store.guides.titleOf(it) : "");
+        const p = op.paperId ? SEED.allPapers.find(x => x.id === op.paperId) : null;
         res = { studyId: (await Store.studies.create({
-          title, paperId: p?.id || null, link: op.link || p?.link || it?.meta?.link || "",
-          date: op.date || (grp ? Store.guides.nextDate(g) : ""), time: op.time || grp?.cadence?.time || "", place: op.place || grp?.place || "",
-          presenter: op.presenter && db.users[op.presenter] ? op.presenter : grp ? Store.guides.nextPresenter(g) : op.actor,
-          desc: op.desc || "", invite: [...new Set([...(op.invite || []), ...(grp ? grp.members : [])])].filter(u => db.users[u]),
-          blind: op.blind !== false, bring: !!op.bring, guideId: g ? g.id : null,
+          title: p?.title || op.title || "", paperId: p?.id || null, link: op.link || p?.link || "",
+          date: op.date || (g ? Store.groups.nextDate(g) : ""), time: op.time || g?.cadence?.time || "", place: op.place || g?.place || "",
+          presenter: op.presenter && db.users[op.presenter] ? op.presenter : g ? Store.groups.nextPresenter(g) : op.actor,
+          desc: op.desc || "", invite: [...new Set([...(op.invite || []), ...(g ? g.members : [])])].filter(u => db.users[u]),
+          blind: op.blind !== false, bring: !!op.bring, groupId: g ? g.id : null,
         })).id };
       }
       if (op.op === "study.notesDraft") {
@@ -1571,7 +1561,7 @@
       if (op.op === "guide.vote") { const it = db.guides[op.guideId]?.items.find(x => x.id === op.itemId); if (it && !(it.votes || []).includes(op.actor)) await Store.guides.vote(op.guideId, op.itemId); }
       if (op.op === "tag.merge") await Store.tags.merge(op.from, op.into);
       if (op.op === "tag.rename") await Store.tags.rename(op.tagId, op.label, op.labelEn, op.color);
-      if (op.op === "tag.create") await Store.tags.create({ axis: op.axis, label: op.label, labelEn: op.labelEn, color: op.color });
+      if (op.op === "tag.create") res = { tagId: await Store.tags.create({ axis: op.axis, label: op.label, labelEn: op.labelEn, color: op.color }) };
       if (op.op === "quota.set") await Store.users.setQuota(op.member, op.quota);
       if (op.op === "term.save") await Store.terms.save(op.term);
       if (op.op === "offday.save") await Store.calendar.save(op.offDay);
@@ -1580,19 +1570,6 @@
         if (!db.users[op.member] || op.member === op.actor) throw new Error("forbidden");  // nobody locks themselves out
         if (op.op === "user.role") await Store.users.setRole(op.member, op.role === "admin" ? "admin" : "member");
         else await Store.users.setDisabled(op.member, !!op.disabled);
-      }
-      if (op.op === "cluster.name") {
-        const c = (SEED.clusters || []).find(x => x.id === op.clusterId); if (!c) throw new Error("cluster.missing");
-        const ko = String(op.ko || "").trim().slice(0, 60), en = String(op.en || "").trim().slice(0, 60);
-        if (!ko && !en) { if (c.customKey) delete db.clusterNames[c.customKey]; }  // back to the automatic name
-        else {
-          const prev = c.customKey && db.clusterNames[c.customKey];
-          // keywords: the small line under a region's name — given ones replace, none given keeps what an admin set before
-          const keywords = Array.isArray(op.keywords) ? op.keywords.map(k => String(k).trim().slice(0, 40)).filter(Boolean).slice(0, 5) : prev?.keywords;
-          db.clusterNames[c.customKey || uid("cn_")] = { level: c.level, ko: ko || en, en: en || ko, ...(keywords?.length ? { keywords } : {}),
-            members: [...(clusterMembers()[c.id] || [])], by: op.actor, at: now() };
-        }
-        log("cluster.name", `${c.id} → ${ko || en || "(auto)"}`); save(); buildDataset();
       }
       if (op.op === "paper.meta") {
         const p = SEED.allPapers.find(x => x.id === op.paperId);
@@ -1634,7 +1611,7 @@
     } finally { actingAs = null; }
     return res;
   }
-  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
+  const RELOADING = new Set(["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
     "paper.meta", "offday.save", "offday.remove"]);
   if (HEADLESS) { window.__LABSIDIAN_HEADLESS__({ applyOp, snapshot, db: () => db }); return; }
 
@@ -1661,7 +1638,7 @@
     ensureSeed();  // the server's data may have been reset meanwhile
     buildDataset();
     window.dispatchEvent(new Event("lab:data"));  // pages re-index the rebuilt window.LAB before anything re-renders
-    const ops = (r.ops || []).filter(o => o.status === "ok");
+    const ops = (r.ops || []).filter(o => o.status === "ok" && o.actor === session());  // only my AI's requests; others' data still synced above
     window.dispatchEvent(new CustomEvent("lab:mcp", { detail: { applied: ops.length, needsReload: ops.some(o => RELOADING.has(o.op)) } }));
   }
   if (server) {

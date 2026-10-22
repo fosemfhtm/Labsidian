@@ -64,7 +64,7 @@ LOCAL_SECRET = ROOT / "data" / ".local_secret"  # gitignored; shared by the real
 MAX_BODY, MAX_FILE = 50 * 1024 * 1024, 25 * 1024 * 1024
 # must match COLLS in site/store.js: each entry of these is its own record, every other top-level key is one "_meta" record
 COLLS = ("users", "reviews", "reviewEdits", "comments", "reactions", "reading", "notifications", "drafts", "studies", "studyQs",
-         "paperTags", "paperMeta", "clusterNames", "offDays", "guides")
+         "paperTags", "paperMeta", "offDays", "guides", "groups")
 CONTENT = tuple(c for c in COLLS if c != "users")
 # real and demo servers on one host share its cookies (ports don't count) → one name each
 COOKIE = "labsidian_demo" if DEMO else "labsidian"

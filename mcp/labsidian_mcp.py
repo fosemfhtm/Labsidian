@@ -22,9 +22,9 @@ Backend contract — what a hosted DB version has to provide (the tools only use
                   edge function that takes the actor from the login token instead of trusting "actor").
   ops: draft · draft.delete · comment · react · inbox.read · reading.add · reading.update · paper.meta
        study.create · study.join · study.question · study.questionVote · study.notesDraft
-       guide.create · guide.update · guide.addItem · guide.vote
-       admin: tag.merge · tag.rename · tag.create · quota.set · term.save · user.role · user.disable · offday.save ·
-              offday.remove · cluster.name · paper.tags
+       guide.create · guide.update · guide.addItem · guide.vote · tag.create
+       admin: tag.merge · tag.rename · quota.set · term.save · user.role · user.disable · offday.save ·
+              offday.remove · paper.tags
   DB.apply answers what it made ({"itemId": …}, {"commentId": …}, {"studyId": …}) so a tool can hand the id back.
   Files (PDFs): GET / PUT /api/files/<id>.
 Words: the site calls a member's write-up of a paper a "diary" (Korean 다이어리, never 리뷰); ids keep the old name
@@ -250,21 +250,6 @@ def tag_label(tid):
     return f"{t['label']} / {t.get('labelEn', '')}" if t else tid
 
 
-def cluster_name(c, lang="ko"):
-    """what the site shows for a map region: an admin's name, else fine = top keywords, coarse = topic (+ keyword)"""
-    if not c:
-        return None
-    if c.get("custom"):
-        return c["custom"][lang]
-    if c["level"] == "f" and c.get("keywords"):
-        return " · ".join(c["keywords"][:2])
-    if c["level"] == "a":  # an unnamed area goes by its biggest topic
-        kids = sorted((x for x in DB.data().get("clusters") or [] if x["level"] == "c" and x.get("parent") == c["id"]), key=lambda x: -x.get("size", 0))
-        if kids:
-            return cluster_name(kids[0], lang)
-    return c[lang]
-
-
 def paper_tags(p):
     return [f"d:{x}" for x in p.get("domains", [])] + [f"m:{x}" for x in p.get("methods", [])] + list(p.get("free", []))
 
@@ -387,7 +372,6 @@ def get_paper(paper_ref: str, include_comments: bool = True) -> dict:
                                 for c in d.get("comments", []) if c["reviewId"] == rid]
         reviews.append(item)
     return {**brief(p), "authors": p.get("authors"), "link": p.get("link"), "abstract": p.get("abstract"),
-            "cluster": cluster_name(next((c for c in d.get("clusters", []) if c["id"] == p.get("c")), None)),
             "similar": [brief(d["PA"][q]) for q, _ in p.get("nb", [])[:5] if q in d["PA"]], "reviews": reviews}
 
 
@@ -549,7 +533,8 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
     """Save a diary draft on my reading list (never published automatically). Call it only after I approved the
     summary and memo you showed me in the chat. Write them in my writing style (writing_style) and check them
     against it first. summary = Problem/Method/Results/Contributions, memo = my critique (required by lab rules).
-    tags: ids from list_tags (or "f:keyword"). rating 0.5–5 in 0.5 steps, or 0 to leave unrated.
+    tags: ids from list_tags (or "f:keyword"), at least one field ("d:…") or method ("m:…"). Pick the ones that fit the
+    paper; when none does, suggest a new one to me and add it with create_tag. rating 0.5–5 in 0.5 steps, or 0 to leave unrated.
     reading_item_id selects my existing item; its details fill in fields left empty. Otherwise a matching reading item
     is reused, or a new read item is created. Calling again replaces that item's draft, not the reading note.
     pdf_path attaches a local PDF to the item; existing attachments stay with it. The member opens the returned link,
@@ -571,7 +556,9 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
         raise ToolError("memo (critique) is required — lab rule since May 2024")
     bad = [t for t in (tags or []) if t not in d["T"] and not t.startswith("f:")]
     if bad:
-        raise ToolError(f"unknown tags {bad} — use list_tags")
+        raise ToolError(f"unknown tags {bad}: use list_tags, or create_tag when none fits")
+    if not any(t[:2] in ("d:", "m:") for t in tags or []):
+        raise ToolError("give at least one field (d:…) or method (m:…) tag from list_tags; if none fits, create_tag first")
     tags = [t if not t.startswith("f:") else "f:" + re.sub(r"[^0-9a-z가-힣_-]+", "-", t[2:].lower()).strip("-")[:40] for t in (tags or [])]
     op = DB.apply({"op": "draft", "actor": u["id"], "itemId": reading_item_id, "summary": title[:60],
                    "title": title, "link": link, "venue": venue, "authors": authors, "year": year, "abstract": abstract,
@@ -738,10 +725,10 @@ def list_studies(include_past: bool = False) -> list:
         if st.get("closed") and not include_past:
             continue
         qs = [q for q in d.get("studyQuestions") or [] if q["studyId"] == st["id"]]
-        g = next((x for x in d.get("guides") or [] if x["id"] == st.get("guideId")), None)
-        rnd = sorted((x for x in d.get("studies") or [] if x.get("guideId") == st.get("guideId")), key=lambda x: (x.get("date") or "9999", x.get("createdAt", ""))).index(st) + 1 if g else None
+        g = next((x for x in d.get("groups") or [] if x["id"] == st.get("groupId")), None)
+        rnd = sorted((x for x in d.get("studies") or [] if x.get("groupId") == st.get("groupId")), key=lambda x: (x.get("date") or "9999", x.get("createdAt", ""))).index(st) + 1 if g else None
         out.append({"id": st["id"], "title": st["title"], "date": st.get("date") or None, "time": st.get("time") or None, "place": st.get("place") or None,
-                    **({"reading_group": g["title"], "round": rnd, "guide_id": g["id"]} if g else {}),
+                    **({"regular_study": g["title"], "round": rnd, "group_id": g["id"]} if g else {}),
                     "presenter": _name(st["presenter"]), "members": [_name(u) for u in st["members"]], "questions": len(qs),
                     "closed": bool(st.get("closed")), "open": f"{SITE}/#/study/{st['id']}"})
     return out
@@ -812,15 +799,14 @@ def join_study(study_id: str) -> dict:
 
 
 @mcp.tool()
-def open_study(paper_ref: str = "", title: str = "", link: str = "", guide_id: str = "", guide_item_id: str = "",
+def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: str = "",
                on_date: str = "", at_time: str = "", place: str = "", presenter: str = "", invite: list[str] | None = None,
                about: str = "", write_first: bool = True, everyone_brings_a_paper: bool = False) -> dict:
     """Open a paper study as me (I host it; invited members get a notification). The paper: a lab paper (paper_ref),
     or any paper by title / link. on_date YYYY-MM-DD, at_time HH:MM. write_first = members must post their own diary
-    before they see others' (the usual). For a reading group's next session give guide_id (see list_guides /
-    get_guide): date, time, place, members, whose turn it is to present and the paper (the most-👍 one not covered
-    yet, or guide_item_id) are filled in like the site's "next session" form — anything you pass overrides them.
-    Explain what you'll open to the user before calling."""
+    before they see others' (the usual). For a regular study's next session give group_id (see list_regular_studies):
+    date, time, place, members and whose turn it is to present are filled in like the site's "next session" form —
+    anything you pass overrides them. Explain what you'll open to the user before calling."""
     u = me()
     if on_date:
         try:
@@ -829,16 +815,14 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", guide_id: s
             raise ToolError("on_date must be YYYY-MM-DD")
     if at_time and not re.fullmatch(r"\d{1,2}:\d{2}", at_time):
         raise ToolError("at_time must be HH:MM")
-    g = _guide(guide_id) if guide_id else None
-    if guide_item_id and not (g and any(it["id"] == guide_item_id for it in g["items"])):
-        raise ToolError("guide_item_id needs its guide_id — see get_guide")
+    g = _group(group_id) if group_id else None
     p = paper(paper_ref) if paper_ref else None
-    if not (p or title or g):
-        raise ToolError("give paper_ref, title or guide_id")
+    if not (p or title):
+        raise ToolError("give paper_ref or title")
     op = DB.apply({"op": "study.create", "actor": u["id"], "paperId": p["id"] if p else None, "title": title.strip(), "link": link.strip(),
-                   "guideId": g["id"] if g else None, "itemId": guide_item_id or None, "date": on_date, "time": at_time, "place": place,
+                   "groupId": g["id"] if g else None, "date": on_date, "time": at_time, "place": place,
                    "presenter": person(presenter)["id"] if presenter else None, "invite": [person(x)["id"] for x in invite or []],
-                   "desc": about, "blind": bool(write_first), "bring": bool(everyone_brings_a_paper), "summary": (p["title"] if p else title or g["title"])[:60]})
+                   "desc": about, "blind": bool(write_first), "bring": bool(everyone_brings_a_paper), "summary": (p["title"] if p else title)[:60]})
     sid = op["result"].get("studyId")
     st = _study(sid) if sid else None
     return _done(op, {"title": st and st["title"], "date": st and (st.get("date") or None), "time": st and (st.get("time") or None),
@@ -856,6 +840,36 @@ def draft_study_notes(study_id: str, conclusion: str, open_questions: str = "", 
         raise ToolError("only study members can draft its notes — join the study on the site first")
     return _done(DB.apply({"op": "study.notesDraft", "actor": u["id"], "studyId": st["id"], "conclusion": conclusion, "open": open_questions,
                                "next": follow_ups, "summary": st["title"][:60]}), {"open": f"{SITE}/#/study/{st['id']}"})
+
+# ------------------------------------------------------------------ regular studies (정기 스터디)
+DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+
+def _group(ref):
+    gs = DB.data().get("groups") or []
+    g = next((x for x in gs if x["id"] == ref), None) or next((x for x in gs if x["title"].strip().lower() == ref.strip().lower()), None)
+    if not g:
+        raise ToolError("unknown regular study — use list_regular_studies")
+    return g
+
+
+@mcp.tool()
+def list_regular_studies() -> list:
+    """Regular studies (정기 스터디): groups that meet on a rhythm, each session a paper study. Shows members, schedule,
+    place, the next date and whose turn it is to present on the rhythm, and every session so far (get_study for one)."""
+    d = DB.data()
+    out = []
+    for g in d.get("groups") or []:
+        c = g.get("cadence")
+        sessions = sorted((x for x in d.get("studies") or [] if x.get("groupId") == g["id"]), key=lambda x: (x.get("date") or "9999", x.get("createdAt", "")))
+        out.append({"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "members": [_name(u) for u in g.get("members") or []],
+                    "schedule": f"every {'other ' if c.get('every') == 2 else ''}{DAYS[c['weekday']]} {c.get('time', '')}".strip() if c else None,
+                    "place": g.get("place") or None, "next_date": g.get("nextDate") or None, "next_presenter": _name(g.get("nextPresenter")),
+                    "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenter": _name(x["presenter"]),
+                                  "finished": bool(x.get("closed")), "has_notes": bool(x.get("notes"))} for i, x in enumerate(sessions)],
+                    "open": f"{SITE}/#/group/{g['id']}"})
+    return out
+
 
 # ------------------------------------------------------------------ core-paper guides
 def _guide(guide_id):
@@ -892,8 +906,7 @@ def list_guides(tag: str = "") -> list:
 @mcp.tool()
 def get_guide(guide_id: str) -> dict:
     """One guide by section: every paper with who added it and why, 👍 count, who in the lab read it, whether I wrote
-    a diary on it, and the studies that covered it. Good for planning what to read or study next. When the guide runs
-    as a reading group: its members, schedule and every session (round, paper, presenter, notes) — get_study for one."""
+    a diary on it, and the studies that covered it. Good for planning what to read or study next."""
     d, g = DB.data(), _guide(guide_id)
     uid = me()["id"] if ME else ""
     mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
@@ -903,16 +916,8 @@ def get_guide(guide_id: str) -> dict:
                         "read_by": [_name(u) for u in it.get("readers") or []], "i_wrote": it.get("paperId") in mine,
                         "studies": [{"id": s, "title": st[s]["title"], "date": st[s].get("date") or None} for s in it.get("studies") or [] if s in st]}
                        for it in g["items"] if it["section"] == sid]
-    gr = g.get("group") or {}
-    sessions = sorted((x for x in st.values() if x.get("guideId") == g["id"]), key=lambda x: (x.get("date") or "9999", x.get("createdAt", "")))
-    days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    group = {"members": [_name(u) for u in gr.get("members") or []], "place": gr.get("place") or None,
-             "schedule": (f"every {'other ' if (gr.get('cadence') or {}).get('every') == 2 else ''}{days[gr['cadence']['weekday']]} {gr['cadence'].get('time', '')}".strip()
-                          if gr.get("cadence") else None),
-             "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenter": _name(x["presenter"]),
-                           "finished": bool(x.get("closed")), "has_notes": bool(x.get("notes"))} for i, x in enumerate(sessions)]} if gr.get("on") else None
     return {"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "tags": [tag_label(x) for x in g.get("tags") or []],
-            "reading_group": group, "sections": [{"section": x["title"], "papers": sec(x["id"])} for x in g["sections"]], "open": f"{SITE}/#/guide/{g['id']}"}
+            "sections": [{"section": x["title"], "papers": sec(x["id"])} for x in g["sections"]], "open": f"{SITE}/#/guide/{g['id']}"}
 
 
 @mcp.tool()
@@ -985,15 +990,18 @@ def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color:
 
 
 @mcp.tool()
-def admin_create_tag(axis: str, label_ko: str, label_en: str, color: str = "gray2") -> dict:
-    """[admin] Create a new field (axis="domain") or method (axis="method") tag. color: a system colour name
-    (red orange yellow green mint teal cyan blue indigo purple pink brown gray2)."""
-    if not _tag_color_ok(color):
+def create_tag(axis: str, label_ko: str, label_en: str, color: str = "") -> dict:
+    """Add a field (axis="domain") or method (axis="method") tag as me, when none in list_tags fits a paper. Ask the
+    user first and suggest the name. An existing tag with the same name is reused. color: a system colour name
+    (red orange yellow green mint teal cyan blue indigo purple pink brown gray2), default: the next in turn.
+    Returns tag_id to pass to create_draft. Admins tidy (merge / rename) tags monthly."""
+    if color and not _tag_color_ok(color):
         raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
-    u = require_admin()
+    u = me()
     if axis not in ("domain", "method"):
         raise ToolError("axis must be domain or method")
-    return _done(DB.apply({"op": "tag.create", "actor": u["id"], "axis": axis, "label": label_ko, "labelEn": label_en, "color": color, "summary": label_ko}))
+    return _done(DB.apply({"op": "tag.create", "actor": u["id"], "axis": axis, "label": label_ko, "labelEn": label_en, "color": color or None,
+                           "summary": label_ko}))
 
 
 @mcp.tool()
@@ -1111,45 +1119,6 @@ def admin_remove_off_day(off_day_id: str) -> dict:
 
 # ------------------------------------------------------------------ curation (an admin's AI tidies what rules can't)
 @mcp.tool()
-def admin_list_clusters(level: str = "c", parent: str = "", samples: int = 8) -> list:
-    """[admin] Regions of the paper map with their current name, the automatic name, keywords and sample paper titles —
-    to judge whether a name fits. level "a" = the ≤ 8 areas (the axes of the people page; unnamed = named after their
-    biggest topic), "c" = big topics (parent = an area), "f" = sub-topics (narrow with parent, e.g. "c3").
-    Region ids change when the map is rebuilt; names set with admin_name_cluster follow their papers."""
-    require_admin()
-    d = DB.data()
-    if level not in ("a", "c", "f"):
-        raise ToolError('level must be "a", "c" or "f"')
-    out = []
-    for c in d.get("clusters") or []:
-        if c["level"] != level or (parent and c.get("parent") != parent):
-            continue
-        mine = sorted((x for x in d["papers"] if x.get(level) == c["id"]), key=lambda x: (-len(x["reviews"]), -(x.get("rating") or 0)))
-        out.append({"id": c["id"], "parent": c.get("parent"), "papers": len(mine), "name": {"ko": cluster_name(c), "en": cluster_name(c, "en")},
-                    "namedByAdmin": bool(c.get("custom")), "automaticName": {"ko": c["ko"], "en": c["en"]},
-                    "keywords": (c.get("custom") or {}).get("keywords") or c.get("keywords"), "automaticKeywords": c.get("keywords"),
-                    "sampleTitles": [x["title"] for x in mine[:max(1, min(samples, 30))]]})
-    return out
-
-
-@mcp.tool()
-def admin_name_cluster(cluster_id: str, label_ko: str, label_en: str = "", keywords: list[str] | None = None) -> dict:
-    """[admin] Name a map region (id from admin_list_clusters), e.g. "전기차 충전 인프라" / "EV charging infrastructure".
-    keywords: up to 5 short words shown in small print under a big region's name (first 3 on the map); leave out to
-    keep the ones set before. Both labels empty = back to the automatic name and keywords. The name stays with the
-    region's papers across map rebuilds."""
-    u, d = require_admin(), DB.data()
-    c = next((x for x in d.get("clusters") or [] if x["id"] == cluster_id), None)
-    if not c:
-        raise ToolError(f"no region {cluster_id!r} — use admin_list_clusters")
-    if keywords is not None and (len(keywords) > 5 or any(len(k) > 40 for k in keywords)):
-        raise ToolError("keywords: at most 5, each up to 40 characters")
-    return _done(DB.apply({"op": "cluster.name", "actor": u["id"], "clusterId": cluster_id, "ko": label_ko.strip(), "en": label_en.strip(),
-                           **({"keywords": keywords} if keywords is not None else {}),
-                           "summary": f"{cluster_id} → {label_ko or label_en or '(auto)'}"}))
-
-
-@mcp.tool()
 def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
     """[admin] Replace a paper's field/method tags (ids from list_tags, "d:…" and "m:…") when the keyword rules got
     it wrong. Fields are transport problems only — a general AI paper gets method tags and no field. Tags members put
@@ -1207,11 +1176,11 @@ def prepare_study(study: str = "") -> str:
 
 
 @mcp.prompt()
-def next_reading_group_session(guide: str = "") -> str:
-    """Set up a reading group's next session: candidates, date, presenter."""
-    return ("Help me set up the next session of a Labsidian reading group" + (f" ({guide})" if guide else " — find mine with list_guides") + ". "
-            "Call get_guide: show the past sessions, whose turn it is, and the 3 best candidates (most 👍, not covered yet, "
-            "who in the lab already read them). When I've picked, call open_study with guide_id (and guide_item_id) — "
+def next_regular_study_session(study: str = "") -> str:
+    """Set up a regular study's (정기 스터디) next session: date, presenter, paper."""
+    return ("Help me set up the next session of a Labsidian regular study" + (f" ({study})" if study else " — find mine with list_regular_studies") + ". "
+            "Show the past sessions (titles, who presented), the next date and whose turn it is. Ask me which paper we'll read "
+            "(search_papers for lab papers; otherwise a title or link). When I've picked, call open_study with group_id — "
             "the date, place, members and presenter are filled in — and give me the link.")
 
 

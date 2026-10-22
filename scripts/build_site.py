@@ -27,7 +27,6 @@ PERSON_COLORS = ["#f78c6c", "#82aaff", "#c3e88d", "#c792ea", "#ffcb6b",
 # so they follow light / dark / increased contrast. 12 colours, repeated when there are more tags.
 TOPIC_COLORS = ["red", "orange", "purple", "blue", "green", "yellow", "pink", "cyan", "teal", "brown", "indigo", "mint"]
 METHOD_COLORS = ["purple", "orange", "mint", "blue", "red", "teal", "yellow", "indigo", "green", "pink", "brown", "cyan"]
-CLUSTER_COLORS = ["blue", "red", "green", "yellow", "purple", "cyan", "orange", "teal", "indigo", "pink", "mint", "brown"]
 
 # Venue aliases: regex on the lower-cased raw string -> canonical short name
 VENUE_RULES = [
@@ -177,8 +176,8 @@ def main():
         p["_refs"] = d.get("references") or []
         m = (mp or {}).get("papers", {}).get(k)
         if m:
-            p["x"], p["y"], p["c"], p["f"] = m["x"], m["y"], m["c"], m["f"]
-            p["a"] = m.get("a")  # area (≤ 8 per lab): the person page's radar axes
+            p["x"], p["y"] = m["x"], m["y"]  # field map
+            p["mx"], p["my"] = m.get("mx", m["x"]), m.get("my", m["y"])  # method map
             p["nb"] = [[key2id[nk], s] for nk, s in m["nb"] if nk in key2id]
     for p in papers:  # citation edges inside our own corpus
         p["refs"] = sorted({s2id2pid[r] for r in p.pop("_refs") if r in s2id2pid and s2id2pid[r] != p["id"]})
@@ -219,21 +218,9 @@ def main():
             sims.append({"id": q["id"], "sim": round(cosine(vecs[p["id"]], vecs[q["id"]]), 3), "shared": shared})
         p["similar"] = sorted(sims, key=lambda s: -s["sim"])
 
-    clusters = []
-    for i, cl in enumerate((mp or {}).get("clusters", [])):
-        cl = dict(cl)
-        cl["color"] = CLUSTER_COLORS[int(cl["id"][1:]) % len(CLUSTER_COLORS)] if cl["level"] == "c" else None
-        clusters.append(cl)
-    # coarse clusters dominated by the same tag -> disambiguate with the keyword that sets them apart (build_map)
-    dup = Counter(c["ko"] for c in clusters if c["level"] == "c")
-    for c in clusters:
-        word = c.get("distinct") or (c["keywords"] or [None])[0]
-        if c["level"] == "c" and dup[c["ko"]] > 1 and word:
-            c["ko"] += f" · {word}"
-            c["en"] += f" · {word}"
     # keyword rules travel to the browser so the write form can suggest tags without a server
     taxonomy = {**{f"d:{k}": pats for k, (_, pats) in DOMAINS.items()}, **{f"m:{k}": pats for k, (_, pats) in METHODS.items()}}
-    data = {"dataset": DATASET, "relativeDates": bool(DATASET), "people": people, "topics": topics, "papers": papers, "reviews": reviews, "clusters": clusters,
+    data = {"dataset": DATASET, "relativeDates": bool(DATASET), "people": people, "topics": topics, "papers": papers, "reviews": reviews,
             "terms": sorted({r["term"] for r in reviews}), "taxonomy": taxonomy}
     if (DATA / "social.json").exists():  # demo only: example studies/comments the browser store seeds once
         data["social"] = resolve_social(json.loads((DATA / "social.json").read_text(encoding="utf-8")), papers, reviews)
@@ -276,6 +263,7 @@ def resolve_social(s, papers, reviews):
         "reading": {u: [paper(t) for t in ts] for u, ts in s.get("reading", {}).items()},
         "guides": [{k: v for k, v in g.items() if k != "items"} | {"items": [{k: v for k, v in it.items() if k != "paper"} | ({"paperId": paper(it["paper"])} if "paper" in it else {})
                                                                           for it in g["items"]]} for g in s.get("guides", [])],
+        "groups": s.get("groups", []),
     }
 
 

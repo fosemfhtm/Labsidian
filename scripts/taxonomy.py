@@ -4,17 +4,19 @@ Two axes:
   domain  - what transport problem the paper is about (a technique is never a domain)
   method  - what technique it uses to solve it
 A paper no transport field matches (a general AI / ML paper) simply has no domain — only methods.
-Map regions (clusters) are a third, separate thing: computed from the papers' content by build_map.py.
+The map (build_map.py) uses these tags too: papers sharing a field (or a method) are pulled together on the field
+(or method) map. There are no separate map regions.
 Each tag: id -> (label, [regex keywords]). Matching is case-insensitive over
 title (weight 3) + content/memo (weight 1). Edit freely; rebuild to apply.
 """
 
 DOMAINS = {
-    "flow":      ("교통류·상태추정", [r"traffic flow model", r"traffic state", r"state estimation", r"\bctm\b", r"cell transmission",
-                                  r"\blwr\b", r"kinematic wave", r"macroscopic", r"fundamental diagram", r"\bmfd\b", r"shockwave",
-                                  r"link transmission", r"교통류", r"상태 ?추정", r"traffic oscillation", r"traffic density", r"traffic theory", r"highway capacity", r"capacity drop", r"traffic jam", r"freeway traffic", r"highway traffic"]),
-    "forecast":  ("교통 예측", [r"forecast", r"traffic (flow|speed) prediction", r"spatio-?temporal", r"spatiotemporal",
-                              r"traffic prediction", r"demand prediction", r"교통량 예측", r"예측 모델", r"trajectory (prediction|pre-?training|forecast)", r"vehicle trajector"]),
+    "flow":      ("교통류 이론", [r"traffic flow model", r"\bctm\b", r"cell transmission",
+                               r"\blwr\b", r"kinematic wave", r"macroscopic", r"fundamental diagram", r"\bmfd\b", r"shockwave",
+                               r"link transmission", r"교통류", r"traffic oscillation", r"traffic density", r"traffic theory", r"highway capacity", r"capacity drop", r"traffic jam", r"freeway traffic", r"highway traffic"]),
+    "forecast":  ("교통 상태추정·예측", [r"forecast", r"traffic (flow|speed) prediction", r"spatio-?temporal", r"spatiotemporal",
+                                    r"traffic prediction", r"demand prediction", r"교통량 예측", r"예측 모델", r"trajectory (prediction|pre-?training|forecast)", r"vehicle trajector",
+                                    r"traffic state", r"state estimation", r"imputation", r"상태 ?추정"]),
     "signal":    ("신호·교차로 제어", [r"signal control", r"traffic signal", r"signalized", r"intersection", r"ramp (metering|control)",
                                   r"신호 ?제어", r"교차로", r"queue length", r"license plate"]),
     "micro":     ("차선변경·차량추종", [r"lane[- ]chang", r"car[- ]following", r"\bidm\b", r"intelligent driver model",
@@ -29,7 +31,7 @@ DOMAINS = {
                             r"autonomous vehicle", r"\bads\b", r"perception", r"occupancy", r"자율주행", r"vehicle (tracking|re-?identification|retrieval)", r"multi-object tracking"]),
     "cav":       ("CAV·V2X 협력", [r"connected (and )?automated", r"\bcavs?\b", r"\bv2x\b", r"\bv2v\b", r"cooperative", r"platoon",
                                  r"mixed traffic", r"connected vehicle", r"혼합 교통", r"군집"]),
-    "ev":        ("전기차·에너지", [r"electric vehicle", r"\bevs?\b", r"charging", r"battery", r"energy", r"grid", r"photovoltaic",
+    "ev":        ("전기차·충전·에너지", [r"electric vehicle", r"\bevs?\b", r"charging", r"battery", r"energy", r"grid", r"photovoltaic",
                                 r"renewable", r"power (grid|system)s?", r"전기차", r"충전", r"에너지"]),
     "transit":   ("대중교통·철도", [r"\btransit\b", r"public transport", r"metro", r"railway", r"\btrains?\b", r"\bbus(es)?\b", r"passenger", r"timetable", r"subway",
                                 r"대중교통", r"철도", r"지하철"]),
@@ -51,20 +53,19 @@ DOMAINS = {
 }
 
 METHODS = {
-    "llm":       ("LLM·VLM·에이전트", [r"large language model", r"\bllms?\b", r"\bgpt", r"language model", r"vision[- ]language", r"\bvlms?\b",
-                             r"multimodal", r"foundation model", r"\bbert\b", r"prompt", r"\bclip\b", r"generalist agent", r"agentic",
-                             r"\bagents?\b.*\bllm", r"\bllm\b.*\bagents?\b", r"tool use", r"self-evol", r"언어 ?모델", r"에이전트"]),
+    "llm":       ("LLM·VLM", [r"large language model", r"\bllms?\b", r"\bgpt", r"language model", r"vision[- ]language", r"\bvlms?\b",
+                           r"multimodal", r"foundation model", r"\bbert\b", r"prompt", r"\bclip\b", r"언어 ?모델"]),
     "rl":        ("강화학습", [r"reinforcement learning", r"\brl\b", r"q-learning", r"\bdqn\b", r"\bppo\b", r"\btd3\b", r"\bmarl\b",
                             r"actor-critic", r"policy (gradient|optimi[sz]ation|learning|network)", r"강화 ?학습"]),
     "gnn":       ("그래프 신경망", [r"graph neural", r"\bgnns?\b", r"\bgcn\b", r"graph convolution", r"graph attention", r"graph learning",
                                r"graph representation", r"그래프"]),
     "transformer": ("Transformer·Attention", [r"transformer", r"self-attention", r"attention[- ](mechanism|network|module|based)", r"\bvit\b", r"트랜스포머"]),
-    "generative": ("생성모델·월드모델", [r"diffusion", r"generative", r"\bgan\b", r"\bvae\b", r"autoregressive", r"world model",
-                                    r"scenario generation", r"scene generation", r"video generation", r"scenario (generation|synthesis)",
-                                    r"생성 ?모델", r"시나리오 생성", r"월드 ?모델"]),
+    "generative": ("생성모델", [r"diffusion", r"generative", r"\bgan\b", r"\bvae\b", r"autoregressive",
+                             r"scenario generation", r"scene generation", r"video generation", r"scenario (generation|synthesis)",
+                             r"생성 ?모델", r"시나리오 생성"]),
     "physics":   ("Physics-informed·Operator", [r"physics-?informed", r"\bpinns?\b", r"neural operator", r"deeponet", r"deep operator",
                                              r"\bfno\b", r"fourier neural", r"partial differential", r"\bpde"]),
-    "opt":       ("최적화·OR", [r"optimi[sz]", r"programming", r"\bmilp\b", r"\bmip\b", r"heuristic", r"column generation",
+    "opt":       ("최적화·OR", [r"optimi[sz]", r"(linear|integer|dynamic|mathematical|stochastic|quadratic|convex|nonlinear) programming", r"\bmilp\b", r"\bmip\b", r"heuristic", r"column generation",
                               r"branch-and", r"evolutionary", r"genetic algorithm", r"\bmpc\b", r"model predictive", r"shortest path",
                               r"dijkstra", r"allocation", r"scheduling", r"routing problem", r"network design", r"최적화"]),
     "stats":     ("통계·계량모형", [r"bayesian", r"regression", r"\blogit\b", r"random parameter", r"statistical", r"econometric",
@@ -82,17 +83,25 @@ METHODS = {
     "sim":       ("시뮬레이션", [r"simulation", r"\bsumo\b", r"agent-based", r"simulator", r"carla", r"시뮬레이션"]),
     "data":      ("데이터셋·실측", [r"naturalistic", r"dataset", r"trajectory data", r"drone data", r"\bngsim\b", r"\bhighd\b",
                                 r"waymo", r"lidar", r"field (test|data)", r"데이터셋"]),
+    # added 2026-10-22, kept last so the colours of the tags above stay put
+    "worldmodel": ("월드모델", [r"world models?", r"\bdreamer", r"\bjepa\b", r"model-based (rl|reinforcement)", r"learned (dynamics|simulator)", r"월드 ?모델"]),
+    "program":   ("프로그램 합성·기호 회귀", [r"program synthesis", r"programmatic", r"genetic programming", r"symbolic regression",
+                                       r"symbolic (policy|policies|expression)", r"\bdsl\b", r"domain-specific language", r"equation discovery",
+                                       r"library learning", r"프로그램 합성", r"기호 ?회귀"]),
+    "agent":     ("에이전트", [r"generalist agent", r"agentic", r"\b(llm|language|lm)[- ]?(based )?agents?\b", r"\bagents?\b.*\bllms?\b",
+                            r"\bllms?\b.*\bagents?\b", r"tool use", r"self-evol", r"autonomous agents?", r"에이전트"]),
 }
 
 # English labels (UI is bilingual)
 EN = {
-    "flow": "Traffic flow & state estimation", "forecast": "Traffic forecasting", "signal": "Signal & intersection control",
+    "flow": "Traffic flow theory", "forecast": "Traffic state estimation & forecasting", "signal": "Signal & intersection control",
     "micro": "Lane change & car-following", "human": "Driver behavior & human factors", "walk": "Pedestrians & cycling", "resilience": "Disasters & resilience", "safety": "Traffic safety",
     "ad": "Autonomous driving", "cav": "CAV & V2X cooperation", "policy": "Urban policy & equity",
-    "ev": "EV & energy", "transit": "Public transit & rail", "freight": "Freight & delivery",
+    "ev": "EV, charging & energy", "transit": "Public transit & rail", "freight": "Freight & delivery",
     "network": "Traffic assignment & networks", "service": "Travel demand & mobility services", "air": "UAM & aviation",
-    "llm": "LLM, VLM & agents", "rl": "Reinforcement learning", "gnn": "Graph neural networks",
-    "transformer": "Transformer & attention", "generative": "Generative & world models",
+    "llm": "LLM & VLM", "agent": "Agents", "rl": "Reinforcement learning", "gnn": "Graph neural networks",
+    "transformer": "Transformer & attention", "generative": "Generative models", "worldmodel": "World models",
+    "program": "Program synthesis & symbolic regression",
     "review": "Reviews & surveys", "theory": "Analytical & theoretical models", "filter": "Filtering & estimation",
     "physics": "Physics-informed & neural operators", "opt": "Optimization & OR", "stats": "Statistics & econometrics",
     "dl": "Deep learning (general)", "sim": "Simulation", "data": "Datasets & field data",

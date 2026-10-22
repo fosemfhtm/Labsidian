@@ -12,14 +12,16 @@
     ko: {
       "w.new": "다이어리 쓰기", "w.edit": "다이어리 편집", "w.sub": "{term} · 이번 학기 {n}번째 다이어리",
       "w.lookup.ph": "DOI · 논문 링크(arXiv, doi.org) · 제목으로 찾기", "w.fetch": "정보 불러오기", "w.fetching": "찾는 중…",
-      "w.fetched": "{src}에서 불러왔어요", "w.notFound": "못 찾았어요 — 직접 입력해주세요",
+      "w.fetched": "{src}에서 불러왔어요", "w.notFound": "못 찾았어요. 직접 입력해 주세요",
       "w.title": "논문 제목", "w.venue": "저널·학회", "w.year": "연도", "w.link": "링크", "w.authors": "저자", "w.abstract": "초록 (있으면 지도 위치·태그 추천이 정확해져요)",
       "w.date": "다이어리 날짜", "w.dateHint": "어느 주 다이어리로 칠지예요. 밀린 주나 다음 주 것도 고를 수 있고, 실제 등록 시각은 따로 기록돼요.", "w.prevWeek": "지난주", "w.today": "오늘", "w.nextWeek": "다음 주", "w.dateLate": "{n}일 늦게 등록으로 표시돼요", "w.dateEarly": "{n}일 미리 작성으로 표시돼요", "w.dateTerm": "{term}에 들어가요",
       "w.files": "첨부 (논문 PDF · 그림)", "w.addPdf": "📄 PDF", "w.addImg": "🖼 이미지", "w.drop": "파일을 끌어다 놓거나, 내용 칸에 이미지를 붙여넣어도 돼요", "w.fileType": "PDF나 이미지만 첨부할 수 있어요", "w.fileSize": "{name}: 너무 커요 (PDF 20MB · 이미지 5MB까지)", "w.fileMax": "첨부는 {n}개까지예요", "w.uploading": "올리는 중…", "w.fileLocal": "지금은 이 브라우저에만 저장돼요 (DB 연결 후 모두에게 보여요)", "w.rating": "별점", "w.content": "내용", "w.memo": "Memo (critic)",
       "w.content.ph": "Problem:\nMethod:\nResult:\nContribution:", "w.memo.ph": "한계, 가정, 내 연구와의 연결…",
-      "w.memoHint": "2024년 5월부터 메모(critic)가 있는 다이어리만 인정돼요", "w.tags": "태그", "w.tags.ph": "태그 검색 · Enter로 새 키워드 태그",
+      "w.memoHint": "2024년 5월부터 메모(critic)가 있는 다이어리만 인정돼요", "w.tags": "태그", "w.tags.ph": "태그 검색 · 맞는 게 없으면 새로 만들기",
+      "w.newMethod": "새 방법론으로 만들기", "w.newDomain": "새 분야로 만들기", "w.newKeyword": "키워드 태그로 추가", "w.tagMade": "새 태그를 만들었어요",
+      "w.need.tag": "분야나 방법론 태그를 하나 이상 골라 주세요. 맞는 게 없으면 태그 칸에서 새로 만들 수 있어요",
       "w.publish": "게시하기", "w.saveEdit": "수정 저장", "w.delete": "삭제", "w.discard": "새로 쓰기", "w.saved": "임시저장됨 {time}",
-      "w.restored": "임시저장된 글을 불러왔어요", "w.fromReading": "읽을 목록에서 가져왔어요 — 논문 정보와 PDF가 채워져 있어요",
+      "w.restored": "임시저장된 글을 불러왔어요", "w.fromReading": "읽을 목록에서 가져왔어요. 논문 정보와 PDF가 채워져 있어요",
       "w.already": "{date}에 이 논문 다이어리를 이미 썼어요.", "w.editMine": "그 다이어리 수정하기", "w.need.title": "논문 제목을 입력해주세요", "w.need.rating": "별점을 골라주세요",
       "w.need.body": "내용이나 Memo를 써주세요", "w.done": "게시했어요 ✓", "w.updated": "수정했어요 ✓", "w.deleted": "삭제했어요", "w.confirmDelete": "이 다이어리를 삭제할까요?",
       "w.dup": "이미 연구실에서 읽은 논문이에요", "w.dupBy": "{names} 님이 읽었어요", "w.dupOpen": "다이어리 보기",
@@ -29,19 +31,21 @@
     en: {
       "w.new": "Write diary", "w.edit": "Edit review", "w.sub": "{term} · review #{n} this term",
       "w.lookup.ph": "Find by DOI · paper link (arXiv, doi.org) · title", "w.fetch": "Fetch details", "w.fetching": "Searching…",
-      "w.fetched": "Loaded from {src}", "w.notFound": "Not found — please fill in manually",
+      "w.fetched": "Loaded from {src}", "w.notFound": "Not found. Please fill in manually",
       "w.title": "Paper title", "w.venue": "Venue", "w.year": "Year", "w.link": "Link", "w.authors": "Authors", "w.abstract": "Abstract (improves map position & tag suggestions)",
       "w.date": "Diary date", "w.dateHint": "Which week this entry counts for. You can catch up on a past week or write ahead; the actual posting time is recorded separately.", "w.prevWeek": "Last week", "w.today": "Today", "w.nextWeek": "Next week", "w.dateLate": "Will show as posted {n}d late", "w.dateEarly": "Will show as written {n}d ahead", "w.dateTerm": "Counts toward {term}",
       "w.files": "Attachments (paper PDF · figures)", "w.addPdf": "📄 PDF", "w.addImg": "🖼 Image", "w.drop": "Drop files here, or paste an image into the summary", "w.fileType": "Only PDFs and images can be attached", "w.fileSize": "{name}: too large (PDF 20 MB · image 5 MB max)", "w.fileMax": "Up to {n} attachments", "w.uploading": "Uploading…", "w.fileLocal": "For now files are stored in this browser only (shared once the DB is connected)", "w.rating": "Rating", "w.content": "Summary", "w.memo": "Memo (critique)",
       "w.content.ph": "Problem:\nMethod:\nResult:\nContribution:", "w.memo.ph": "Limitations, assumptions, link to your research…",
-      "w.memoHint": "Since May 2024 only diaries with a critique count", "w.tags": "Tags", "w.tags.ph": "Search tags · Enter adds a keyword tag",
+      "w.memoHint": "Since May 2024 only diaries with a critique count", "w.tags": "Tags", "w.tags.ph": "Search tags · create one if none fits",
+      "w.newMethod": "Create as a new method", "w.newDomain": "Create as a new field", "w.newKeyword": "Add as a keyword tag", "w.tagMade": "Created a new tag",
+      "w.need.tag": "Pick at least one field or method tag. If none fits, create one in the tag box",
       "w.publish": "Publish", "w.saveEdit": "Save changes", "w.delete": "Delete", "w.discard": "Start over", "w.saved": "Draft saved {time}",
-      "w.restored": "Restored your saved draft", "w.fromReading": "From your reading list — the paper and its PDF are filled in",
+      "w.restored": "Restored your saved draft", "w.fromReading": "From your reading list. The paper and its PDF are filled in",
       "w.already": "You already wrote a diary on this paper ({date}).", "w.editMine": "Edit that one", "w.need.title": "Please enter the paper title", "w.need.rating": "Please pick a rating",
       "w.need.body": "Please write a summary or a memo", "w.done": "Published ✓", "w.updated": "Saved ✓", "w.deleted": "Deleted", "w.confirmDelete": "Delete this review?",
       "w.dup": "Someone in the lab already read this paper", "w.dupBy": "Read by {names}", "w.dupOpen": "See reviews",
       "w.suggest": "Suggested tags", "w.suggestHint": "From similar papers' tags + keyword rules (click to add)", "w.similar": "Similar papers", "w.forbidden": "You can only edit your own reviews",
-      "w.signin": "Please sign in", "w.forStudy": "📚 Diary entry on the paper read together in the \"{title}\" study — it's a regular entry.", "w.forPick": "📚 Diary entry on the paper you bring to the \"{title}\" study — it's a regular entry.", "w.fromMcp": "Drafted by your AI (MCP). Read the paper, check and edit before publishing.",
+      "w.signin": "Please sign in", "w.forStudy": "📚 Diary entry on the paper read together in the \"{title}\" study. It's a regular entry.", "w.forPick": "📚 Diary entry on the paper you bring to the \"{title}\" study. It's a regular entry.", "w.fromMcp": "Drafted by your AI (MCP). Read the paper, check and edit before publishing.",
     },
   });
 
@@ -236,7 +240,7 @@
     if (!d.title && !d.content) { $("#w-suggest", view).innerHTML = ""; $("#w-similar", view).innerHTML = ""; return; }
     const sug = S.suggestTags(d);
     $("#w-suggest", view).innerHTML = sug.tags.filter(x => !tags.includes(x.id)).map(x =>
-      `<button type="button" class="ui-btn small" data-add="${esc(x.id)}"><span class="dot" style="background:${topicColor(x.id)}"></span>+ ${esc(topicLabel(x.id))}</button>`).join("") || `<span class="muted">—</span>`;
+      `<button type="button" class="ui-btn small" data-add="${esc(x.id)}"><span class="dot" style="background:${topicColor(x.id)}"></span>+ ${esc(topicLabel(x.id))}</button>`).join("") || `<span class="muted">-</span>`;
     $("#w-similar", view).innerHTML = sug.similar.map(x => UI.miniPaper(UI.PA[x.id], Math.round(x.score * 100) + "%")).join("");
   }
 
@@ -288,16 +292,18 @@
       const hits = Object.values(UI.T).filter(x => (x.label + " " + x.labelEn).toLowerCase().includes(s) && !tags.includes(x.id)).slice(0, 8);
       pop.hidden = false;
       pop.innerHTML = hits.map(x => `<div data-id="${esc(x.id)}"><span class="dot" style="background:${x.color}"></span>${esc(UI.tl(x))} <span class="muted">${x.axis}</span></div>`).join("") +
-        `<div data-new="1">＋ “${esc(q.value.trim())}” <span class="muted">${lang === "ko" ? "키워드 태그로 추가" : "add as keyword tag"}</span></div>`;
+        ["method", "domain", "free"].map(ax => `<div data-new="${ax}">＋ “${esc(q.value.trim())}” <span class="muted">${t({ method: "w.newMethod", domain: "w.newDomain", free: "w.newKeyword" }[ax])}</span></div>`).join("");
     };
-    pop.onclick = e => {
+    pop.onclick = async e => {
       const d = e.target.closest("[data-id],[data-new]"); if (!d) return;
+      const label = q.value.trim();
       if (d.dataset.id) addTag(d.dataset.id);
-      else { const k = q.value.trim().toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); if (k) addTag("f:" + k); }
+      else if (d.dataset.new === "free") { const k = label.toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); if (k) addTag("f:" + k); }
+      else if (label) { const had = new Set(Object.keys(UI.T)), id = await S.tags.create({ axis: d.dataset.new, label }); addTag(id); if (!had.has(id)) LabToast(t("w.tagMade")); }
       q.value = ""; pop.hidden = true; q.focus();
     };
     q.onkeydown = e => {
-      if (e.key === "Enter") { e.preventDefault(); (pop.querySelector("[data-id]") || pop.querySelector("[data-new]"))?.click(); }
+      if (e.key === "Enter") { e.preventDefault(); (pop.querySelector("[data-id]") || pop.querySelector('[data-new="free"]'))?.click(); }
       if (e.key === "Escape") pop.hidden = true;
     };
 
@@ -325,6 +331,8 @@
       if (!d.title) return (err.textContent = t("w.need.title"));
       if (!d.rating) return (err.textContent = t("w.need.rating"));
       if (!d.content.trim() && !d.memo.trim()) return (err.textContent = t("w.need.body"));
+      const ruleTagged = editing?.source === "import" && (UI.PA[editing.paper]?.domains.length || UI.PA[editing.paper]?.methods.length);  // imported diaries get tags from keyword rules
+      if (!ruleTagged && !d.tags.some(id => /^[dm]:/.test(id))) return (err.textContent = t("w.need.tag"));
       const btn = form.querySelector("button.ui-btn.prominent"); if (btn.disabled) return;
       btn.disabled = true; clearTimeout(saveTimer);
       try {

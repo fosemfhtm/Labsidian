@@ -80,6 +80,7 @@ async def main():
             await call("my_inbox", limit=3)
             await call("my_drafts")
             await call("list_guides")
+            await call("list_regular_studies")
             # ---- refused
             await call("create_draft", expect_ok=False, title="x", summary="x", memo="", rating=9)
             await call("get_paper", expect_ok=False, paper_ref="graph")          # ambiguous → lists candidates
@@ -105,10 +106,11 @@ async def main():
             reading_before = await call("my_reading_list")
             # Explicit target, matching title without an id, and genuinely new paper.
             explicit = await call("create_draft", title="", summary="Problem: explicit", memo="memo", rating=3,
-                                  reading_item_id=iid, pdf_path=pdf)
+                                  reading_item_id=iid, pdf_path=pdf, tags=["m:dl"])
             matched = await call("create_draft", title=title, summary="Problem: replaced", memo="updated memo", rating=4,
-                                 tags=["f:smoke"])
-            fresh = await call("create_draft", title=f"Smoke new draft {token}", summary="Problem: new", memo="new memo")
+                                 tags=["m:dl", "f:smoke"])
+            await call("create_draft", expect_ok=False, title=title, summary="x", memo="memo", tags=["f:smoke"])  # no field/method tag
+            fresh = await call("create_draft", title=f"Smoke new draft {token}", summary="Problem: new", memo="new memo", tags=["m:dl"])
             fresh_id = fresh.get("item_id") if isinstance(fresh, dict) else None
             for label, result, target in (("explicit", explicit, iid), ("matched", matched, iid), ("new", fresh, fresh_id)):
                 if not isinstance(result, dict) or not target or result.get("item_id") != target or result.get("open") != f"{URL.rstrip('/')}/#/write?reading={target}":
@@ -117,11 +119,14 @@ async def main():
                 failed.append("draft new target")
             drafts = await call("my_drafts")
             saved = next((x for x in drafts if x.get("item_id") == iid), {}) if isinstance(drafts, list) else {}
-            if saved.get("summary") != "Problem: replaced" or saved.get("memo") != "updated memo" or saved.get("rating") != 4 or saved.get("tags") != ["f:smoke"] or saved.get("pdfs") != ["labsidian_smoke.pdf"]:
+            if saved.get("summary") != "Problem: replaced" or saved.get("memo") != "updated memo" or saved.get("rating") != 4 or saved.get("tags") != ["m:dl", "f:smoke"] or saved.get("pdfs") != ["labsidian_smoke.pdf"]:
                 failed.append("draft replacement and PDF")
             fresh_draft = next((x for x in drafts if x.get("item_id") == fresh_id), {}) if isinstance(drafts, list) else {}
-            if fresh_draft.get("rating") != 0 or fresh_draft.get("tags") != []:
-                failed.append("draft allows empty rating and tags")
+            if fresh_draft.get("rating") != 0 or fresh_draft.get("tags") != ["m:dl"]:
+                failed.append("draft allows empty rating")
+            same = await call("create_tag", axis="method", label_ko="강화학습", label_en="Reinforcement learning")
+            if not isinstance(same, dict) or same.get("tag_id") != "m:rl":
+                failed.append("create_tag reuses an existing tag")
             reading = await call("my_reading_list")
             saved_item = next((x for x in reading if x.get("id") == iid), {}) if isinstance(reading, list) else {}
             new_item = next((x for x in reading if x.get("id") == fresh_id), {}) if isinstance(reading, list) else {}
@@ -155,14 +160,10 @@ async def main():
             if isinstance(study, dict) and not any(x.get("i_voted") for x in study.get("questions", [])):
                 failed.append("question vote")
             await call("my_inbox", limit=2, mark_read=True)
-            # a reading group's next session, filled in like the site's form (fails if one is already coming up)
-            groups = [x for x in await call("list_guides") if isinstance(x, dict)]
-            for x in groups:
-                gd = await call("get_guide", guide_id=x["id"])
-                if isinstance(gd, dict) and gd.get("reading_group"):
-                    upcoming = any(not y["finished"] for y in gd["reading_group"]["sessions"])
-                    await call("open_study", expect_ok=not upcoming, guide_id=x["id"])
-                    break
+            # a regular study's next session, filled in like the site's form (fails if one is already coming up)
+            for x in [x for x in await call("list_regular_studies") if isinstance(x, dict)][:1]:
+                upcoming = any(not y["finished"] for y in x["sessions"])
+                await call("open_study", expect_ok=not upcoming, group_id=x["id"], paper_ref=pid)
 
 
 asyncio.run(main())

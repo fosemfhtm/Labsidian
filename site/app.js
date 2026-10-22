@@ -18,13 +18,10 @@
   });
   // lookups by id; filled by index() and refilled in place whenever the store rebuilds window.LAB
   const P = {}, T = {}, PA = {}, R = {};
-  const CL = Object.fromEntries((D.clusters || []).map(c => [c.id, c]));
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const initial = name => /^[A-Za-z]/.test(name) ? name[0].toUpperCase() : name.slice(-2);
   const tl = x => (lang === "en" ? x.labelEn : x.label) || x.label;
-  const clusterName = c => !c ? "" : c.custom ? (lang === "en" ? c.custom.en : c.custom.ko)  // named by an admin
-    : c.level === "f" && c.keywords?.length ? c.keywords.slice(0, 2).join(" · ") : (lang === "en" ? c.en : c.ko);
   const topicIds = p => [...p.domains.map(d => "d:" + d), ...p.methods.map(m => "m:" + m)];
 
   const paperTopicCount = {};
@@ -209,8 +206,7 @@
   let lastDrawer = null;
   function openDrawer(kind, id, opts = {}) {
     lastDrawer = [kind, id];
-    const html = kind === "person" ? personDetail(id) : kind === "topic" ? topicDetail(id)
-      : kind === "cluster" ? clusterDetail(id) : paperDetail(id);
+    const html = kind === "person" ? personDetail(id) : kind === "topic" ? topicDetail(id) : paperDetail(id);
     if (!html) return;
     drawerBody.innerHTML = html;
     const ex = $("#drawer-expand");
@@ -257,7 +253,6 @@
     const V = window.LabViz, pr = V.profile(id), me = window.Store?.auth.current();
     const mine = D.reviews.filter(r => r.person === id).sort((a, b) => b.date.localeCompare(a.date));
     const other = me && me.id !== id && P[me.id] ? me.id : p.similar[0]?.id;
-    const fieldsTop = pr.fields.slice(0, 6), fieldsRest = pr.fields.slice(6).reduce((a, f) => a + f.value, 0);
     return `
       <div class="pd-head"><div class="pc-head">${avatar(id, true)}
         <div><h2>${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div></div>
@@ -272,8 +267,6 @@
         ${other ? `<a class="ui-btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
       <h4>${t("pf.terrain")}</h4>
       ${V.terrain(id)}
-      ${pr.fields.length ? `<h4>${t("pf.fields")}</h4>
-      ${bars([...fieldsTop.map(f => [f.label, f.value, T[f.id]?.color || "rgb(var(--gray2))", `topic:${f.id}`]), ...(fieldsRest ? [[t("pf.other"), fieldsRest, "rgb(var(--gray))"]] : [])], fieldsTop[0].value)}` : ""}
       ${p.similar.length ? `<h4>${t("pf.similar")}</h4><p class="hint">${t("pf.similarHint")}</p>${V.similar(id, p.similar)}` : ""}
       <div class="pf-recent"><h4>${t("pf.recent")}</h4>
       <div class="mini-list">${mine.slice(0, 15).map(r => miniPaper(PA[r.paper], r.date)).join("")}</div>
@@ -320,50 +313,17 @@
     `;
   }
 
-  function clusterDetail(cid) {
-    const c = CL[cid];
-    if (!c) return "";
-    const list = D.papers.filter(p => p[c.level] === cid);
-    const who = {};
-    list.forEach(p => p.reviews.forEach(r => (who[R[r].person] = (who[R[r].person] || 0) + 1)));
-    const whoArr = Object.entries(who).sort((a, b) => b[1] - a[1]).filter(([id]) => P[id]);
-    const tags = {};
-    list.forEach(p => topicIds(p).forEach(x => (tags[x] = (tags[x] || 0) + 1)));
-    const tagArr = Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    const top = [...list].sort((a, b) => b.rating - a.rating || b.readers.length - a.readers.length);
-    const parent = c.parent ? CL[c.parent] : null;
-    return `
-      <div class="kv">${t("d.cluster")}${parent ? ` · ${esc(clusterName(parent))}` : ""}</div>
-      <h2><span class="dot-lg" style="background:${(parent || c).color}"></span>${esc(clusterName(c))}</h2>
-      <div class="kv">${esc((c.custom?.keywords || c.keywords).join(", "))}</div>
-      <div class="stat-row">
-        <div class="stat"><b>${list.length}</b><span>${t("d.papers")}</span></div>
-        <div class="stat"><b>${whoArr.length}</b><span>${t("d.readers")}</span></div>
-        <div class="stat"><b>${list.filter(p => p.readers.length > 1).length}</b><span>${t("d.shared")}</span></div>
-      </div>
-      <h4>${t("d.who")}</h4>
-      ${bars(whoArr.map(([id, n]) => [P[id].name, n, P[id].color, "person:" + id]), whoArr[0]?.[1] || 1)}
-      <h4>${t("d.domains")}</h4>
-      ${bars(tagArr.map(([k, n]) => [tl(T[k]), n, T[k].color, "topic:" + k]), tagArr[0]?.[1] || 1)}
-      <h4>${t("d.clusterPapers")}</h4>
-      <div class="mini-list">${top.slice(0, 30).map(p => miniPaper(p)).join("")}</div>
-    `;
-  }
-
   function paperDetail(id) {
     const p = PA[id];
     if (!p) return "";
     const related = (p.nb || []).map(([pid, s]) => [PA[pid], s]).filter(([x]) => x);
     const refs = (p.refs || []).map(r => PA[r]).filter(Boolean);
-    const c = CL[p.f], cc = CL[p.c];
     return `
       <h2>${esc(p.title)}</h2>
       <div class="kv">${esc(p.authors)}</div>
       <div class="kv near">${esc(Store.paperCitation(p))}</div>
       ${p.link ? `<div class="kv near">${linkHtml(p.link)}</div>` : ""}
       <div class="tags-row">${topicIds(p).map(tag).join("")}</div>
-      ${cc ? `<div class="tags-row"><span class="ui-tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
-        ${c ? `<span class="ui-tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
       <div class="btn-row">
         ${p.x != null ? `<button class="ui-btn" data-graph="${p.id}">◎ ${t("d.showInGraph")}</button>` : ""}
         ${window.Store ? `${readingBtn(p)}
@@ -510,11 +470,8 @@
     if (!p) { v.innerHTML = `<div class="ui-empty">404</div>`; return; }
     const related = (p.nb || []).map(([pid, s]) => [PA[pid], s]).filter(([x]) => x);
     const refs = (p.refs || []).map(r => PA[r]).filter(Boolean);
-    const cc = CL[p.c], c = CL[p.f];
     v.innerHTML = `${back}
       <div class="dp-head">
-        ${cc ? `<div class="tags-row"><span class="ui-tag" data-open="cluster:${cc.id}"><span class="dot" style="background:${cc.color}"></span>${esc(clusterName(cc))}</span>
-          ${c ? `<span class="ui-tag" data-open="cluster:${c.id}">${esc(clusterName(c))}</span>` : ""}</div>` : ""}
         <h1>${esc(p.title)}</h1>
         <div class="kv">${esc(p.authors)}</div>
         <div class="kv">${esc(Store.paperCitation(p))}${p.citations != null ? ` · ${t("d.cites")} ${p.citations}` : ""}</div>
@@ -553,10 +510,9 @@
     if (!p) { v.innerHTML = `<div class="ui-empty">404</div>`; return; }
     const V = window.LabViz, pr = V.profile(id), me = window.Store?.auth.current();
     const other = me && me.id !== id && P[me.id] ? me.id : p.similar[0]?.id;
-    const fieldsTop = pr.fields.slice(0, 8), fieldsRest = pr.fields.slice(8).reduce((a, f) => a + f.value, 0);
     const side = k => `<div class="pf-side"><h4>${t("pf.axis." + k)}</h4>
         <div class="vz-rose-wrap">${V.rose(pr.by[k])}${V.roseLegend(pr.by[k])}</div>
-        ${pr.lift[k] ? `<p class="pf-insight">${esc(pr.lift[k])}</p>` : ""}</div>`;
+        ${V.noDomainNote(pr, k)}${pr.lift[k] ? `<p class="pf-insight">${esc(pr.lift[k])}</p>` : ""}</div>`;
     v.innerHTML = `${back}
       <div class="pf-top">
         <div class="pc-head">${avatar(id, true)}<div><h1>${esc(p.name)}</h1>
@@ -571,13 +527,11 @@
       <div class="btn-row pf-acts"><button class="ui-btn" data-graph="u:${id}">◎ ${t("d.showInGraph")}</button>
         ${other ? `<a class="ui-btn" href="#/compare?a=${id}&b=${other}">⇄ ${t("pf.compare")}</a>` : ""}</div>
       <section class="ui-card pf-terrain"><div class="pf-card-h"><h3>${t("pf.terrain")}</h3><p class="hint">${t("pf.terrainHint")}</p></div>
-        ${pr.enough ? `<div class="pf-sides">${side("area")}${side("method")}</div>` : `<p class="ui-empty compact">${t("pf.few", { n: V.MIN_REVIEWS - pr.count })}</p>`}</section>
+        ${pr.enough ? `<div class="pf-sides">${V.KINDS.map(side).join("")}</div>` : `<p class="ui-empty compact">${t("pf.few", { n: V.MIN_REVIEWS - pr.count })}</p>`}</section>
       <section class="ui-card pf-drift" id="pf-drift"></section>
       <div class="pf-grid">
         <section class="ui-card pf-diaries"><h3>${t("pf.diaries")} <span class="muted">${pr.count}</span></h3><div id="pf-dl"></div></section>
         <aside class="pf-aside">
-          ${pr.fields.length ? `<section class="ui-card"><h3>${t("pf.fields")}</h3>
-            ${bars([...fieldsTop.map(f => [f.label, f.value, T[f.id]?.color || "rgb(var(--gray2))", `topic:${f.id}`]), ...(fieldsRest ? [[t("pf.other"), fieldsRest, "rgb(var(--gray))"]] : [])], fieldsTop[0].value)}</section>` : ""}
           ${p.similar.length ? `<section class="ui-card"><h3>${t("pf.similar")}</h3><p class="hint">${t("pf.similarHint")}</p>${V.similar(id, p.similar)}</section>` : ""}
         </aside>
       </div>`;
@@ -602,7 +556,7 @@
     if (shownView === "graph" && v !== "graph") window.LabGraph?.hide?.();
     shownView = v;
     document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "view-" + v));
-    const navOf = { topics: "papers", topic: "papers", guides: "papers", guide: "papers", compare: "people" };
+    const navOf = { topics: "papers", topic: "papers", guides: "papers", guide: "papers", compare: "people", group: "study" };
     document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.view === (navOf[v] || v)));
     if (v === "papers" && qs) {
       const params = new URLSearchParams(qs);
@@ -630,9 +584,9 @@
   // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
   const papersTabs = on => `<div class="ui-seg page-tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
     .map(([k, href, key]) => `<a href="${href}" aria-current="${on === k ? "page" : "false"}">${t(key)}</a>`).join("")}</div>`;
-  window.LabUI = { openDrawer, closeDrawer, esc, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, clusterName, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
+  window.LabUI = { openDrawer, closeDrawer, esc, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
     buzz, papersTabs, paperTopicCount, topicDetail,
-    rerender, P, T, PA, R, CL, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
+    rerender, P, T, PA, R, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place
   document.addEventListener("DOMContentLoaded", () => { window.I18N.apply(); route(); });
 })();

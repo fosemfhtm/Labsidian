@@ -1,8 +1,6 @@
-/* Labsidian graph — one view: semantic map + live network.
- *   position : papers are anchored at their SPECTER2/UMAP position (title+abstract → "what the paper is about")
- *   edges    : person ─ paper (who read it). Nothing else, so the picture stays readable.
- *   colour   : node = first reader, white ring = read by 2+ people; background regions = topic clusters
- *   physics  : d3-force — drag anything, people settle among the papers they read.
+/* Labsidian graph: field and method maps with tag-density areas.
+ * Papers flip between tag-weighted semantic anchors; people settle among their papers.
+ * Edges show readers, rings show shared papers, and colours follow the selected key.
  */
 import Graph from "graphology";
 import Sigma from "sigma";
@@ -11,7 +9,7 @@ import { contourDensity } from "d3-contour";
 import { forceSimulation, forceManyBody, forceLink, forceX, forceY, forceCollide } from "d3-force";
 
 const D = window.LAB, UI = window.LabUI, { t } = window.I18N;
-const { P, T, R, CL, esc, clusterName } = UI;
+const { P, T, R, esc } = UI;
 const $ = s => document.querySelector(s);
 
 const papers = D.papers.filter(p => p.x != null);
@@ -33,6 +31,7 @@ const venueName = Object.fromEntries(venuesSorted.slice(0, VENUE_NAMES.length).m
 
 const DEFAULT_PHYSICS = { repel: 8, link: 0.5, anchor: 0.18 };
 const state = {
+  axis: localStorage.getItem("lab.mapAxis") === "method" ? "method" : "domain",
   colorBy: "person", people: new Set(), tags: new Set(), methods: new Set(), venues: new Set(), vtypes: new Set(),
   yearMin: YMIN, yearMax: YMAX, yearUnknown: true, minRating: 0, sharedOnly: false, mode: "dim",
   layers: { links: true, regions: true, labels: true, timeline: false },
@@ -42,6 +41,11 @@ const state = {
 let focusSet = null, hoverSet = null, matchCache = new Map();
 let graph, renderer, sim, simById = {}, started = false;
 
+let flipping = false;
+const anchorX = p => state.axis === "method" ? (p.mx ?? p.x) : p.x;
+const anchorY = p => state.axis === "method" ? (p.my ?? p.y) : p.y;
+const axisTags = p => state.axis === "method" ? p.methods : p.domains;
+const tagId = key => (state.axis === "method" ? "m:" : "d:") + key;
 // ---------------- colours ----------------
 // sigma's WebGL blending makes low-alpha colours look nearly opaque → pre-blend over the background
 const CSSV = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -86,6 +90,7 @@ function yearColor(y) {
   return toHex(a.map((v, j) => v + (b[j] - v) * f));
 }
 function paperColor(p) {
+  if (state.colorBy === "tag") return hex(T[tagId(axisTags(p)[0])]?.color || "gray2");
   if (state.colorBy === "year") return yearColor(window.Store.paperYear(p));
   if (state.colorBy === "venue") return venueColor[p.venueNorm] || THEME.other;
   return P[p._first]?.color ? hex(P[p._first].color) : THEME.other;
@@ -125,7 +130,7 @@ const PAPER_SCALE = Math.min(1, Math.pow(900 / Math.max(1, papers.length), 0.25)
 function buildGraph() {
   graph = new Graph();
   papers.forEach(p => graph.addNode(p.id, {
-    kind: "paper", type: "border", x: p.x, y: p.y, ax: p.x, ay: p.y,
+    kind: "paper", type: "border", x: anchorX(p), y: anchorY(p), ax: anchorX(p), ay: anchorY(p),
     size: PAPER_SCALE * Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),
     label: p.title.length > 46 ? p.title.slice(0, 44) + "…" : p.title,
     borderSize: p.readers.length > 1 ? 0.28 : 0,
@@ -133,7 +138,7 @@ function buildGraph() {
   D.people.forEach(u => {
     const mine = papers.filter(p => p.readers.includes(u.id));
     if (!mine.length) return; // new members appear once they've written something
-    const x = mine.reduce((s, p) => s + p.x, 0) / (mine.length || 1), y = mine.reduce((s, p) => s + p.y, 0) / (mine.length || 1);
+    const x = mine.reduce((s, p) => s + anchorX(p), 0) / mine.length, y = mine.reduce((s, p) => s + anchorY(p), 0) / mine.length;
     graph.addNode("u:" + u.id, {
       kind: "person", type: "border", x, y, ax: x, ay: y, size: PAPER_SCALE * (10 + Math.sqrt(u.count) * 0.55), label: u.name, color: u.color,
       borderSize: 0.16, forceLabel: matchMedia("(min-width: 761px)").matches,   // phones: let sigma drop labels that would overlap
@@ -165,8 +170,8 @@ function buildSim() {
   sim = forceSimulation(nodes)
     .force("charge", forceManyBody().strength(d => (d.kind === "paper" ? -ph.repel : -ph.repel * 3)).distanceMax(40).theta(0.9))
     .force("link", forceLink(links).id(d => d.id).distance(28).strength(() => ph.link * 0.05))
-    .force("ax", forceX(d => d.ax).strength(anchorOf))
-    .force("ay", forceY(d => d.ay).strength(anchorOf))
+    .force("ax", forceX(d => d.kind === "paper" ? anchorX(PA[d.id]) : d.ax).strength(anchorOf))
+    .force("ay", forceY(d => d.kind === "paper" ? anchorY(PA[d.id]) : d.ay).strength(anchorOf))
     .force("collide", forceCollide(d => d.r * 0.85 + 0.8).iterations(1))
     .alphaDecay(0.035)
     .on("tick", () => graph.updateEachNodeAttributes((n, a) => {
@@ -254,31 +259,64 @@ function drawHover(ctx, data) {
   ctx.fillStyle = THEME.label; ctx.fillText(label, x, y + fs + 3);
 }
 
-// ---------------- regions + cluster labels ----------------
-const regionCanvas = $("#regions"), labelLayer = $("#cluster-labels");
-let regions = [];
-function computeRegions() {
-  const coarse = D.clusters.filter(c => c.level === "c");
-  const pos = id => graph.getNodeAttributes(id);
-  const xs = papers.map(p => pos(p.id).x), ys = papers.map(p => pos(p.id).y);
-  const pad = 40, x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
-  const W = Math.ceil(Math.max(...xs) - x0 + pad), H = Math.ceil(Math.max(...ys) - y0 + pad);
-  regions = coarse.map(c => {
-    const pts = papers.filter(p => p.c === c.id).map(p => { const a = pos(p.id); return [a.x - x0, a.y - y0]; });
-    if (pts.length < 4) return null;
-    const cs = contourDensity().size([W, H]).cellSize(2).bandwidth(10).thresholds(12)(pts);
-    const peak = cs[cs.length - 1]?.value || 1;
-    const pick = cs.find(k => k.value >= peak * 0.12) || cs[0];
-    return { c, rings: (pick?.coordinates || []).map(poly => poly[0].map(([x, y]) => [x + x0, y + y0])) };
-  }).filter(Boolean);
-}
-function clusterCentroids() {
-  const acc = {};
+// ---------------- tag density areas + labels ----------------
+const regionCanvas = $("#regions"), labelLayer = $("#tag-labels");
+const areaCache = { domain: [], method: [] };
+const inside = (point, ring) => {
+  let yes = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i], b = ring[j];
+    if ((a[1] > point[1]) !== (b[1] > point[1]) &&
+        point[0] < (b[0] - a[0]) * (point[1] - a[1]) / (b[1] - a[1]) + a[0]) yes = !yes;
+  }
+  return yes;
+};
+function computeTagAreas() {
+  if (flipping) return;
+  const groups = {};
   papers.forEach(p => {
     const a = graph.getNodeAttributes(p.id);
-    [p.c, p.f].forEach(cid => { const o = (acc[cid] ||= [0, 0, 0]); o[0] += a.x; o[1] += a.y; o[2]++; });
+    axisTags(p).forEach(key => { if (T[tagId(key)]) (groups[tagId(key)] ||= []).push([a.x, a.y]); });
   });
-  return Object.fromEntries(Object.entries(acc).map(([k, [x, y, n]]) => [k, { x: x / n, y: y / n }]));
+  const areas = [];
+  // smoothing grows with the map (build_map spreads ~100 · √(n/900) units per std), so a big lab isn't cut into crumbs
+  const BW = 12 * Math.sqrt(Math.max(1, papers.length / 900)), PAD = BW * 3;
+  Object.entries(groups).forEach(([id, points]) => {
+    if (points.length < 12) return;
+    const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
+    const x0 = Math.min(...xs) - PAD, y0 = Math.min(...ys) - PAD;
+    const pts = points.map(([x, y]) => [x - x0, y - y0]);
+    const density = contourDensity().size([Math.ceil(Math.max(...xs) - x0 + PAD), Math.ceil(Math.max(...ys) - y0 + PAD)])
+      .cellSize(Math.max(2, Math.round(BW / 4))).bandwidth(BW);
+    const contours = density.contours(pts);
+    // Estimate each point's density from contour membership, using the same grid as the final outline.
+    const levels = Array.from({ length: 32 }, (_, i) => contours(contours.max * (i + 1) / 33));
+    const weights = pts.map(p => {
+      let lo = 0, hi = levels.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (levels[mid].coordinates.some(poly => inside(p, poly[0]) && !poly.slice(1).some(hole => inside(p, hole)))) lo = mid + 1;
+        else hi = mid;
+      }
+      return contours.max * Math.max(0.5, lo) / 33;
+    });
+    const threshold = [...weights].sort((a, b) => a - b)[Math.floor(pts.length * 0.3)];
+    const blobs = contours(threshold).coordinates.map(poly => {
+      const ring = poly[0], members = pts.map((p, i) => inside(p, ring) && !poly.slice(1).some(hole => inside(p, hole)) ? i : -1).filter(i => i >= 0);
+      let area = 0;
+      for (let i = 1; i < ring.length; i++) area += ring[i - 1][0] * ring[i][1] - ring[i][0] * ring[i - 1][1];
+      if (members.length < Math.max(2, pts.length * 0.05) || Math.abs(area) / 2 < 24) return null;
+      const total = members.reduce((s, i) => s + weights[i], 0);
+      return { rings: poly.map(r => r.map(([x, y]) => [x + x0, y + y0])), count: members.length,
+        x: x0 + members.reduce((s, i) => s + pts[i][0] * weights[i], 0) / total,
+        y: y0 + members.reduce((s, i) => s + pts[i][1] * weights[i], 0) / total };
+    }).filter(Boolean).sort((a, b) => b.count - a.count);
+    // the main patch, plus a second only where the tag really sits in two places
+    blobs.splice(blobs[1] && blobs[1].count >= blobs[0].count * 0.35 ? 2 : 1);
+    if (blobs.length) areas.push({ id, blobs, ...blobs[0] });
+  });
+  areaCache[state.axis] = areas.sort((a, b) => b.count - a.count);
+  buildLabels();
 }
 function drawOverlay() {
   if (!renderer) return;
@@ -290,21 +328,23 @@ function drawOverlay() {
   const ctx = regionCanvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
+  if (flipping) return;
   const dimAll = !!(focusSet || state.find);
   const zr = renderer.getCamera().ratio;
   if (state.layers.regions) {
     ctx.globalAlpha = Math.max(0.7, Math.min(1, zr / 0.55));   // zoomed in, the region you're in stays visible
-    regions.forEach(({ c, rings }) => {
+    areaCache[state.axis].forEach(({ id, blobs }) => blobs.forEach(({ rings }) => {
       ctx.beginPath();
-      rings.forEach(ring => ring.forEach(([x, y], i) => {
-        const v = renderer.graphToViewport({ x, y });
-        i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y);
-      }));
-      ctx.closePath();
-      const col = hex(c.color);
-      ctx.fillStyle = col + (dimAll ? "08" : "26"); ctx.fill("evenodd");
-      ctx.strokeStyle = col + (dimAll ? "14" : DARK ? "70" : "8c"); ctx.lineWidth = dimAll ? 1 : 1.5; ctx.stroke();
-    });
+      rings.forEach(ring => {
+        ring.forEach(([x, y], i) => {
+          const v = renderer.graphToViewport({ x, y });
+          i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y);
+        });
+        ctx.closePath();
+      });
+      const col = hex(T[id].color);
+      ctx.fillStyle = col + (dimAll ? "0a" : "30"); ctx.fill("evenodd");   // no outline: overlapping tags blend instead of crossing lines
+    }));
     ctx.globalAlpha = 1;
   }
   const placed = [];
@@ -318,10 +358,10 @@ function drawOverlay() {
     const v = renderer.graphToViewport(a);
     placed.push({ x: v.x - 34, y: v.y - 14, w: 68, h: 46 });
   });
-  const cents = clusterCentroids(), showCoarse = zr > 0.42, showFine = zr < 0.6;
+  const areas = areaCache[state.axis];
   [...labelLayer.children].forEach(div => {
-    const c = CL[div.dataset.id], pos = cents[c.id];
-    if (!state.layers.labels || !pos || !(c.level === "c" ? showCoarse : showFine)) { div.style.display = "none"; return; }
+    const pos = areas.find(a => a.id === div.dataset.id);
+    if (!state.layers.labels || !pos) { div.style.display = "none"; return; }
     const v = renderer.graphToViewport(pos);
     div.style.display = "block";
     const bw = div.offsetWidth, bh = div.offsetHeight, x = v.x - bw / 2;
@@ -332,19 +372,71 @@ function drawOverlay() {
   });
 }
 function buildLabels() {
-  const sorted = [...D.clusters].sort((a, b) => (a.level === b.level ? b.size - a.size : a.level === "c" ? -1 : 1));
-  labelLayer.innerHTML = sorted.map(c => {
-    const col = c.level === "c" ? c.color : CL[c.parent]?.color;
-    return c.level === "c"
-      ? `<div class="cl coarse" data-id="${c.id}" style="--c:${col}"><b>${esc(clusterName(c))}</b><span>${esc((c.custom?.keywords || c.keywords).slice(0, 3).join(" · "))}</span></div>`
-      : `<div class="cl fine" data-id="${c.id}" style="--c:${col}">${esc(clusterName(c))}</div>`;
-  }).join("");
+  labelLayer.innerHTML = areaCache[state.axis].map(a =>
+    `<button type="button" class="ui-btn plain tag-area-label" data-id="${esc(a.id)}" style="--c:${hex(T[a.id].color)}">${esc(UI.tl(T[a.id]))}</button>`).join("");
   labelLayer.onclick = e => {
-    const div = e.target.closest(".cl"); if (!div) return;
-    const c = CL[div.dataset.id], pos = clusterCentroids()[c.id];
-    zoomTo(pos.x, pos.y, c.level === "c" ? 0.32 : 0.14);
-    UI.openDrawer("cluster", c.id, { fromGraph: true });
+    const button = e.target.closest("[data-id]"); if (!button || flipping) return;
+    const area = areaCache[state.axis].find(a => a.id === button.dataset.id);
+    zoomTo(area.x, area.y, 0.32);
+    UI.openDrawer("topic", area.id, { fromGraph: true });
   };
+}
+
+function flipAxis(axis) {
+  if (axis === state.axis || flipping) return;
+  sim.stop();
+  const nodes = sim.nodes(), count = nodes.length;
+  const sx = new Float64Array(count), sy = new Float64Array(count), tx = new Float64Array(count), ty = new Float64Array(count);
+  let cy = 0;
+  nodes.forEach((n, i) => { const a = graph.getNodeAttributes(n.id); sx[i] = a.x; sy[i] = a.y; cy += a.y; });
+  cy /= count;
+  state.axis = axis;
+  localStorage.setItem("lab.mapAxis", axis);
+  nodes.forEach((n, i) => {
+    if (n.kind === "paper") { tx[i] = anchorX(PA[n.id]); ty[i] = anchorY(PA[n.id]); }
+    else {
+      const mine = papers.filter(p => p.readers.includes(n.id.slice(2)));
+      tx[i] = mine.reduce((sum, p) => sum + anchorX(p), 0) / mine.length;
+      ty[i] = mine.reduce((sum, p) => sum + anchorY(p), 0) / mine.length;
+      n.ax = tx[i]; n.ay = ty[i];
+    }
+    n.fx = n.fy = null; n.vx = n.vy = 0;
+  });
+  flipping = true;
+  labelLayer.hidden = true;
+  $("#g-axis").querySelectorAll("button").forEach(b => { b.disabled = true; b.setAttribute("aria-pressed", b.dataset.v === axis); });
+  renderPeopleLegend();
+  let index = 0, eased = 0, squash = 1;
+  const writePosition = (id, a) => {
+    a.x = sx[index] + (tx[index] - sx[index]) * eased;
+    a.y = cy + ((eased < 0.5 ? sy[index] : ty[index]) - cy) * squash;
+    index++; return a;
+  };
+  const positionHints = { attributes: ["x", "y"] };
+  const paint = progress => {
+    eased = progress * progress * (3 - 2 * progress);
+    squash = Math.abs(Math.cos(Math.PI * eased));
+    index = 0;
+    graph.updateEachNodeAttributes(writePosition, positionHints);
+  };
+  const finish = () => {
+    paint(1);
+    nodes.forEach((n, i) => { n.x = tx[i]; n.y = ty[i]; });
+    sim.force("ax").x(n => n.kind === "paper" ? anchorX(PA[n.id]) : n.ax);
+    sim.force("ay").y(n => n.kind === "paper" ? anchorY(PA[n.id]) : n.ay);
+    flipping = false; labelLayer.hidden = false;
+    $("#g-axis").querySelectorAll("button").forEach(b => { b.disabled = false; });
+    computeTagAreas(); renderer.refresh();
+    sim.alpha(0.12).restart();
+  };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { finish(); sim.stop(); return; }
+  const start = performance.now();
+  const frame = now => {
+    const progress = Math.min(1, (now - start) / 900);
+    if (progress === 1) { finish(); return; }
+    paint(progress); requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
 }
 
 // ---------------- camera ----------------
@@ -423,6 +515,13 @@ function renderPeopleLegend() {
       [...D.people].filter(u => u.count).sort((a, b) => b.count - a.count).map(u => `<div class="ui-row pl ${s.people.size && !s.people.has(u.id) ? "off" : ""} ${s.people.has(u.id) ? "on" : ""}" data-id="${u.id}">
         <i style="background:${u.color}"></i><span>${esc(u.name)}</span><span class="muted">${u.count}</span></div>`).join("") +
       `<div class="lg-note"><i class="ring"></i>${t("g.sharedRing")}</div>`;
+  } else if (s.colorBy === "tag") {
+    const counts = {};
+    papers.forEach(p => axisTags(p).forEach(key => { const id = tagId(key); if (T[id]) counts[id] = (counts[id] || 0) + 1; }));
+    el.innerHTML = `<div class="lg-title">${t(s.axis === "method" ? "g.methods" : "g.tags")}</div>` +
+      Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([id, count]) =>
+        `<div class="ui-row pl" data-tag="${esc(id)}"><i style="--c:${hex(T[id].color)}"></i><span>${esc(UI.tl(T[id]))}</span><span class="muted">${count}</span></div>`).join("") +
+      `<div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
   } else if (s.colorBy === "year") {
     el.innerHTML = `<div class="lg-title">${t("g.color.year")}</div><div class="lg-ramp" style="background:linear-gradient(90deg,${YEAR_NAMES.map(n => `rgb(var(--${n}))`).join(",")})"></div>
       <div class="lg-ramp-l"><span>${YMIN}</span><span>${YMAX}</span></div><div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
@@ -502,6 +601,8 @@ function initUI() {
   seg("#f-rating", v => { s.minRating = +v; changed(); });
   seg("#f-mode", v => { s.mode = v; changed(); });
   seg("#g-colorby", v => { s.colorBy = v; changed(); });
+  seg("#g-axis", flipAxis);
+  $("#g-axis").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === s.axis));
   seg("#focus-depth", v => { s.depth = +v; if (s.selected) select(s.selected); });
   $("#f-shared").onchange = e => { s.sharedOnly = e.target.checked; changed(); };
 
@@ -517,6 +618,8 @@ function initUI() {
   $("#g-people").addEventListener("click", e => {
     if (e.target.closest("#people-clear")) { s.people = new Set(); changed(); return; }
     if (e.target.closest(".lg-title") && innerWidth <= 760) { e.currentTarget.classList.toggle("open"); return; }   // phones: legend starts folded
+    const tag = e.target.closest("[data-tag]");
+    if (tag) { const [axis, key] = tag.dataset.tag.split(":"); toggleSet(axis === "d" ? s.tags : s.methods, key); renderPopovers(); changed(); return; }
     const row = e.target.closest(".pl[data-id]");
     if (row) { toggleSet(s.people, row.dataset.id); changed(); return; }
     const vrow = e.target.closest(".pl[data-venue]");
@@ -566,7 +669,7 @@ function initUI() {
     results.hidden = false;
     results.innerHTML = [...ppl.map(u => `<div class="ui-row fr" data-id="u:${u.id}"><span class="dot" style="background:${u.color}"></span>${esc(u.name)}</div>`),
       ...hits.slice(0, 8).map(p => `<div class="ui-row fr" data-id="${p.id}"><span class="dot" style="background:${paperColor(p)}"></span>${esc(p.title)}</div>`)].join("")
-      || `<div class="ui-row fr muted">—</div>`;
+      || `<div class="ui-row fr muted">-</div>`;
     renderer.refresh();
   };
   find.onkeydown = e => { if (e.key === "Enter") results.querySelector(".fr[data-id]")?.click(); if (e.key === "Escape") { find.value = ""; find.oninput(); } };
@@ -598,6 +701,7 @@ function initUI() {
 function initDrag() {
   let drag = null, moved = false;
   renderer.on("downNode", ({ node }) => {
+    if (flipping) return;
     drag = node; moved = false;
     const sn = simById[node]; sn.fx = sn.x; sn.fy = sn.y;
     sim.alphaTarget(0.2).restart();
@@ -657,7 +761,6 @@ function start() {
     return;
   }
   buildGraph();
-  buildLabels();
   renderer = new Sigma(graph, $("#graph"), {
     nodeProgramClasses: { border: NodeBorderProgram },
     nodeReducer, edgeReducer, zIndex: true,
@@ -666,11 +769,11 @@ function start() {
     minCameraRatio: 0.03, maxCameraRatio: 3, stagePadding: 30,
     allowInvalidContainer: true, // the graph keeps simulating while another page is shown
   });
-  const xs = papers.map(p => p.x), ys = papers.map(p => p.y), m = 1.25;
+  const xs = papers.flatMap(p => [p.x, p.mx ?? p.x]), ys = papers.flatMap(p => [p.y, p.my ?? p.y]), m = 1.25;
   renderer.setCustomBBox({ x: [Math.min(...xs) * m, Math.max(...xs) * m], y: [Math.min(...ys) * m, Math.max(...ys) * m] });
   renderer.on("afterRender", drawOverlay);
   // the theme changed (menu or OS setting): re-read the colours and repaint — no reload
-  const retheme = () => { readTheme(); renderer.refresh(); };
+  const retheme = () => { readTheme(); computeTagAreas(); renderer.refresh(); };
   window.addEventListener("lab:theme", retheme);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => document.documentElement.dataset.theme === "auto" && retheme());
   renderer.on("enterNode", ({ node }) => {
@@ -691,8 +794,8 @@ function start() {
   const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()));
   for (let i = 0; i < ticks; i++) sim.tick();
   graph.updateEachNodeAttributes((n, a) => { const s = simById[n]; a.x = s.x; a.y = s.y; return a; }, { attributes: ["x", "y"] });
-  sim.on("end", () => { computeRegions(); renderer.refresh(); });   // later restarts (drag, physics, time-lapse) still animate
-  computeRegions();
+  sim.on("end", () => { computeTagAreas(); renderer.refresh(); });
+  computeTagAreas();
   updateToolbar();
   renderPeopleLegend();
   fitNodes(0);
@@ -707,8 +810,9 @@ const demo = {
     sim.alpha(1).restart();
   },
   fit: (ms = 900) => fitNodes(ms),
-  zoomCluster(cid, ratio, ms = 1600) {
-    const pos = clusterCentroids()[cid]; if (!pos) return;
+  flipAxis,
+  zoomTag(id, ratio, ms = 1600) {
+    const pos = areaCache[state.axis].find(a => a.id === id); if (!pos) return;
     const fg = renderer.viewportToFramedGraph(renderer.graphToViewport(pos));
     centerFramed(fg.x, fg.y, ratio, ms);
   },

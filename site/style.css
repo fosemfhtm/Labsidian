@@ -166,23 +166,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 #view-graph { background: radial-gradient(ellipse at 50% 40%, var(--graph-bg) 0%, var(--graph-bg) 70%); }
 #regions { position: absolute; inset: 0; pointer-events: none; }
 #graph { position: absolute; inset: 0; }
-#cluster-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.cl {
-  position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; white-space: nowrap;
-  transition: opacity .2s; user-select: none;
-}
-.cl.coarse { text-align: center; }
-.cl.coarse b {
-  display: block; font-size: var(--fs-body); font-weight: 800; letter-spacing: -.01em; color: var(--c);
+#tag-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.tag-area-label {
+  position: absolute; left: 0; top: 0; pointer-events: auto; white-space: nowrap;
+  font: var(--t-headline); color: var(--c); text-align: center;
   text-shadow: 0 0 6px var(--graph-bg), 0 0 12px var(--graph-bg), 0 0 2px var(--graph-bg);
 }
-.cl.coarse span { display: block; font-size: var(--fs-subhead); color: var(--label-2); text-shadow: 0 0 6px var(--graph-bg), 0 0 3px var(--graph-bg); }
-.cl.fine {
-  font-size: var(--fs-callout); font-weight: 600; color: var(--c); padding: 1px 7px; border-radius: var(--r-full);
-  background: var(--glass-tint-strong); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
-}
-.cl:hover b, .cl.fine:hover { filter: brightness(1.25); }
-.cl.faded { opacity: .25; }
+.tag-area-label.faded { opacity: .25; }
+#g-axis { flex: none; }
+.pl[data-tag] i { background: var(--c); }
 
 .graph-ctl { top: 14px; left: 14px; width: 272px; padding: 0; max-height: calc(100% - 92px); display: flex; flex-direction: column; overflow: hidden; }
 .ctl-toggle {
@@ -270,7 +262,6 @@ nav a { white-space: nowrap; }
 .slider { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 8px; font-size: var(--fs-callout); color: var(--text-2); margin-top: 4px; }
 #g-view { margin-bottom: 6px; }
 #g-count { margin-top: 2px; }
-.cl.ghost.coarse b { opacity: .85; }
 .timeline[hidden] { display: none; }
 [hidden] { display: none !important; }
 

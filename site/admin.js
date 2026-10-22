@@ -21,7 +21,7 @@
       "ad.ops": "태그 변경 이력", "ad.undo": "되돌리기", "ad.domain": "분야", "ad.method": "방법론", "ad.free": "키워드",
       "ad.termLabel": "이름", "ad.start": "시작", "ad.end": "끝", "ad.target": "목표 편수", "ad.addTerm": "학기 추가",
       "ad.targetAuto": "자동 (작성일 수)", "ad.offDays": "연구실 쉬는 날", "ad.offHint": "주말과 공휴일(대체공휴일 포함)은 자동으로 빠져요. 셧다운·학회처럼 연구실이 쉬는 평일만 넣으면 그만큼 작성 목표가 줄어요 (학기 목표 편수를 비워 두면 '작성일 수'가 목표). 선거일·임시공휴일처럼 자동으로 모르는 휴일은 '공휴일'로 추가하세요.",
-      "ad.autoHolidays": "자동 공휴일 {y}", "ad.noOff": "아직 없어요 — 셧다운이나 학회 기간을 넣어 주세요",
+      "ad.autoHolidays": "자동 공휴일 {y}", "ad.noOff": "아직 없어요. 셧다운이나 학회 기간을 넣어 주세요",
       "ad.kind": "종류", "ad.kind.holiday": "공휴일", "ad.kind.shutdown": "셧다운", "ad.kind.event": "학회·행사", "ad.offLabel": "이름", "ad.addOff": "쉬는 날 추가", "ad.remove": "삭제",
       "ad.export": "전체 변경 데이터 JSON 내보내기", "ad.import": "JSON 가져오기", "ad.resetAll": "이 브라우저의 데이터 초기화",
       "ad.resetConfirm": "이 브라우저에 저장된 계정·다이어리·댓글을 모두 지울까요? (가져온 다이어리 원본은 남아요)",
@@ -45,8 +45,8 @@
       "ad.aiCopy": "Copy prompt", "ad.aiPaste": "Paste the AI answer", "ad.aiPreview": "Preview", "ad.aiApply": "Apply selected merges", "ad.aiBad": "Couldn't read that JSON",
       "ad.ops": "Tag change history", "ad.undo": "Undo", "ad.domain": "Field", "ad.method": "Method", "ad.free": "Keyword",
       "ad.termLabel": "Label", "ad.start": "Start", "ad.end": "End", "ad.target": "Target", "ad.addTerm": "Add term",
-      "ad.targetAuto": "auto (writing days)", "ad.offDays": "Lab days off", "ad.offHint": "Weekends and public holidays (substitute days included) never count. Add the lab's own days off — shutdowns, conferences — and targets shrink to match (leave a term's target empty to use the number of writing days). Holidays the rules can't know, like elections or one-off days, go in as 'Public holiday'.",
-      "ad.autoHolidays": "Automatic public holidays {y}", "ad.noOff": "None yet — add shutdowns or conference weeks",
+      "ad.targetAuto": "auto (writing days)", "ad.offDays": "Lab days off", "ad.offHint": "Weekends and public holidays (substitute days included) never count. Add the lab's own days off (shutdowns, conferences) and targets shrink to match (leave a term's target empty to use the number of writing days). Holidays the rules can't know, like elections or one-off days, go in as 'Public holiday'.",
+      "ad.autoHolidays": "Automatic public holidays {y}", "ad.noOff": "None yet. Add shutdowns or conference weeks",
       "ad.kind": "Kind", "ad.kind.holiday": "Public holiday", "ad.kind.shutdown": "Shutdown", "ad.kind.event": "Conference / event", "ad.offLabel": "Name", "ad.addOff": "Add day off", "ad.remove": "Remove",
       "ad.export": "Export all changes as JSON", "ad.import": "Import JSON", "ad.resetAll": "Reset this browser's data",
       "ad.resetConfirm": "Delete all accounts, reviews and comments stored in this browser? (The imported diary stays)",
@@ -90,10 +90,10 @@
         return `<tr data-id="${u.id}">
         <td class="nowrap">${member ? UI.avatar(u.id) : `<span class="avatar admin">A</span>`} ${esc(u.name)}</td>
         <td><select data-act="role"><option value="member" ${u.role === "member" ? "selected" : ""}>member</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>admin</option></select></td>
-        <td>${member ? `<select data-f="exempt"><option value="0">${t("ad.dutyOn")}</option><option value="1" ${full.quota.exempt ? "selected" : ""}>${t("ad.dutyOff")}</option></select>` : "—"}</td>
+        <td>${member ? `<select data-f="exempt"><option value="0">${t("ad.dutyOn")}</option><option value="1" ${full.quota.exempt ? "selected" : ""}>${t("ad.dutyOff")}</option></select>` : "-"}</td>
         <td>${member ? `<input type="date" data-f="start" value="${full.quota.start || ""}">` : ""}</td>
         <td>${member ? `<input type="date" data-f="end" value="${full.quota.end || ""}">` : ""}</td>
-        <td>${member ? `<input type="number" min="0" data-f="target" style="width:70px" placeholder="${q.exempt ? "—" : q.auto ?? q.target}" value="${full.quota.targets?.[term.id] ?? ""}">` : ""}</td>
+        <td>${member ? `<input type="number" min="0" data-f="target" style="width:70px" placeholder="${q.exempt ? "-" : q.auto ?? q.target}" value="${full.quota.targets?.[term.id] ?? ""}">` : ""}</td>
         <td class="nowrap">${member ? (q.exempt ? `<span class="muted">${n} · ${t("ad.dutyOff")}</span>` : `<b class="${rate >= 90 ? "ok" : rate >= 70 ? "" : "warn"}">${rate}%</b> <span class="muted">${n}/${q.target}</span>`) : ""}</td>
         <td>${u.disabled ? t("ad.disabled") : u.pending ? `<span class="ui-pill warn">${t("ad.pending")}</span>` : t("ad.active")}</td>
         <td class="right nowrap">${member ? `<button class="ui-btn small" data-act="quota">${t("ad.save")}</button>` : ""}
@@ -167,7 +167,7 @@
         <td><input data-f="label" value="${esc(x.label)}"></td><td><input data-f="labelEn" value="${esc(x.labelEn || "")}"></td>
         <td>${usage[x.id] || 0}</td>
         <td class="nowrap"><button class="ui-btn small" data-act="save">${t("ad.save")}</button>
-          <select data-f="into"><option value="">—</option>${opts(x)}</select><button class="ui-btn small" data-act="merge">${t("ad.merge")}</button></td></tr>`).join("")}
+          <select data-f="into"><option value="">-</option>${opts(x)}</select><button class="ui-btn small" data-act="merge">${t("ad.merge")}</button></td></tr>`).join("")}
       </tbody></table>
       <form class="inline-form" id="ad-newtag"><b>${t("ad.newTag")}</b>
         <select name="axis"><option value="domain">${t("ad.domain")}</option><option value="method">${t("ad.method")}</option></select>
@@ -181,7 +181,7 @@
           <button class="ui-btn text" data-pmerge="${esc(a.id)}|${esc(b.id)}">${(usage[a.id] || 0) < (usage[b.id] || 0) ? "→" : "←"} ${t("ad.merge")}</button></div>`).join("") || `<p class="muted">${t("ad.noSimilar")}</p>`}</div>
       </div>
       <div class="ui-card"><h3>${t("ad.ops")}</h3>${S.tags.ops().map((op, i) => `<div class="op"><code>${esc(op.op)}</code> ${esc(op.from || op.id)} ${op.into ? "→ " + esc(op.into) : op.label ? "“" + esc(op.label) + "”" : ""}
-        <span class="muted">${op.at ? LabAgo(op.at) : ""}</span><button class="ui-btn text" data-undo="${i}">${t("ad.undo")}</button></div>`).reverse().join("") || `<p class="muted">—</p>`}</div>`;
+        <span class="muted">${op.at ? LabAgo(op.at) : ""}</span><button class="ui-btn text" data-undo="${i}">${t("ad.undo")}</button></div>`).reverse().join("") || `<p class="muted">-</p>`}</div>`;
 
     el.querySelectorAll("tbody tr").forEach(tr => {
       const id = tr.dataset.id, f = k => tr.querySelector(`[data-f="${k}"]`).value;
@@ -262,7 +262,7 @@
   function log(el) {
     el.innerHTML = `<div class="ui-card"><table class="ui-table"><thead><tr><th>${t("ad.when")}</th><th>${t("ad.who")}</th><th>${t("ad.what")}</th><th></th></tr></thead><tbody>
       ${S.admin.log().map(l => `<tr><td class="muted nowrap">${new Date(l.at).toLocaleString(lang === "ko" ? "ko-KR" : "en-US")}</td><td>${esc(UI.P[l.actor]?.name || l.actor || "")}</td>
-        <td><code>${esc(l.action)}</code></td><td>${esc(l.detail || "")}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">—</td></tr>`}</tbody></table></div>`;
+        <td><code>${esc(l.action)}</code></td><td>${esc(l.detail || "")}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">-</td></tr>`}</tbody></table></div>`;
   }
 
   (window.LabPages ||= {}).admin = { render };

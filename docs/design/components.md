@@ -206,7 +206,7 @@
 
 | 옛 클래스 | 지금 |
 |---|---|
-| `.card`, `.person-card`, `.st-card`, `.gd-card`, `.feed-item.act`, `.paper-row`, `.stat`, `.pf-stats > div`, `.compose`, `.gd-group`, `.pp-lab`, `.cmp-head`… | `.ui-card` + 내용별 클래스(배치만) |
+| `.card`, `.person-card`, `.st-card`, `.gd-card`, `.feed-item.act`, `.paper-row`, `.stat`, `.pf-stats > div`, `.compose`, `.grp-card`, `.pp-lab`, `.cmp-head`… | `.ui-card` + 내용별 클래스(배치만) |
 | `.feed-item.act.question/.idea/.study`의 왼쪽 색 줄 | 색 줄 없이 머리에 아이콘 + 필 |
 
 ---
@@ -233,7 +233,7 @@ macOS 앱의 목록처럼 **한 줄 = 한 항목**, 구분선으로 나눈다. �
 
 | 옛 클래스 (25개 이상) | 지금 |
 |---|---|
-| `.mini`, `.sim-row`, `.fr`, `.pl`, `.st-with`, `.prep-row`, `.dq`, `.tp-row`, `.gd-rounds a`, `.pp-axes` 줄 | `.ui-row` |
+| `.mini`, `.sim-row`, `.fr`, `.pl`, `.st-with`, `.prep-row`, `.dq`, `.tp-row`, `.grp-rounds a`, `.pp-axes` 줄 | `.ui-row` |
 | `.notif`, `.side-q`, `.side-st`, `.cand-row`, `.rl-item`, `.spot-row`, `.todo` | `.ui-row.two` |
 | `.gd-item` | `.ui-row.rich.ruled` |
 | `.paper-row` (논문 목록 카드), `.st-q` (질문 카드) | 카드 모양 그대로 둠 — 목록 묶음으로 바꿀지는 열린 문제 |

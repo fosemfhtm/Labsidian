@@ -22,8 +22,8 @@
       "st.new": "스터디 열기", "st.paper": "논문", "st.paper.ph": "연구실 논문 검색 · 없으면 제목을 그대로 입력", "st.link": "링크 (선택)",
       "st.date": "날짜", "st.time": "시간", "st.place": "장소", "st.place.ph": "예: 세미나실, Zoom", "st.desc": "소개 · 읽을 범위", "st.desc.ph": "왜 같이 읽고 싶은지, 어디까지 읽어올지…",
       "st.invite": "초대 (알림이 가요)", "st.pdf": "PDF (선택)", "st.create": "스터디 열기", "st.need.title": "논문을 골라주세요", "st.created": "스터디를 열었어요 ✓",
-      "st.series": "「{g}」 {n}회차", "st.seriesNew": "「{g}」 {n}회차 모임", "st.suggest": "읽을 목록에서 추천", "st.prevRound": "← {n}회차", "st.nextRound": "{n}회차 →",
-      "st.solo": "단발 스터디", "st.groupHead": "모임",
+      "st.series": "「{g}」 {n}회차", "st.seriesNew": "「{g}」 {n}회차", "st.prevRound": "← {n}회차", "st.nextRound": "{n}회차 →",
+      "st.solo": "단발 스터디",
       "st.knownPaper": "연구실에서 {n}명이 읽은 논문이에요", "st.newPaper": "아직 연구실에서 아무도 안 읽은 논문이에요",
       // detail
       "st.join": "참가하기", "st.leave": "참가 취소", "st.joined": "참가했어요 · 읽을 목록에 담았어요", "st.write": "✎ 이 논문 다이어리 쓰기", "st.myReview": "내 다이어리 보기",
@@ -44,7 +44,7 @@
       "st.n.empty": "아직 정리 노트가 없어요. 모임이 끝나면 누구든 정리해 주세요.", "st.n.write": "✎ 정리 쓰기", "st.n.edit": "수정", "st.n.cancel": "취소",
       "st.n.fromBoard": "질문 보드에서 이야기 못 한 질문 {n}개 넣기",
       "st.n.conclusion.ph": "오늘 이야기로 정리된 결론, 새로 알게 된 점", "st.n.open.ph": "결론이 안 난 질문, 더 알아볼 것", "st.n.next.ph": "다음에 읽을 논문, 우리 연구에 해볼 것",
-      "st.blindMsg": "먼저 쓰고 보기 — 내 다이어리를 올리면 보여요.", "st.writeMine": "내 다이어리 쓰기",
+      "st.blindMsg": "먼저 쓰고 보기: 내 다이어리를 올리면 보여요.", "st.writeMine": "내 다이어리 쓰기",
       "st.opt.blind": "먼저 쓰고 보기", "st.opt.blindHint": "내 다이어리를 올리기 전에는 다른 참가자의 다이어리를 가려요 (스터디가 끝나면 모두 보여요)",
       "st.opt.bring": "각자 관련 논문 1편씩 가져와서 소개", "st.opt.bringHint": "같이 읽는 논문과 관련된 논문을 하나씩 골라 오고, 모임에서 돌아가며 소개해요",
       "st.blindOn": "🙈 먼저 쓰고 보기 중이에요. 내 다이어리를 올리면 다른 참가자의 다이어리가 보여요.",
@@ -65,14 +65,14 @@
       "st.new": "Open a study", "st.paper": "Paper", "st.paper.ph": "Search lab papers · or type a new title", "st.link": "Link (optional)",
       "st.date": "Date", "st.time": "Time", "st.place": "Place", "st.place.ph": "e.g. seminar room, Zoom", "st.desc": "About · what to read", "st.desc.ph": "Why read it together, which sections…",
       "st.invite": "Invite (they get notified)", "st.pdf": "PDF (optional)", "st.create": "Open study", "st.need.title": "Pick a paper", "st.created": "Study opened ✓",
-      "st.series": "{g} · session {n}", "st.seriesNew": "{g} · session {n}", "st.suggest": "Suggested from the list", "st.prevRound": "← Session {n}", "st.nextRound": "Session {n} →",
-      "st.solo": "One-off studies", "st.groupHead": "Reading group",
+      "st.series": "{g} · session {n}", "st.seriesNew": "{g} · session {n}", "st.prevRound": "← Session {n}", "st.nextRound": "Session {n} →",
+      "st.solo": "One-off studies",
       "st.knownPaper": "{n} lab member(s) already read this", "st.newPaper": "Nobody in the lab has read this yet",
       "st.join": "Join", "st.leave": "Leave", "st.joined": "Joined · added to your reading list", "st.write": "✎ Write my diary entry", "st.myReview": "See my entry",
       "st.countsHint": "Study reviews use the same diary format and land in your diary as usual", "st.edit": "Edit", "st.close": "Finish study", "st.reopen": "Reopen", "st.delete": "Delete",
       "st.confirmDelete": "Delete this study? Its questions and notes go too.", "st.confirmClose": "Finish this study? Members will be notified.",
       "st.compare": "Entries side by side", "st.notYet": "hasn't written an entry yet", "st.ratings": "Ratings",
-      "st.board": "Question board", "st.boardHint": "Post questions before you meet and vote with 👍 — the most-voted go first.",
+      "st.board": "Question board", "st.boardHint": "Post questions before you meet and vote with 👍. The most-voted go first.",
       "st.q.ph": "A question or something to discuss", "st.q.add": "Post", "st.q.done": "discussed", "st.q.undo": "undo", "st.q.empty": "No questions yet",
       "st.notes": "Notes", "st.notesHint": "After the meeting, anyone can write them up. The last save is kept.",
       "st.n.conclusion": "Conclusion · takeaways", "st.n.open": "Open questions", "st.n.next": "Follow-up papers · things to try", "st.n.save": "Save notes", "st.n.saved": "saved by {name} · {at}",
@@ -86,7 +86,7 @@
       "st.n.empty": "No notes yet. After the meeting, anyone can write them up.", "st.n.write": "✎ Write notes", "st.n.edit": "Edit", "st.n.cancel": "Cancel",
       "st.n.fromBoard": "Add {n} undiscussed question(s) from the board",
       "st.n.conclusion.ph": "What we concluded, what we learned", "st.n.open.ph": "Unresolved questions, things to look up", "st.n.next.ph": "Papers to read next, things to try in our research",
-      "st.blindMsg": "Write first, then read — post your entry to see this.", "st.writeMine": "Write my entry",
+      "st.blindMsg": "Write first, then read: post your entry to see this.", "st.writeMine": "Write my entry",
       "st.opt.blind": "Write first, then read", "st.opt.blindHint": "Other members' entries stay hidden until you post yours (all visible once the study ends)",
       "st.opt.bring": "Everyone brings one related paper", "st.opt.bringHint": "Each member picks a paper related to the common one and introduces it at the meeting",
       "st.blindOn": "🙈 Write first, then read. Post your entry to see the others'.",
@@ -121,11 +121,11 @@
   function card(st) {
     const revs = S.studies.reviews(st), done = new Set(revs.map(r => r.person));
     return `<a class="ui-card st-card ${st.closed ? "closed" : ""}" href="#/study/${st.id}">
-      <div class="st-top">${dday(st)}<span class="m">${when(st)}</span>${st.guideId && S.guides.get(st.guideId) ? `<span class="ui-pill">${t("gd.round", { n: S.guides.roundOf(st) })}</span>` : ""}</div>
+      <div class="st-top">${dday(st)}<span class="m">${when(st)}</span>${S.groups.get(st.groupId) ? `<span class="ui-pill">${t("grp.round", { n: S.groups.roundOf(st) })}</span>` : ""}</div>
       <h3>${esc(st.title)}</h3>
       ${st.desc ? `<p class="st-desc">${esc(st.desc.slice(0, 140))}</p>` : ""}
       <div class="st-foot">${UI.avStack(st.members, 6, u => (done.has(u) ? "did" : ""))}
-        <span class="m">${t("st.presenter")} ${name(st.presenter)} · ${t("st.reviewed", { n: st.members.filter(u => done.has(u)).length, m: st.members.length })} · ${t("st.qs", { n: S.studies.questions.list(st.id).length })}</span></div>
+        <span class="m">${st.presenter ? `${t("st.presenter")} ${name(st.presenter)} · ` : ""}${t("st.reviewed", { n: st.members.filter(u => done.has(u)).length, m: st.members.length })} · ${t("st.qs", { n: S.studies.questions.list(st.id).length })}</span></div>
     </a>`;
   }
   function sharedHtml() {
@@ -141,11 +141,12 @@
   }
   function listPage(params) {
     if (params.get("tab")) tab = params.get("tab");
-    const all = S.studies.list(), open = all.filter(s => !s.closed), past = all.filter(s => s.closed).reverse();
+    const all = S.studies.list(), open = all.filter(s => !s.closed), past = all.filter(s => s.closed).reverse(), groups = S.groups.list();
     const cands = S.studies.candidates(), gcands = S.guides.studyCandidates();
     view.innerHTML = `
       <div class="page-head row-head"><div><h1>${t("st.title")}</h1><p class="sub">${t("st.sub")}</p></div>
-        <a class="ui-btn prominent" href="#/study/new">${t("st.open")}</a></div>
+        <div class="btn-row"><a class="ui-btn" href="#/group/new">＋ ${t("grp.new")}</a><a class="ui-btn prominent" href="#/study/new">${t("st.open")}</a></div></div>
+      ${groups.length ? `<div class="grp-cards">${groups.map(window.LabGroups.tile).join("")}</div>` : ""}
       <div class="ui-seg page-tabs">${["open", "past", "shared"].map(k => `<a href="#/study?tab=${k}" aria-current="${tab === k ? "page" : "false"}">${t("st.tab." + k)}${k === "open" && open.length ? ` <span class="ui-pill accent">${open.length}</span>` : ""}</a>`).join("")}</div>
       ${tab === "shared" ? sharedHtml() : `
         ${tab === "open" && (cands.length || gcands.length) ? `<div class="ui-card st-cands"><h4>${t("st.cands")}</h4><p class="hint">${t("st.candsHint")}</p>
@@ -158,13 +159,13 @@
         ${grouped(tab === "open" ? open : past) || `<div class="ui-empty">${t(tab === "open" ? "st.empty" : "st.pastEmpty")}</div>`}`}`;
   }
 
-  // a reading group's sessions together under its name; one-off studies after them
+  // a regular study's sessions together under its name; one-off studies after them
   function grouped(list) {
     if (!list.length) return "";
     const groups = new Map(), solo = [];
-    list.forEach(st => { const g = st.guideId && S.guides.get(st.guideId); g ? (groups.get(g) || groups.set(g, []).get(g)).push(st) : solo.push(st); });
+    list.forEach(st => { const g = S.groups.get(st.groupId); g ? (groups.get(g) || groups.set(g, []).get(g)).push(st) : solo.push(st); });
     if (!groups.size) return `<div class="st-grid">${solo.map(card).join("")}</div>`;
-    return [...groups].map(([g, sts]) => `<section class="st-group"><h4><span class="ui-pill accent">${t("st.groupHead")}</span><a href="#/guide/${g.id}">${esc(g.title)}</a></h4>
+    return [...groups].map(([g, sts]) => `<section class="st-group"><h4><span class="ui-pill accent">${t("grp.title")}</span><a href="#/group/${g.id}">${esc(g.title)}</a></h4>
         <div class="st-grid">${sts.map(card).join("")}</div></section>`).join("")
       + (solo.length ? `<section class="st-group"><h4>${t("st.solo")}</h4><div class="st-grid">${solo.map(card).join("")}</div></section>` : "");
   }
@@ -194,26 +195,23 @@
   let newFiles = [];
   function newPage(params) {
     const me = S.auth.current();
-    const g = params.get("guide") ? S.guides.get(params.get("guide")) : null, grp = g && S.guides.isGroup(g) ? g.group : null;
-    const sug = g ? [g.items.find(x => x.id === params.get("item")), ...S.guides.suggestNext(g)].filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 5) : [];
-    const first = sug[0], firstPaper = first && S.guides.paperOf(first);
-    const pre = params.get("paper") ? UI.PA[params.get("paper")] : firstPaper ? UI.PA[firstPaper.id] : null;
-    const preTitle = pre?.title || (first ? S.guides.titleOf(first) : params.get("title") || ""), preLink = pre?.link || first?.meta?.link || params.get("link") || "";
-    const presenter = grp ? S.guides.nextPresenter(g) : me.id, invited = new Set(grp ? grp.members : []);
+    const g = S.groups.get(params.get("group"));
+    const pre = params.get("paper") ? UI.PA[params.get("paper")] : null;
+    const preTitle = pre?.title || params.get("title") || "", preLink = pre?.link || params.get("link") || "";
+    const presenter = g ? S.groups.nextPresenter(g) : me.id, invited = new Set(g ? g.members : []);
     newFiles = [];
     const others = Object.values(UI.P).filter(p => p.id !== me.id);
     view.innerHTML = `${back}
-      <div class="page-head"><h1>${g ? t("st.seriesNew", { g: esc(g.title), n: S.guides.sessions(g).length + 1 }) : t("st.new")}</h1><p class="sub">${t("st.countsHint")}</p></div>
-      ${sug.length ? `<div class="st-suggest"><span class="hint">${t("st.suggest")}</span>${sug.map((it, i) => `<button type="button" class="ui-chip" aria-pressed="${!i}" data-sug="${i}">${esc(S.guides.titleOf(it).slice(0, 60))}</button>`).join("")}</div>` : ""}
+      <div class="page-head"><h1>${g ? t("st.seriesNew", { g: esc(g.title), n: S.groups.sessions(g).length + 1 }) : t("st.new")}</h1><p class="sub">${t("st.countsHint")}</p></div>
       <form class="ui-card write-form st-form" id="st-form" autocomplete="off">
         <label class="fld"><span>${t("st.paper")} *</span>
           <div class="tag-input"><input id="st-title" placeholder="${t("st.paper.ph")}" value="${esc(preTitle)}"><div class="tag-pop ui-popover list" id="st-pop" hidden></div></div>
           <em class="hint" id="st-known"></em></label>
         <label class="fld"><span>${t("st.link")}</span><input id="st-link" value="${esc(preLink)}"></label>
         <div class="row3">
-          <label class="fld"><span>${t("st.date")}</span><input id="st-date" type="date" value="${grp ? S.guides.nextDate(g) : ""}"></label>
-          <label class="fld"><span>${t("st.time")}</span><input id="st-time" type="time" value="${esc(grp?.cadence?.time || "")}"></label>
-          <label class="fld"><span>${t("st.place")}</span><input id="st-place" placeholder="${t("st.place.ph")}" value="${esc(grp?.place || "")}"></label>
+          <label class="fld"><span>${t("st.date")}</span><input id="st-date" type="date" value="${g ? S.groups.nextDate(g) : ""}"></label>
+          <label class="fld"><span>${t("st.time")}</span><input id="st-time" type="time" value="${esc(g?.cadence?.time || "")}"></label>
+          <label class="fld"><span>${t("st.place")}</span><input id="st-place" placeholder="${t("st.place.ph")}" value="${esc(g?.place || "")}"></label>
         </div>
         <label class="fld"><span>${t("st.presenter")}</span><select id="st-presenter">
           ${[UI.P[me.id] || { id: me.id, name: me.name }, ...others].map(p => `<option value="${p.id}" ${p.id === presenter ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
@@ -236,11 +234,6 @@
     };
     const box = paperSearch(title, $("#st-pop", view), $("#st-link", view), hint);
     box.id = pre?.id || null; hint();
-    view.querySelectorAll("[data-sug]").forEach(b => (b.onclick = () => {   // pick another suggested paper from the group's list
-      const it = sug[+b.dataset.sug], p = S.guides.paperOf(it);
-      title.value = S.guides.titleOf(it); $("#st-link", view).value = p?.link || it.meta?.link || ""; box.id = p?.id || null; hint();
-      view.querySelectorAll("[data-sug]").forEach(x => x.setAttribute("aria-pressed", x === b));
-    }));
     $("#st-invite", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c) c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); };
     const picker = $("#st-file", view);
     $("#st-pick", view).onclick = () => picker.click();
@@ -256,7 +249,7 @@
         title: title.value, paperId: box.id, link: $("#st-link", view).value.trim(), date: $("#st-date", view).value, time: $("#st-time", view).value,
         place: $("#st-place", view).value.trim(), presenter: $("#st-presenter", view).value, desc: $("#st-desc", view).value.trim(),
         invite: [...view.querySelectorAll('#st-invite .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u), files: newFiles,
-        blind: $("#st-blind", view).checked, bring: $("#st-bring", view).checked, guideId: g?.id,
+        blind: $("#st-blind", view).checked, bring: $("#st-bring", view).checked, groupId: g?.id,
       });
       LabToast(t("st.created")); location.hash = "#/study/" + id;
     };
@@ -272,11 +265,11 @@
     return [d, st.time, st.place].filter(Boolean).map(esc).join(" · ");
   };
 
-  // "Reading group · session 3" with the sessions either side
+  // "Regular study · session 3" with the sessions either side
   function series(st) {
-    const g = st.guideId && S.guides.get(st.guideId); if (!g) return "";
-    const sts = S.guides.sessions(g), i = sts.indexOf(st), prev = sts[i - 1], next = sts[i + 1];
-    return `<div class="st-series"><a href="#/guide/${g.id}">📚 ${t("st.series", { g: esc(g.title), n: i + 1 })}</a>
+    const g = S.groups.get(st.groupId); if (!g) return "";
+    const sts = S.groups.sessions(g), i = sts.indexOf(st), prev = sts[i - 1], next = sts[i + 1];
+    return `<div class="st-series"><a href="#/group/${g.id}">👥 ${t("st.series", { g: esc(g.title), n: i + 1 })}</a>
       ${prev ? `<a class="ui-btn text" href="#/study/${prev.id}">${t("st.prevRound", { n: i })}</a>` : ""}${next ? `<a class="ui-btn text" href="#/study/${next.id}">${t("st.nextRound", { n: i + 2 })}</a>` : ""}</div>`;
   }
 
@@ -388,7 +381,7 @@
     view.innerHTML = `
       <a class="ui-btn text back" href="#/study">← ${t("st.title")}</a>
       <div class="st-hero">${series(st)}
-        <div class="st-top">${dday(st)}<span>${longDate(st)}</span><span class="m">${t("st.presenter")} <b>${name(st.presenter)}</b></span>
+        <div class="st-top">${dday(st)}<span>${longDate(st)}</span>${st.presenter ? `<span class="m">${t("st.presenter")} <b>${name(st.presenter)}</b></span>` : ""}
           ${canManage ? `<details class="st-manage"><summary>⋯ ${t("st.manage")}</summary><div class="menu-pop ui-popover">
             ${st.closed ? "" : `<label class="ui-check"><input type="checkbox" data-opt="blind" ${st.blind ? "checked" : ""}><span>${t("st.opt.blind")}</span></label>
             <label class="ui-check"><input type="checkbox" data-opt="bring" ${st.bring ? "checked" : ""}><span>${t("st.opt.bring")}</span></label><hr>`}

@@ -10,8 +10,8 @@
   I18N.extend({
     ko: {
       "rl.title": "읽을 목록", "rl.sub": "읽을 논문을 모아두고, 읽고, 다이어리로 정리하기까지",
-      "rl.ph": "논문 링크 · DOI · arXiv 주소 · 제목", "rl.add": "추가", "rl.pdf": "PDF 올리기", "rl.dropHint": "PDF를 이 화면에 끌어다 놓아도 돼요 — 파일 이름이 제목이 되고, 나중에 고칠 수 있어요.",
-      "rl.finding": "찾는 중…", "rl.added": "추가했어요", "rl.already": "이미 목록에 있어요", "rl.notFound": "정보를 못 찾았어요 — 제목을 입력해 주세요",
+      "rl.ph": "논문 링크 · DOI · arXiv 주소 · 제목", "rl.add": "추가", "rl.pdf": "PDF 올리기", "rl.dropHint": "PDF를 이 화면에 끌어다 놓아도 돼요. 파일 이름이 제목이 되고, 나중에 고칠 수 있어요.",
+      "rl.finding": "찾는 중…", "rl.added": "추가했어요", "rl.already": "이미 목록에 있어요", "rl.notFound": "정보를 못 찾았어요. 제목을 입력해 주세요",
       "rl.s.reading": "읽는 중", "rl.s.todo": "읽을 예정", "rl.s.read": "다 읽음 · 정리 전", "rl.s.written": "다이어리 씀",
       "rl.empty.reading": "읽기 시작한 논문이 여기 와요", "rl.empty.todo": "링크나 PDF로 논문을 추가해 보세요", "rl.empty.read": "다 읽고 아직 정리 안 한 논문이 여기 와요",
       "rl.nudgeRead": "다 읽고 정리 안 한 논문 {n}편", "rl.nudgeStale": "2주 넘게 안 읽은 논문 {n}편",
@@ -24,8 +24,8 @@
     },
     en: {
       "rl.title": "Reading list", "rl.sub": "Collect papers, read them, and write them up",
-      "rl.ph": "Paper link · DOI · arXiv URL · title", "rl.add": "Add", "rl.pdf": "Upload PDF", "rl.dropHint": "You can also drop PDFs on this page — the file name becomes the title; edit it any time.",
-      "rl.finding": "Looking it up…", "rl.added": "Added", "rl.already": "Already on your list", "rl.notFound": "Couldn't find it — please type the title",
+      "rl.ph": "Paper link · DOI · arXiv URL · title", "rl.add": "Add", "rl.pdf": "Upload PDF", "rl.dropHint": "You can also drop PDFs on this page. The file name becomes the title; edit it any time.",
+      "rl.finding": "Looking it up…", "rl.added": "Added", "rl.already": "Already on your list", "rl.notFound": "Couldn't find it. Please type the title",
       "rl.s.reading": "Reading", "rl.s.todo": "To read", "rl.s.read": "Read · not written up", "rl.s.written": "Diary written",
       "rl.empty.reading": "Papers you start reading show up here", "rl.empty.todo": "Add a paper by link or PDF", "rl.empty.read": "Papers you finished but haven't written up show up here",
       "rl.nudgeRead": "{n} read but not written up", "rl.nudgeStale": "{n} waiting for over two weeks",

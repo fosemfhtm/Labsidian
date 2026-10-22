@@ -9,14 +9,14 @@
   I18N.extend({
     ko: {
       "me.title": "내 페이지", "me.term": "학기", "me.progress": "이번 학기 작성률", "me.of": "목표 {target}편 중 {n}편",
-      "me.pace": "오늘까지 기대치 {exp}편 — {diff}", "me.ahead": "{n}편 앞서 있어요", "me.behind": "{n}편 뒤처져 있어요", "me.onpace": "딱 맞춰 가고 있어요",
+      "me.pace": "오늘까지 기대치 {exp}편 · {diff}", "me.ahead": "{n}편 앞서 있어요", "me.behind": "{n}편 뒤처져 있어요", "me.onpace": "딱 맞춰 가고 있어요",
       "me.left": "학기 종료까지 작성일 {d}일", "me.legendWrote": "작성", "me.legendHoliday": "공휴일", "me.legendLab": "연구실 쉬는 날 (셧다운·학회 등)", "me.ended": "학기 종료", "me.inc90": "90% (인센티브 상위)", "me.inc70": "70%",
       "me.calendar": "작성 캘린더", "me.streak": "연속 작성 {n}주", "me.best": "최장 {n}주",
       "me.reviews": "내 다이어리", "me.draft": "임시저장된 글", "me.continue": "이어 쓰기",
       "me.toProfile": "내 프로필 보기", "me.studies": "다가오는 스터디", "me.noStudies": "예정된 스터디가 없어요", "me.studiesAll": "스터디 전체", "me.presenting": "발표", "me.noDate": "날짜 미정",
       "me.reading": "읽을 목록", "me.noReading": "링크나 PDF로 읽을 논문을 모아 보세요", "me.readingAll": "읽을 목록 전체", "me.calWrite": "이 날짜로 다이어리 쓰기", "me.calNone": "작성 없음", "me.dow": "일월화수목금토", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
       "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기",
-      "me.diaryTitle": "{term} Paper Diary — {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
+      "me.diaryTitle": "{term} Paper Diary · {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
       "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
       "me.more": "더보기",
@@ -34,14 +34,14 @@
     },
     en: {
       "me.title": "My page", "me.term": "Term", "me.progress": "This term's diary rate", "me.of": "{n} of {target} target",
-      "me.pace": "Expected by today: {exp} — {diff}", "me.ahead": "{n} ahead", "me.behind": "{n} behind", "me.onpace": "right on pace",
+      "me.pace": "Expected by today: {exp} · {diff}", "me.ahead": "{n} ahead", "me.behind": "{n} behind", "me.onpace": "right on pace",
       "me.left": "{d} writing days left in term", "me.legendWrote": "Wrote", "me.legendHoliday": "Public holiday", "me.legendLab": "Lab day off (shutdown, conference …)", "me.ended": "Term ended", "me.inc90": "90% (top incentive)", "me.inc70": "70%",
       "me.calendar": "Writing calendar", "me.streak": "{n}-week streak", "me.best": "best {n} weeks",
       "me.reviews": "My diaries", "me.draft": "Saved draft", "me.continue": "Continue",
       "me.toProfile": "My profile", "me.studies": "Studies coming up", "me.noStudies": "No study coming up", "me.studiesAll": "All studies", "me.presenting": "Presenting", "me.noDate": "Date to be set",
       "me.reading": "Reading list", "me.noReading": "Collect papers to read by link or PDF", "me.readingAll": "Whole reading list", "me.calWrite": "Write a diary for this day", "me.calNone": "Nothing written", "me.dow": "SMTWTFS", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
       "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary",
-      "me.diaryTitle": "{term} Paper Diary — {name}", "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
+      "me.diaryTitle": "{term} Paper Diary · {name}", "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
       "me.color": "My colour", "me.exempt": "written · no diary duty this term",
       "me.notYet": " · starts on {d}", "me.fromDate": "Writing from {d} (target prorated from that date)", "me.customTarget": "Target set by an admin",
       "me.more": "More",
@@ -261,7 +261,7 @@
   let inboxN = 5;
   function inbox() {
     const all = S.notifications.list(), list = all.slice(0, inboxN);
-    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="ui-row two notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-type="${nf.type}">
+    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="ui-row two notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-group="${nf.groupId || ""}" data-type="${nf.type}">
       ${UI.avatar(nf.actor)}<div><div>${esc(LabNotifText(nf))}</div>${nf.excerpt ? `<div class="excerpt">“${esc(nf.excerpt)}”</div>` : ""}<div class="muted">${LabAgo(nf.at)}</div></div></div>`).join("")
       || `<div class="muted">${t("me.noInbox")}</div>`;
     if (all.length > inboxN) $("#me-inbox", view).insertAdjacentHTML("beforeend", `<button class="ui-btn text" id="me-inbox-more">${t("me.more")} (${all.length - inboxN})</button>`);

@@ -61,7 +61,7 @@
     <section><h2 class="t-title2">태그 · 필 · 글자 버튼</h2>
       <div class="sp-row">${["교통 예측", "자율주행"].map((x, i) => `<span class="ui-tag"><span class="dot" style="background:rgb(var(--${["orange", "cyan"][i]}))"></span>${x}</span>`).join("")}<span class="ui-tag method"><span class="dot" style="background:rgb(var(--purple))"></span>강화학습</span></div>
       <div class="sp-row"><span class="ui-pill">기본</span><span class="ui-pill warn">7일 늦게</span><span class="ui-pill ok">완료</span><span class="ui-pill info">2일 미리</span><span class="ui-pill accent">내 다이어리</span><span class="ui-pill outline">3회차에서</span></div>
-      <p class="t-body">문장 안의 동작은 글자 버튼으로 — 이전에 쓰던 글을 불러왔어요. <button class="ui-btn text">버리기</button></p>
+      <p class="t-body">문장 안의 동작은 글자 버튼으로. 이전에 쓰던 글을 불러왔어요. <button class="ui-btn text">버리기</button></p>
       <div class="sp-row"><button class="ui-btn small" aria-pressed="true">${I("thumbs-up")}3</button><button class="ui-btn small" aria-pressed="false">${I("thumbs-up")}</button></div>
     </section>
 
@@ -88,13 +88,13 @@
 
     <section><h2 class="t-title2">행 · 표</h2>
       <div class="ui-card">
-        <a class="ui-row" href="javascript:void 0">${av("도윤", "cyan", 20)}<span class="grow">한 줄 행 — 28px</span><span class="m">12편</span></a>
-        <a class="ui-row two" href="javascript:void 0">${av("하늘", "yellow", 28)}<span class="grow">두 줄 행 — 제목<div class="m">메타 · 4일 전</div></span></a>
+        <a class="ui-row" href="javascript:void 0">${av("도윤", "cyan", 20)}<span class="grow">한 줄 행 · 28px</span><span class="m">12편</span></a>
+        <a class="ui-row two" href="javascript:void 0">${av("하늘", "yellow", 28)}<span class="grow">두 줄 행 · 제목<div class="m">메타 · 4일 전</div></span></a>
         <div class="ui-row ruled"><span class="grow">구분선 행 (좌우 여백 0)</span><span class="m">읽을 예정</span></div>
         <div class="ui-row ruled"><span class="grow">구분선 행</span><span class="m">읽는 중</span></div>
       </div>
       <table class="ui-table"><thead><tr><th>이름</th><th>역할</th><th class="num">작성률</th></tr></thead>
-        <tbody><tr><td>예시 멤버</td><td>member</td><td class="num">13%</td></tr><tr><td>관리자</td><td>admin</td><td class="num">—</td></tr></tbody></table>
+        <tbody><tr><td>예시 멤버</td><td>member</td><td class="num">13%</td></tr><tr><td>관리자</td><td>admin</td><td class="num">-</td></tr></tbody></table>
     </section>
 
     <section><h2 class="t-title2">내 준비 (체크리스트)</h2>
@@ -102,7 +102,7 @@
         `<button class="ui-row sp-todo ${d ? "done" : ""}" data-demo="todo"><span class="ui-done ${d ? "checked" : ""}">${d ? "✓" : ""}</span><span class="grow">${x}</span>${d ? "" : I("chevron-right", "chev")}</button>`).join("")}</div>
     </section>
 
-    <section><h2 class="t-title2">리뷰 카드 (콘텐츠 층 — 유리 없음)</h2>
+    <section><h2 class="t-title2">리뷰 카드 (콘텐츠 층, 유리 없음)</h2>
       <article class="ui-card sp-review">
         <div class="sp-rv-head">${av("예시", "red", 36)}<div class="grow"><div class="t-headline">예시 멤버</div><div class="t-footnote c-2">${window.LabUI.stars(4.5)} · 2026-09-25 · <span class="ui-pill warn">7일 늦게 등록</span></div></div>
           <button class="ui-btn plain icon" aria-label="더 보기">${I("ellipsis")}</button></div>
@@ -115,7 +115,7 @@
       </article>
     </section>
 
-    <section><h2 class="t-title2">머티리얼 · 툴바 · 메뉴 (내비게이션 층 — Liquid Glass)</h2>
+    <section><h2 class="t-title2">머티리얼 · 툴바 · 메뉴 (내비게이션 층, Liquid Glass)</h2>
       <p class="t-footnote c-2">유리는 컨트롤·내비게이션에만, 화면 가장자리에서 떨어져 떠 있는 캡슐로. 색은 주요 동작 하나(쓰기)에만.</p>
       <div class="sp-glass-stage">
         <div class="sp-glass-bg">${Array.from({ length: 18 }, (_, i) => `<span style="background:rgb(var(--${SYS[i % 12]}))"></span>`).join("")}</div>
@@ -140,9 +140,9 @@
 
     <section><h2 class="t-title2">안내줄 · 팝오버 · 툴팁</h2>
       <p class="ui-notice info">${I("bot")}AI(MCP) 요청 2건이 반영됐어요. <button class="ui-btn text">보기</button></p>
-      <p class="ui-notice warn">${I("alarm-clock")}다 읽은 논문 1편 — 다이어리를 써 볼까요?</p>
+      <p class="ui-notice warn">${I("alarm-clock")}다 읽은 논문 1편. 다이어리를 써 볼까요?</p>
       <div class="sp-row" style="align-items:flex-start">
-        <div class="ui-popover list" style="width:220px"><div>${I("hash")}교통 예측</div><div>${I("hash")}교통 안전</div><div>${I("hash")}교통류·상태추정</div></div>
+        <div class="ui-popover list" style="width:220px"><div>${I("hash")}교통 상태추정·예측</div><div>${I("hash")}교통 안전</div><div>${I("hash")}교통류 이론</div></div>
         <div class="ui-tooltip"><b>10월 2일 (목)</b><br>다이어리 2편</div>
       </div>
     </section>

@@ -567,6 +567,7 @@ details.fld summary { cursor: pointer; }
 .pf-stats .vz-spark { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 18px; opacity: .28; pointer-events: none; }
 .pf-insight { margin: var(--s-2) 0 0; font: var(--t-callout); letter-spacing: var(--tr-callout); color: var(--label-2); }
 .pf-insight::before { content: "↗ "; color: var(--accent); }
+.pf-nodomain { margin: var(--s-2) 0 0; }
 
 /* the person page: a profile laid out for a wide screen — not the drawer squeezed into a side column */
 .pf-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 480px); gap: var(--s-6); align-items: end; margin: 0 0 var(--s-3); }
@@ -599,8 +600,8 @@ details.fld summary { cursor: pointer; }
   .pf-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* areas ↔ methods: both versions are rendered, the wrapper's data-vz-axis picks one */
-[data-vz-axis="area"] .vz-kind[data-k="method"], [data-vz-axis="method"] .vz-kind[data-k="area"] { display: none; }
+/* fields ↔ methods: both versions are rendered, the wrapper's data-vz-axis picks one */
+[data-vz-axis="domain"] .vz-kind[data-k="method"], [data-vz-axis="method"] .vz-kind[data-k="domain"] { display: none; }
 .vz-switch { margin: 0 0 var(--s-2); }
 .vz-terrain .hint { margin: 0 0 var(--s-2); }
 .vz-rose-wrap { display: grid; grid-template-columns: minmax(140px, 200px) minmax(0, 1fr); gap: var(--s-4); align-items: center; }
@@ -666,17 +667,17 @@ details.fld summary { cursor: pointer; }
 .gd-card-f { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); font: var(--t-callout); color: var(--label-2); }
 .gd-card-f > span { display: inline-flex; align-items: center; gap: 6px; }
 .gd-card-f .muted { font-variant-numeric: tabular-nums; }
-.gd-by .avatar, .gd-card-f .avatar { width: var(--av-s); height: var(--av-s); font-size: var(--fs-av-s); }
+.gd-by .avatar, .grp-by .avatar, .gd-card-f .avatar { width: var(--av-s); height: var(--av-s); font-size: var(--fs-av-s); }
 .gd-prog { height: 4px; border-radius: var(--r-full); background: var(--fill-3); overflow: hidden; }
 .gd-prog i { display: block; height: 100%; background: rgb(var(--green)); border-radius: var(--r-full); transition: width var(--dur) var(--ease); }
 .gd-form, .gd-me, .gd-sec, .gd-add { margin-bottom: var(--s-4); }
 .gd-tagpick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .gd-tagpick select { max-width: 220px; }
 .gd-head .row-head { align-items: flex-start; }
-.gd-by { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
-.gd-desc { margin: var(--s-1) 0 var(--s-3); max-width: 672px; color: var(--label-2); font: var(--t-body); letter-spacing: var(--tr-body); line-height: 1.5; white-space: pre-line; }
-.gd-manage .menu-pop .ui-btn.text { display: block; text-decoration: none; min-height: var(--hit); line-height: var(--hit); }
-.gd-me { display: grid; gap: var(--s-3); }
+.gd-by, .grp-by { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
+.gd-desc, .grp-desc { margin: var(--s-1) 0 var(--s-3); max-width: 672px; color: var(--label-2); font: var(--t-body); letter-spacing: var(--tr-body); line-height: 1.5; white-space: pre-line; }
+.gd-manage .menu-pop .ui-btn.text, .grp-manage .menu-pop .ui-btn.text { display: block; text-decoration: none; min-height: var(--hit); line-height: var(--hit); }
+.gd-me { display: grid; gap: var(--s-3); margin-top: var(--s-4); }
 .gd-me .row-between { flex-wrap: wrap; gap: var(--s-2); }
 .gd-sec h3 { margin: 0 0 var(--s-1); }
 .gd-sec h3 .muted { font: var(--t-callout); }
@@ -742,27 +743,27 @@ details.fld summary { cursor: pointer; }
 .pp-grid .pc-pick { font: var(--t-callout); color: var(--label-2); font-variant-numeric: tabular-nums; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-grid .pc-pick:empty { display: none; }
 
-/* ---------- reading groups: a guide run as regular studies (guides.js · study.js) ---------- */
-.gd-card-g { display: flex; align-items: center; gap: var(--s-2); font: var(--t-callout); color: var(--label-2); }
-.gd-group { margin: var(--s-4) 0; display: grid; gap: var(--s-3); }
-.gd-group .row-between { align-items: flex-start; gap: var(--s-3); flex-wrap: wrap; }
-.gd-group h3 { margin: 0; }
-.gd-ginfo { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-1) 0 0; font: var(--t-callout); letter-spacing: var(--tr-callout); color: var(--label-2); }
-.gd-rounds { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.gd-rounds .ui-row { display: grid; grid-template-columns: 64px 104px minmax(0, 1fr) auto; gap: var(--s-3); margin: 0 calc(-1 * var(--s-2)); }
-.gd-rounds .r { font-weight: 600; font-variant-numeric: tabular-nums; }
-.gd-rounds .d { color: var(--label-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.gd-rounds .tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gd-rounds .m { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--s-2); }
-.gd-rounds li.next .ui-row { background: rgb(var(--accent-rgb) / .08); }
-.gd-groupset { display: grid; gap: var(--s-3); }
-.gd-cad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); }
-.gd-cad[hidden] { display: none; }
+/* ---------- regular studies (groups.js · study.js) ---------- */
+.grp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s-3); margin-bottom: var(--s-6); }
+.grp-tile { display: grid; gap: var(--s-2); align-content: start; margin: 0; color: var(--label); text-decoration: none; transition: background var(--dur-fast) var(--ease); }
+.grp-tile:hover { background: color-mix(in srgb, var(--panel) 94%, var(--label) 6%); }
+.grp-tile-t { font: var(--t-title3); letter-spacing: var(--tr-title3); }
+.grp-info { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2); margin: 0; font: var(--t-callout); letter-spacing: var(--tr-callout); color: var(--label-2); }
+.grp-card, .grp-form { margin: var(--s-4) 0; display: grid; gap: var(--s-3); }
+.grp-card .row-between { align-items: flex-start; gap: var(--s-3); flex-wrap: wrap; }
+.grp-rounds { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.grp-rounds .ui-row { display: grid; grid-template-columns: 64px 104px minmax(0, 1fr) auto; gap: var(--s-3); margin: 0 calc(-1 * var(--s-2)); }
+.grp-rounds .r { font-weight: 600; font-variant-numeric: tabular-nums; }
+.grp-rounds .d { color: var(--label-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grp-rounds .tt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grp-rounds .m { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--s-2); }
+.grp-rounds li.next .ui-row { background: rgb(var(--accent-rgb) / .08); }
+.grp-cad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); }
+#grp-members .ui-chip[aria-pressed="true"]::after { content: " ✓"; color: var(--accent); }
 .st-group { margin-bottom: var(--s-6); }
 .st-group h4 { display: flex; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-3); font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .st-group h4 a { color: var(--label); text-decoration: none; }
 .st-group h4 a:hover { color: var(--link-text); }
-.st-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-3); }
 .st-series { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-2); font: var(--t-callout); letter-spacing: var(--tr-callout); }
 .st-series > a:first-child { color: var(--link-text); text-decoration: none; font-weight: 600; }
 
@@ -787,10 +788,10 @@ details.fld summary { cursor: pointer; }
   .gd-actions { grid-column: 2; justify-content: flex-start; max-width: none; }
   .gd-add-row { grid-template-columns: 1fr; }
   .gd-add-row select { max-width: none; }
-  .gd-cad { grid-template-columns: 1fr 1fr; }
-  .gd-rounds .ui-row { grid-template-columns: 56px minmax(0, 1fr); row-gap: 0; }
-  .gd-rounds .tt { grid-column: 1 / -1; }
-  .gd-rounds .m { grid-column: 1 / -1; }
+  .grp-cad { grid-template-columns: 1fr 1fr; }
+  .grp-rounds .ui-row { grid-template-columns: 56px minmax(0, 1fr); row-gap: 0; }
+  .grp-rounds .tt { grid-column: 1 / -1; }
+  .grp-rounds .m { grid-column: 1 / -1; }
   .tp-row { grid-template-columns: minmax(110px, 1fr) 1fr; }
   .tp-row .m { grid-column: 1 / -1; padding-left: 14px; }
 }

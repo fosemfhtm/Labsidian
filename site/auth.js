@@ -5,46 +5,46 @@
 
   I18N.extend({
     ko: {
-      "a.mock": "데모 모드 — 계정과 데이터가 이 브라우저에만 저장돼요. 계정은 관리자가 발급해요.",
+      "a.mock": "데모 모드예요. 계정과 데이터가 이 브라우저에만 저장돼요. 계정은 관리자가 발급해요.",
       "a.changeTitle": "새 비밀번호 설정", "a.changeSub": "처음 로그인했거나 비밀번호가 초기화됐어요. 본인만 아는 비밀번호로 바꿔주세요.",
       "a.old": "현재(초기) 비밀번호", "a.new": "새 비밀번호 (6자 이상)", "a.new2": "새 비밀번호 확인", "a.save": "저장", "a.mismatch": "새 비밀번호가 서로 달라요",
       "a.pwWrong": "현재 비밀번호가 맞지 않아요", "a.pwShort": "6자 이상으로 해주세요", "a.cancel": "취소",
-      "a.demoHint": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 이 브라우저에만 저장돼요.",
-      "a.demoHintServer": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요 — 바꾼 내용은 서버에 저장돼서 같이 접속한 사람에게도 보여요.",
+      "a.demoHint": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요. 바꾼 내용은 이 브라우저에만 저장돼요.",
+      "a.demoHintServer": "가상의 연구실 데이터예요. 아무 멤버나 골라 들어가 보세요. 바꾼 내용은 서버에 저장돼서 같이 접속한 사람에게도 보여요.",
       "c.copied": "복사했어요", "c.copyFail": "복사하지 못했어요. 직접 선택해서 복사해 주세요.",
       "m.theme": "화면", "m.lang": "언어", "m.auto": "자동", "m.light": "라이트", "m.dark": "다크", "c.cancel": "취소", "c.ok": "확인", "m.write": "다이어리 쓰기", "m.reading": "읽을 목록", "m.me": "내 페이지", "m.pw": "비밀번호 변경", "m.admin": "관리자", "m.logout": "로그아웃",
       "n.title": "알림", "n.empty": "새 알림이 없어요", "n.readAll": "모두 읽음",
-      "n.curation": "이번 달 태그·지도 정리할 때예요 — 비슷한 태그 합치기, 지도 영역 이름 확인 (내 AI에게 시켜도 돼요)",
+      "n.curation": "이번 달 태그 정리할 때예요. 비슷한 태그를 합치고 잘못 붙은 태그를 고쳐 주세요(내 AI에게 시켜도 돼요)",
       "n.comment": "{a} 님이 내 다이어리에 댓글을 남겼어요", "n.question": "{a} 님이 내 다이어리에 질문했어요", "n.idea": "{a} 님이 내 다이어리에 아이디어를 남겼어요",
       "n.reply": "{a} 님이 내 댓글에 답글을 남겼어요", "n.mention": "{a} 님이 나를 언급했어요", "n.like": "{a} 님이 내 다이어리를 좋아해요",
       "n.want": "{a} 님이 내 다이어리를 보고 읽을 목록에 담았어요", "n.sameRead": "{a} 님도 내가 읽은 논문을 읽었어요",
       "nav.me": "내 페이지",
       "n.studyInvite": "{a} 님이 논문 스터디에 초대했어요", "n.studyJoin": "{a} 님이 내 스터디에 참가했어요", "n.studyQuestion": "{a} 님이 스터디에 질문을 올렸어요",
-      "n.studyClosed": "{a} 님이 스터디를 마쳤어요 — 정리 노트를 확인해보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요 — 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요", "n.guideItem": "{a} 님이 가이드에 논문을 추가했어요", "n.guideSession": "다음 모임 발표 차례예요 — 모임을 만들어 주세요", "n.guideJoin": "{a} 님이 모임에 참여했어요",
+      "n.studyClosed": "{a} 님이 스터디를 마쳤어요. 정리 노트를 확인해 보세요", "n.studyTomorrow": "내일 논문 스터디가 있어요", "n.studyToday": "오늘 논문 스터디가 있어요", "n.studyTomorrowTodo": "내일 스터디예요. 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyTodayTodo": "오늘 스터디예요. 아직 다이어리(또는 가져올 논문)를 안 올렸어요", "n.studyNotesDraft": "내 AI(MCP)가 스터디 정리 초안을 만들었어요", "n.guideItem": "{a} 님이 가이드에 논문을 추가했어요", "n.groupSession": "정기 스터디 다음 회차 발표 차례예요. 회차를 만들어 주세요", "n.groupJoin": "{a} 님이 정기 스터디에 참여했어요",
       "tm.all": "모든 학기", "tm.title": "볼 학기", "tm.hint": "여러 학기를 함께 볼 수 있어요. 그래프·사람·논문 목록에 적용돼요.", "tm.apply": "적용",
       "mcp.applied": "AI(MCP) 요청 {n}건이 반영됐어요", "mcp.reload": "새로고침해서 보기",
-      "sync.error": "서버에 저장하지 못했어요 — scripts/serve.py가 켜져 있는지 확인해 주세요. 다시 연결되면 자동으로 보내요.",
+      "sync.error": "서버에 저장하지 못했어요. scripts/serve.py가 켜져 있는지 확인해 주세요. 다시 연결되면 자동으로 보내요.",
     },
     en: {
-      "a.mock": "Demo mode — accounts and data are stored in this browser only. Accounts are issued by an admin.",
+      "a.mock": "Demo mode. Accounts and data are stored in this browser only. Accounts are issued by an admin.",
       "a.changeTitle": "Set a new password", "a.changeSub": "This is your first sign-in or your password was reset. Choose a password only you know.",
       "a.old": "Current (initial) password", "a.new": "New password (6+ chars)", "a.new2": "Confirm new password", "a.save": "Save", "a.mismatch": "Passwords don't match",
       "a.pwWrong": "Current password is wrong", "a.pwShort": "Use at least 6 characters", "a.cancel": "Cancel",
-      "a.demoHint": "A fictional lab. Pick any member to sign in — your changes stay in this browser only.",
-      "a.demoHintServer": "A fictional lab. Pick any member to sign in — your changes are saved on the server, so others signed in see them too.",
+      "a.demoHint": "A fictional lab. Pick any member to sign in. Your changes stay in this browser only.",
+      "a.demoHintServer": "A fictional lab. Pick any member to sign in. Your changes are saved on the server, so others signed in see them too.",
       "c.copied": "Copied", "c.copyFail": "Couldn't copy. Select the text and copy it yourself.",
       "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.reading": "Reading list", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
       "n.title": "Notifications", "n.empty": "No new notifications", "n.readAll": "Mark all read",
-      "n.curation": "Time for this month's tidy-up — merge similar tags, check the map's region names (or ask your AI)",
+      "n.curation": "Time for this month's tag tidy-up: merge similar tags and fix wrong ones (or ask your AI)",
       "n.comment": "{a} commented on your review", "n.question": "{a} asked a question on your review", "n.idea": "{a} left an idea on your review",
       "n.reply": "{a} replied to your comment", "n.mention": "{a} mentioned you", "n.like": "{a} liked your review",
       "n.want": "{a} added a paper from your review to their reading list", "n.sameRead": "{a} also read a paper you reviewed",
       "nav.me": "My page",
       "n.studyInvite": "{a} invited you to a paper study", "n.studyJoin": "{a} joined your study", "n.studyQuestion": "{a} posted a question to a study",
-      "n.studyClosed": "{a} finished a study — see the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow — your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today — your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes", "n.guideItem": "{a} added a paper to a guide", "n.guideSession": "You present next — set up the next session", "n.guideJoin": "{a} joined your reading group",
+      "n.studyClosed": "{a} finished a study. See the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow. Your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today. Your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes", "n.guideItem": "{a} added a paper to a guide", "n.groupSession": "You present next in a regular study. Set up the session", "n.groupJoin": "{a} joined your regular study",
       "tm.all": "All terms", "tm.title": "Terms to show", "tm.hint": "Pick one or several terms. Applies to the graph, people and paper lists.", "tm.apply": "Apply",
       "mcp.applied": "Applied {n} AI (MCP) request(s)", "mcp.reload": "Reload to see",
-      "sync.error": "Couldn't save to the server — is scripts/serve.py running? Changes are sent again once it's back.",
+      "sync.error": "Couldn't save to the server. Is scripts/serve.py running? Changes are sent again once it's back.",
     },
   });
 
@@ -211,7 +211,7 @@
   function notifMenu() {
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="ui-btn text" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
-      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-type="${n.type}">
+      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-group="${n.groupId || ""}" data-type="${n.type}">
         ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="ui-empty">${t("n.empty")}</div>`);
@@ -226,7 +226,8 @@
   // where a notification leads (used by the bell and the my-page inbox)
   function openNotif(d) {
     if (d.type === "curation") { location.hash = "#/admin?tab=tags"; return; }
-    if (d.guide) { location.hash = d.type === "guideSession" ? "#/study/new?guide=" + d.guide : "#/guide/" + d.guide; return; }
+    if (d.group) { location.hash = d.type === "groupSession" ? "#/study/new?group=" + d.group : "#/group/" + d.group; return; }
+    if (d.guide) { location.hash = "#/guide/" + d.guide; return; }
     if (d.study) {
       const tab = { studyClosed: "notes", studyNotesDraft: "notes", studyQuestion: "prep" }[d.type];
       location.hash = "#/study/" + d.study + (tab ? "?tab=" + tab : ""); return;

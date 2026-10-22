@@ -1,8 +1,9 @@
 /* Small SVG/HTML charts for the people page, the person page and the comparison (docs/PEOPLE_TOPICS_GUIDES.md).
- * Everything is drawn from real records: map areas (level "a" clusters), tags, readers, studies. No ratings.
- * Two fixed sets of axes, switchable everywhere: the map's areas (≤ 8, ordered by where they sit on the map) and
- * methods (the lab's 7 most used + other). The shape is a rose (polar-area) chart: a petal's area = the share, so a
- * reader who sticks to one area is one big petal, never a line.
+ * Everything is drawn from real records: field and method tags, readers, studies. No ratings.
+ * Two fixed sets of axes, switchable everywhere: every field (transport problem) and every method, in the lab's tag
+ * order, so everyone is drawn on the same petals. The shape is a rose (polar-area) chart: a petal's area = the share,
+ * so a reader who sticks to one field is one big petal, never a line. Map areas are not axes (they're automatic
+ * groupings of the map, not topics: docs/design/decisions.md 2026-10-22).
  */
 (() => {
   const { t } = window.I18N, UI = window.LabUI;
@@ -10,31 +11,31 @@
 
   I18N.extend({
     ko: {
-      "pf.terrain": "연구 지형", "pf.terrainHint.area": "연구실 지도의 어느 지역을 읽나 · 꽃잎 = 비중, 점선 = 연구실 평균",
+      "pf.terrain": "연구 지형", "pf.terrainHint.domain": "어떤 교통 분야 논문을 읽나 · 꽃잎 = 비중, 점선 = 연구실 평균",
       "pf.terrainHint.method": "어떤 방법론 논문을 읽나 · 꽃잎 = 비중, 점선 = 연구실 평균",
-      "pf.axis.area": "지도 지역", "pf.axis.method": "방법론", "pf.methods": "방법론", "pf.fields": "세부 분야",
+      "pf.axis.domain": "분야", "pf.axis.method": "방법론", "pf.methods": "방법론", "pf.noDomain": "분야가 없는 일반 AI 논문 {v}%는 방법론에만 잡혀요",
       "pp.lab": "연구실 전체", "pp.labSub": "논문 {p}편 · {n}명", "pp.papersN": "{n}편", "pp.pick": "{v}% · {n}편",
       "pp.hint": "항목을 누르면 아래 사람들이 그 비중이 큰 순서로 정렬돼요 · 한 번 더 누르면 원래대로",
       "pf.similar": "관심사가 비슷한 사람", "pf.similarHint": "읽은 분야가 비슷한 순 · 누르면 나란히 비교해요", "pf.recent": "최근 다이어리",
-      "pf.reviews": "다이어리를 쓴 논문", "pf.shared": "함께 읽은 논문", "pf.studies": "참여한 스터디", "pf.other": "기타", "pf.lab": "연구실 {v}%",
-      "pf.more.area": "{x} 지역을 연구실 평균의 {k}배 읽어요", "pf.more.method": "{x} 논문을 연구실 평균의 {k}배 읽어요",
+      "pf.reviews": "다이어리를 쓴 논문", "pf.shared": "함께 읽은 논문", "pf.studies": "참여한 스터디", "pf.lab": "연구실 {v}%",
+      "pf.more.domain": "{x} 논문을 연구실 평균의 {k}배 읽어요", "pf.more.method": "{x} 논문을 연구실 평균의 {k}배 읽어요",
       "pf.few": "다이어리가 {n}편 더 쌓이면 연구 지형이 보여요", "vz.fewAxes": "분야가 세 가지 이상 모이면 보여요",
       "pf.terrainHint": "꽃잎 = 비중 · 점선 = 연구실 평균 · 꽃잎이나 항목에 올리면 함께 강조돼요", "pf.diaries": "다이어리", "pf.toProfile": "프로필 전체 보기 →",
-      "pf.compare": "비교하기", "pf.self": "다른 사람에게는 이렇게 보여요", "pf.toMe": "내 페이지로", "pf.role": "{area} 지역 · {method}",
+      "pf.compare": "비교하기", "pf.self": "다른 사람에게는 이렇게 보여요", "pf.toMe": "내 페이지로", "pf.role": "{domain} · {method}",
       "cmp.title": "비교", "cmp.both": "둘 다 읽은 논문", "cmp.none": "아직 같이 읽은 논문이 없어요", "cmp.pick": "비교할 사람",
     },
     en: {
-      "pf.terrain": "Research terrain", "pf.terrainHint.area": "Which areas of the lab map they read · petal = share, dashed = lab average",
+      "pf.terrain": "Research terrain", "pf.terrainHint.domain": "Which transport fields the papers they read are about · petal = share, dashed = lab average",
       "pf.terrainHint.method": "Which methods the papers they read use · petal = share, dashed = lab average",
-      "pf.axis.area": "Map areas", "pf.axis.method": "Methods", "pf.methods": "Methods", "pf.fields": "Fields",
+      "pf.axis.domain": "Fields", "pf.axis.method": "Methods", "pf.methods": "Methods", "pf.noDomain": "{v}% are general AI papers with no field; they count under methods only",
       "pp.lab": "The whole lab", "pp.labSub": "{p} papers · {n} people", "pp.papersN": "{n} papers", "pp.pick": "{v}% · {n} papers",
       "pp.hint": "Pick one and the people below line up by how much of their reading it is · pick it again to undo",
       "pf.similar": "Similar interests", "pf.similarHint": "Most alike in what they read first · open one to compare side by side", "pf.recent": "Recent reviews",
-      "pf.reviews": "Papers reviewed", "pf.shared": "Read together", "pf.studies": "Studies", "pf.other": "Other", "pf.lab": "lab {v}%",
-      "pf.more.area": "Reads {x} {k}× the lab average", "pf.more.method": "Reads {x} papers {k}× the lab average",
+      "pf.reviews": "Papers reviewed", "pf.shared": "Read together", "pf.studies": "Studies", "pf.lab": "lab {v}%",
+      "pf.more.domain": "Reads {x} papers {k}× the lab average", "pf.more.method": "Reads {x} papers {k}× the lab average",
       "pf.few": "{n} more diaries and the research terrain appears", "vz.fewAxes": "Appears once there are three or more fields",
       "pf.terrainHint": "Petal = share · dashed = lab average · hover a petal or a row to light up both", "pf.diaries": "Diaries", "pf.toProfile": "Open the full profile →",
-      "pf.compare": "Compare", "pf.self": "This is how others see you", "pf.toMe": "My page", "pf.role": "{area} · {method}",
+      "pf.compare": "Compare", "pf.self": "This is how others see you", "pf.toMe": "My page", "pf.role": "{domain} · {method}",
       "cmp.title": "Compare", "cmp.both": "Read by both", "cmp.none": "No paper read by both yet", "cmp.pick": "Compare with",
     },
   });
@@ -42,47 +43,23 @@
   const D = () => window.LAB;
   const MIN_REVIEWS = 15;
   const OTHER = "rgb(var(--gray))";
-  let axisKind = "area";
-  try { axisKind = localStorage.getItem("lab.vzAxis") === "method" ? "method" : "area"; } catch (e) {}
+  let axisKind = "domain";
+  try { axisKind = localStorage.getItem("lab.vzAxis") === "method" ? "method" : "domain"; } catch (e) {}
+  const KINDS = ["domain", "method"];
 
-  // ---- map areas (≤ 8): clockwise from the top in the order they sit around the map's centre, so neighbouring
-  // petals are neighbouring areas; named after their biggest region unless an admin named them
-  let areaCache = null;
-  function areas() {
-    if (areaCache?.d === D()) return areaCache.list;
-    const papers = D().papers.filter(p => p.a), size = {}, sx = {}, sy = {};
-    papers.forEach(p => { size[p.a] = (size[p.a] || 0) + 1; sx[p.a] = (sx[p.a] || 0) + p.x; sy[p.a] = (sy[p.a] || 0) + p.y; });
-    const mx = papers.reduce((s, p) => s + p.x, 0) / (papers.length || 1), my = papers.reduce((s, p) => s + p.y, 0) / (papers.length || 1);
-    const list = (D().clusters || []).filter(c => c.level === "a" && size[c.id]).map(a => {
-      const kids = D().clusters.filter(c => c.level === "c" && c.parent === a.id).sort((x, y) => y.size - x.size);
-      const name = a.custom ? UI.clusterName(a) : kids[0] ? UI.clusterName(kids[0]) : UI.clusterName(a);
-      const angle = Math.atan2(sx[a.id] / size[a.id] - mx, -(sy[a.id] / size[a.id] - my));   // 0 = up, clockwise
-      return { id: a.id, name, full: kids.map(k => UI.clusterName(k)).join(" / ") || name, color: kids[0]?.color || OTHER, n: size[a.id], angle };
-    }).sort((x, y) => x.angle - y.angle);
-    // automatic names are "topic · keyword": the topic alone where it's unique, else keep the keyword to tell them apart
-    const base = a => a.name.split(" · ")[0], seen = {};
-    list.forEach(a => (seen[base(a)] = (seen[base(a)] || 0) + 1));
-    list.forEach(a => { if (seen[base(a)] === 1) a.name = base(a); });
-    areaCache = { d: D(), list };
-    return list;
+  // ---- axes: every tag of the axis, in the lab's tag order (created tags at the end)
+  let axisCache = null;
+  function axesOf(kind) {
+    if (axisCache?.d !== D()) axisCache = { d: D() };
+    return (axisCache[kind] ||= D().topics.filter(x => x.axis === kind).map(x => ({ id: x.id, name: UI.tl(x), full: UI.tl(x), color: x.color || OTHER })));
   }
-  // ---- methods: the lab's 7 most used, then "other"
-  function methodAxes() {
-    const n = {};
-    D().papers.forEach(p => p.methods.forEach(m => (n[m] = (n[m] || 0) + 1)));
-    const top = Object.entries(n).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([m, c]) => {
-      const x = UI.T["m:" + m]; return { id: "m:" + m, name: x ? UI.tl(x) : m, full: x ? UI.tl(x) : m, color: x?.color || OTHER, n: c };
-    });
-    return [...top, { id: "other", name: t("pf.other"), full: t("pf.other"), color: OTHER, n: 0, other: true }];
-  }
-  const axesOf = kind => (kind === "method" ? methodAxes() : areas());
-  // shares of a set of papers over the axes (methods: a paper with two methods counts half to each)
+  const tagsOf = (kind, p) => (kind === "domain" ? p.domains : p.methods);
+  // shares of a set of papers over the axes (a paper with two tags counts half to each; papers without one are left out)
   function sharesOf(kind, papers, axes) {
     const v = axes.map(() => 0);
     papers.forEach(p => {
-      if (kind === "area") { const i = axes.findIndex(a => a.id === p.a); if (i >= 0) v[i]++; return; }
-      if (!p.methods.length) return;
-      p.methods.forEach(m => { const i = axes.findIndex(a => a.id === "m:" + m); v[i >= 0 ? i : axes.length - 1] += 1 / p.methods.length; });
+      const ts = tagsOf(kind, p); if (!ts.length) return;
+      ts.forEach(x => { const i = axes.findIndex(a => a.id === kind[0] + ":" + x); if (i >= 0) v[i] += 1 / ts.length; });
     });
     const tot = v.reduce((a, b) => a + b, 0) || 1;
     return v.map(x => x / tot);
@@ -90,21 +67,21 @@
   // ---- one person's profile, from what they read
   function profile(id) {
     const p = UI.P[id], papers = D().papers.filter(x => x.readers.includes(id));
-    const tops = prefix => Object.entries(p?.topics || {}).filter(([k]) => k.startsWith(prefix)).map(([k, v]) => ({ id: k, label: UI.T[k] ? UI.tl(UI.T[k]) : k.slice(2), value: v, color: UI.T[k]?.color || OTHER }));
-    const fields = tops("d:"), methods = tops("m:");
-    const by = Object.fromEntries(["area", "method"].map(kind => {
+    const methods = Object.entries(p?.topics || {}).filter(([k]) => k.startsWith("m:")).map(([k, v]) => ({ id: k, label: UI.T[k] ? UI.tl(UI.T[k]) : k.slice(2), value: v }));
+    const by = Object.fromEntries(KINDS.map(kind => {
       const axes = axesOf(kind), mine = sharesOf(kind, papers, axes), lab = sharesOf(kind, D().papers, axes);
       return [kind, axes.map((a, i) => ({ ...a, share: mine[i], lab: lab[i] }))];
     }));
-    const lift = kind => [...by[kind]].filter(a => !a.other && a.share >= 0.1 && a.lab > 0).map(a => ({ ...a, k: a.share / a.lab })).sort((x, y) => y.k - x.k)[0];
-    const topArea = [...by.area].sort((x, y) => y.share - x.share)[0];
+    const lift = kind => [...by[kind]].filter(a => a.share >= 0.1 && a.lab > 0).map(a => ({ ...a, k: a.share / a.lab })).sort((x, y) => y.k - x.k)[0];
+    const topDomain = [...by.domain].sort((x, y) => y.share - x.share)[0];
     const studies = window.Store ? Store.studies.list().filter(st => st.members.includes(id)).length : 0;
     const enough = (p?.count || 0) >= MIN_REVIEWS;
     return {
-      count: p?.count || 0, enough, areas: by.area, by, fields, methods, studies,
+      count: p?.count || 0, enough, by, methods, studies,
+      noDomain: papers.length ? papers.filter(x => !x.domains.length).length / papers.length : 0,
       shared: papers.filter(x => x.readers.length > 1).length,
-      role: topArea?.share && methods[0] && enough ? t("pf.role", { area: topArea.name, method: methods[0].label }) : "",
-      lift: Object.fromEntries(["area", "method"].map(kind => { const l = lift(kind); return [kind, l && l.k >= 1.5 ? t("pf.more." + kind, { x: l.name, k: l.k.toFixed(1) }) : ""]; })),
+      role: topDomain?.share && methods[0] && enough ? t("pf.role", { domain: topDomain.name, method: methods[0].label }) : "",
+      lift: Object.fromEntries(KINDS.map(kind => { const l = lift(kind); return [kind, l && l.k >= 1.5 ? t("pf.more." + kind, { x: l.name, k: l.k.toFixed(1) }) : ""]; })),
     };
   }
 
@@ -129,8 +106,8 @@
   const roseLegend = (axes, lab = true) => `<ul class="vz-rlegend">${axes.map(a => `<li class="${a.share ? "" : "zero"}" data-ax="${a.id}" title="${esc(a.full || a.name)}">
       <i style="background:${a.color}"></i><span class="nm">${esc(a.name)}</span><b>${Math.round(a.share * 100)}%</b>${lab ? `<span class="lab">${t("pf.lab", { v: Math.round(a.lab * 100) })}</span>` : ""}</li>`).join("")}</ul>`;
 
-  // segmented control switching every chart inside the nearest [data-vz-axis] between areas and methods
-  const axisSwitch = () => `<div class="ui-seg vz-switch" role="group" aria-label="${t("pf.terrain")}">${["area", "method"].map(k =>
+  // segmented control switching every chart inside the nearest [data-vz-axis] between fields and methods
+  const axisSwitch = () => `<div class="ui-seg vz-switch" role="group" aria-label="${t("pf.terrain")}">${KINDS.map(k =>
     `<button type="button" data-vz-kind="${k}" aria-pressed="${axisKind === k}">${t("pf.axis." + k)}</button>`).join("")}</div>`;
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-vz-kind]"); if (!b) return;
@@ -140,7 +117,9 @@
     document.querySelectorAll("[data-vz-kind]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.vzKind === axisKind)));
   });
   // both versions rendered once; CSS shows the one picked ([data-vz-axis] on the wrapper)
-  const both = fn => `<div class="vz-kind" data-k="area">${fn("area")}</div><div class="vz-kind" data-k="method">${fn("method")}</div>`;
+  const both = fn => KINDS.map(k => `<div class="vz-kind" data-k="${k}">${fn(k)}</div>`).join("");
+  // general AI papers have no field: say how much of someone's reading the field rose leaves out
+  const noDomainNote = (pr, kind) => kind === "domain" && pr.noDomain >= 0.05 ? `<p class="hint pf-nodomain">${t("pf.noDomain", { v: Math.round(pr.noDomain * 100) })}</p>` : "";
 
   // one person's terrain block: switch, rose + legend, the "k× the lab" line
   function terrain(id) {
@@ -148,7 +127,7 @@
     if (!pr.enough) return `<p class="muted">${t("pf.few", { n: MIN_REVIEWS - pr.count })}</p>`;
     return `<div class="vz-terrain" data-vz-axis="${axisKind}">${axisSwitch()}
       ${both(k => `<p class="hint">${t("pf.terrainHint." + k)}</p><div class="vz-rose-wrap">${rose(pr.by[k])}${roseLegend(pr.by[k])}</div>
-        ${pr.lift[k] ? `<p class="pf-insight">${esc(pr.lift[k])}</p>` : ""}`)}</div>`;
+        ${noDomainNote(pr, k)}${pr.lift[k] ? `<p class="pf-insight">${esc(pr.lift[k])}</p>` : ""}`)}</div>`;
   }
 
   // ---- weekly writing sparkline
@@ -159,12 +138,11 @@
     return `<svg class="vz-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,${h} ${pts.join(" ")} ${w},${h}" style="fill:${color}"/></svg>`;
   }
 
-  // ---- people page: the whole lab on top — map areas on the left, methods on the right (rose + every axis with its
-  // share and papers: the legend and a picker in one) — and a card per member below with the same two roses over the
+  // ---- people page: the whole lab on top (fields on the left, methods on the right: rose + every axis with its
+  // share and papers, the legend and a picker in one) and a card per member below with the same two roses over the
   // lab's average. Picking an axis dims the other petals on that side and orders the cards by that share.
   let pick = null;   // { kind, id }
-  const axisCount = (kind, axis, papers) => papers.filter(p => kind === "area" ? p.a === axis.id
-    : axis.other ? p.methods.some(m => !methodAxes().some(a => a.id === "m:" + m)) : p.methods.includes(axis.id.slice(2))).length;
+  const axisCount = (kind, axis, papers) => papers.filter(p => tagsOf(kind, p).includes(axis.id.slice(2))).length;
   const labSide = k => {
     const axes = axesOf(k), sh = sharesOf(k, D().papers, axes), xs = axes.map((a, i) => ({ ...a, share: sh[i], lab: 0 }));
     return `<div class="pp-lab-side" data-k="${k}"><h4>${t("pf.axis." + k)}</h4><div class="pp-lab-body">${rose(xs, { size: 180 })}
@@ -173,12 +151,12 @@
   };
   const labCard = () => `<div class="ui-card pp-lab">
       <div><h3>${t("pp.lab")}</h3><p class="hint">${t("pp.labSub", { p: D().papers.length, n: D().people.filter(x => x.count).length })}</p></div>
-      <div class="pp-lab-sides">${labSide("area")}${labSide("method")}</div>
+      <div class="pp-lab-sides">${KINDS.map(labSide).join("")}</div>
       <p class="hint pp-hint">${t("pp.hint")}</p></div>`;
   const peopleCards = people => people.map((p, i) => { const pr = profile(p.id);
     return `<div class="ui-card person-card" data-open="person:${p.id}" data-person="${p.id}" data-order="${i}">
       <div class="pc-head">${UI.avatar(p.id)}<span class="pc-name">${esc(p.name)}</span></div>
-      <div class="pc-roses">${["area", "method"].map(k => `<div class="pc-rose" data-k="${k}" title="${t("pf.axis." + k)}">${rose(pr.by[k], { size: 104 })}</div>`).join("")}</div>
+      <div class="pc-roses">${KINDS.map(k => `<div class="pc-rose" data-k="${k}" title="${t("pf.axis." + k)}">${rose(pr.by[k], { size: 104 })}</div>`).join("")}</div>
       <div class="pc-pick"></div></div>`; }).join("");
   function applyPick() {
     document.querySelectorAll("[data-pick-axis]").forEach(b => b.setAttribute("aria-pressed", String(!!pick && b.dataset.pickAxis === `${pick.kind}|${pick.id}`)));
@@ -234,5 +212,5 @@
     if (!canHover.matches) hover(root, el.classList.contains("hl") ? null : el.dataset.ax);
   });
 
-  window.LabViz = { areas, methodAxes, axesOf, profile, rose, roseLegend, terrain, axisSwitch, both, spark, labCard, peopleCards, similar, get kind() { return axisKind; }, MIN_REVIEWS };
+  window.LabViz = { KINDS, axesOf, profile, rose, roseLegend, noDomainNote, terrain, axisSwitch, both, spark, labCard, peopleCards, similar, get kind() { return axisKind; }, MIN_REVIEWS };
 })();

@@ -39,7 +39,7 @@ FRIEND = "yhn"                   # 윤하늘 — read the paper first, asks a qu
 SHARED = "p54"                   # LLGformer — read by 최민재, 한서윤, Priya Raman
 PAPER = "p29"                    # Bike Flow Prediction with Multi-Graph Convolutional Networks
 NEAR = "p12"                     # her metro-ridership paper whose similar list has p29
-GUIDE = "g_demo_forecast"        # 「교통 예측 입문」 reading group
+GROUP = "grp_demo_forecast"     # 「교통 예측 입문 스터디」 regular study
 DCRNN = "https://arxiv.org/abs/1707.01926"
 random.seed(7)
 
@@ -289,14 +289,15 @@ def film(f, browser):
             return { x: x0 + c.left, y: y0 + c.top, w: x1 - x0, h: y1 - y0 }; }""")
         on_map = lambda: f.cam(mapbox, pad=0, zoom=1.3)
         on_map()
-        cap("비슷한 논문끼리 모여 영역이 돼요")
-        lab = f.box("#cluster-labels .cl.coarse", "대중교통·철도")
+        cap("같은 분야의 논문이 모여 태그 영역이 돼요")
+        lab = f.box('#tag-labels [data-id="d:transit"]')
         f.move(lab["x"] + lab["w"] / 2, lab["y"] + lab["h"] + 40, 0.9)
         f.wait(1.6)
-        cap("다가가면 세부 주제와 논문 제목까지")
-        cid = lambda name: f.ev("n => LAB.clusters.find(c => c.level === 'c' && (c.ko || '').includes(n)).id", name)
-        f.ev("([id]) => LabGraph.demo.zoomCluster(id, 0.36, 2600)", [cid("대중교통")]); f.wait(3.4)
-        f.ev("([id]) => LabGraph.demo.zoomCluster(id, 0.36, 3000)", [cid("교통 예측")]); f.wait(3.4)
+        cap("방법론 지도로 뒤집어 볼 수도 있어요")
+        f.click('#g-axis [data-v="method"]', after=1.8)
+        f.click('#g-axis [data-v="domain"]', after=1.8)
+        f.ev("LabGraph.demo.zoomTag('d:transit', 0.36, 2600)"); f.wait(3.4)
+        f.ev("LabGraph.demo.zoomTag('d:forecast', 0.36, 3000)"); f.wait(3.4)
         f.ev("LabGraph.demo.fit(2200)"); f.wait(2.6)
         cap("사람은 자기가 읽은 논문들 한가운데에 놓여요")
         f.hover(f.node("u:" + ME), settle=2.4)
@@ -344,8 +345,8 @@ def film(f, browser):
         f.cam()
         f.wait(1.4)
         f.click("#tb-reset", after=0.6)
-        cap("비슷한 논문은 가까이 — 확대하면 세부 주제가 보여요")
-        f.click("#cluster-labels .cl.coarse", "대중교통·철도", after=2.4)
+        cap("태그 이름을 누르면 분야의 논문이 보여요")
+        f.click('#tag-labels [data-id="d:transit"]', after=2.4)
         if f.p.locator("#drawer.open").count():
             f.wait(0.6); f.click("#drawer-close", after=0.5)
         cap("내가 읽은 논문 바로 옆, 아직 안 읽은 논문")
@@ -544,9 +545,9 @@ def film(f, browser):
         f.nav("papers")
         f.click(".papers-tabs a[href='#/guides']", after=0.9)
         f.click(".gd-card", "교통 예측 입문", after=1.2)
-        cap("연구실이 함께 모으는 핵심 논문과 정기 모임")
-        f.cam(".gd-group", pad=20)
-        f.hover(".gd-rounds li.next", settle=2.8)
+        cap("연구실이 함께 모으는 핵심 논문")
+        f.cam(".gd-me", pad=20)
+        f.wait(1.6)
         cap("다이어리를 쓰면 진행도가 저절로 올라가요")
         it = f.p.locator(".gd-item").filter(has_text="Bike Flow").first
         f.move(W * 0.5, H * 0.6, 0.4)
@@ -555,8 +556,12 @@ def film(f, browser):
         f.wait(1.0)
         f.click(it.locator('[data-act="vote"]'), after=1.0)
         f.cam()
-        f.wheel_to(".gd-rounds li.next", where=0.4)
-        f.click(".gd-rounds li.next a", after=1.4)
+        f.nav("study")
+        cap("정해진 주기로 모이는 정기 스터디")
+        f.click(".grp-tile", "교통 예측 입문", after=1.2)
+        f.cam(".grp-card", pad=20)
+        f.hover(".grp-rounds li.next", settle=2.4)
+        f.click(".grp-rounds li.next a", after=1.4)
         cap("모임 전엔 블라인드 — 각자 먼저 읽고 와요")
         f.cam(".st-todo", pad=24)
         f.wait(1.6)
@@ -595,26 +600,18 @@ def film(f, browser):
         f.click("details.st-manage:visible summary", after=0.5)
         f.click('details.st-manage[open] [data-act="close"]', after=0.6)
         f.click('.ui-alert [data-v="1"]', after=1.4)
-        cap("다음에 읽을 논문은 가이드에 쌓여요")
-        if f.p.locator(".st-series a").count(): f.click(".st-series a", after=1.2)
-        else:
-            f.nav("papers"); f.click(".papers-tabs a[href='#/guides']", after=0.9); f.click(".gd-card", "교통 예측 입문", after=1.2)
-        harvested = f.p.locator(".gd-item").filter(has_text="2510.09350").first
-        if not harvested.count(): harvested = f.p.locator(".gd-item").filter(has_text="Cascading").first
-        if harvested.count():
-            f.move(W * 0.5, H * 0.6, 0.4)
-            f.wheel_to(harvested, where=0.5)
-            f.cam(harvested, pad=30)
-            f.wait(2.8)
-            f.cam()
-        cap("다음 모임은 날짜·발표 차례·후보 논문까지 채워져 있어요")
-        new = f'a[href="#/study/new?guide={GUIDE}"]'
+        cap("다음 회차는 날짜·발표 차례까지 채워져 있어요")
+        f.click(".st-series a", after=1.2)
+        new = f'a[href="#/study/new?group={GROUP}"]'
         f.wheel_to(new, where=0.3)
         f.click(new, after=1.2)
         f.cam("#st-form", pad=10)
         f.wait(1.2)
-        f.cam(".st-suggest", pad=30)
-        f.click(".st-suggest [data-sug]", "Bike Flow", after=1.0)
+        f.click("#st-title", after=0.2)
+    with keep(2):
+        f.type("Bike Flow", 0.04, 0.08)
+    with keep():
+        f.click("#st-pop [data-id]", "Bike Flow", after=1.0)
         f.cam("#st-form", pad=10)
         f.hover("#st-presenter", settle=1.4)
         f.cam()

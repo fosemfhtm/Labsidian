@@ -48,8 +48,8 @@ https://github.com/user-attachments/assets/223d4ec7-c6f6-4166-a520-bcb961dbf8c5
 ## 연구 흐름 따라 보기
 
 ### 지도
-- 논문 위치는 제목과 초록으로 정해요([SPECTER2](https://huggingface.co/allenai/specter2) 임베딩 → UMAP). 다이어리 본문은 넣지 않아서 *누가 썼는지*에 따라 위치가 쏠리지 않아요.
-- 배경의 **영역**은 내용이 비슷한 논문끼리 자동으로 모인 곳이에요. 멀리서 보면 큰 영역, 다가가면 세부 영역과 논문 제목이 보여요. 영역 이름은 관리자가(또는 관리자의 AI가) 붙여요.
+- 논문 위치는 제목과 초록([SPECTER2](https://huggingface.co/allenai/specter2) 임베딩)에 그 논문의 분야(또는 방법론) 태그를 조금 더해 UMAP으로 펼쳐요. 같은 태그 논문이 모이면서도 글 내용 순서는 그대로예요. 다이어리 본문은 넣지 않아서 *누가 썼는지*에 따라 위치가 쏠리지 않아요.
+- 지도는 **분야 지도**와 **방법론 지도** 두 장이고, 버튼 하나로 위에서 아래로 돌듯 바뀌어요. 배경에는 태그마다 논문이 모인 자리가 옅게 칠해지고 가운데에 태그 이름이 떠요(멀리 떨어진 논문은 빼고 그려요).
 - **사람**은 자기가 읽은 논문들 한가운데에 놓여요. 가까이 있는 사람일수록 관심사가 비슷해요. 사람에 올리면 그 사람의 논문이, 여럿이 읽은 논문(테두리)에 올리면 읽은 사람들이 이어져요.
 - 누르면 그 주변만 보여요(로컬 그래프): 논문 → 읽은 사람 → 그 사람들이 읽은 논문. 분야·방법론·학회·연도·별점 필터, 한 학기 타임랩스도 있어요.
 
@@ -68,8 +68,8 @@ https://github.com/user-attachments/assets/223d4ec7-c6f6-4166-a520-bcb961dbf8c5
 
 ### 함께 읽기
 - **핵심 논문 가이드** — 주제별로 꼭 읽을 논문을 연구실이 함께 모아요(구간, 👍, 내 진행은 다이어리를 쓰면 저절로).
-- 가이드를 **정기 모임**으로 돌리면, "다음 모임 만들기"가 날짜·장소·발표 차례·후보 논문(👍 많은 순)을 채워 줘요. 발표자에게는 미리 알림이 가요.
-- **논문 스터디** — 모임 전엔 블라인드(먼저 쓰고 나서 남의 것 보기), 질문 보드(투표), 끝나면 정리 노트. 노트의 "다음에 읽을 논문"은 가이드에 다시 쌓여요.
+- **정기 스터디** — 정해진 주기로 모이는 스터디예요. "다음 회차 만들기"가 날짜·장소·발표 차례·초대할 사람을 채워 줘요. 발표자에게는 미리 알림이 가요.
+- **논문 스터디** — 모임 전엔 블라인드(먼저 쓰고 나서 남의 것 보기), 질문 보드(투표), 끝나면 정리 노트.
 
 ### 돌아보기
 - **내 페이지** — 이번 학기 작성률, 작성 달력(주말·공휴일·연구실 휴무는 자동으로 빠짐), 읽을 목록·받은 댓글·다가오는 스터디.
@@ -78,7 +78,7 @@ https://github.com/user-attachments/assets/223d4ec7-c6f6-4166-a520-bcb961dbf8c5
 ### 그리고
 - **내 AI 연결(MCP)** — Claude·Codex에서 "이 PDF 읽고 다이어리 초안 만들어줘" 같은 식으로 [Labsidian을 말로 다뤄요](#내-claude--codex-연결-mcp). AI는 초안까지만, 게시는 본인이 해요.
 - 통합 검색(`/` 또는 `Ctrl/⌘ K`) · 한국어 / English · 라이트 / 다크
-- **관리자** — 멤버·역할, 학기와 작성 목표, 연구실 휴무일, 태그 병합(되돌리기 가능), 지도 영역 이름.
+- **관리자** — 멤버·역할, 학기와 작성 목표, 연구실 휴무일, 태그 병합(되돌리기 가능).
 
 <table>
 <tr>
@@ -112,7 +112,7 @@ python scripts/serve.py            # → http://localhost:8765
 ```
 Paper Diary .docx ─ parse_diary.py ─▶ diary.json
                                          │ enrich_s2.py   연도·초록·인용수·참고문헌 (Semantic Scholar)
-                                         │ build_map.py   SPECTER2 → UMAP → 지도 영역 → 임시 이름(c-TF-IDF)
+                                         │ build_map.py   SPECTER2 + 분야·방법론 태그 → UMAP → 분야 지도·방법론 지도
                                          ▼
                                   build_site.py ─▶ site/data.js ─▶ 사이트 (site/)
 ```
@@ -120,7 +120,7 @@ Paper Diary .docx ─ parse_diary.py ─▶ diary.json
 무거운 계산(임베딩·UMAP)은 미리 해 두고, 사이트는 결과만 읽어요. GPU도 유료 API도 필요 없어요(CPU로 몇 분).
 
 - `parse_diary.py`는 우리 연구실의 Word 양식을 읽어요. 양식이 다르면 이 스크립트를 맞추거나, 같은 `diary.json` 형식(`data/demo/diary.json` 참고)으로 바꿔 넣으면 돼요.
-- 분야·방법론 태그는 키워드 규칙(`scripts/taxonomy.py`)으로 붙어요. 지금은 교통·AI 연구실 기준이라, 다른 분야라면 이 파일부터 바꿔요. 잘못 붙은 태그와 영역 이름은 관리자가 사이트나 MCP로 고쳐요.
+- 분야·방법론 태그는 키워드 규칙(`scripts/taxonomy.py`)으로 붙어요. 지금은 교통·AI 연구실 기준이라, 다른 분야라면 이 파일부터 바꿔요. 다이어리를 쓸 때는 분야나 방법론을 하나 이상 골라야 하고, 맞는 게 없으면 누구나(내 AI도 `create_tag`로) 새로 만들 수 있어요. 잘못 붙은 태그는 관리자가 사이트나 MCP로 고쳐요.
 
 <details>
 <summary>명령 순서</summary>
@@ -165,7 +165,7 @@ python scripts/serve.py
 python scripts/serve.py 8765 --host 0.0.0.0     # 학교망에서 http://<서버 IP>:8765
 ```
 
-- 방화벽은 학교망과 VPN 대역만 열어 두세요(KAIST는 `143.248.0.0/16`, KVPN `172.25.0.0/16`).
+- 방화벽은 학교망과 사설 IP 대역만 열어 두세요(KAIST `143.248.0.0/16`, 학교 와이파이·KVPN이 쓰는 사설 IP `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`). 사설 IP는 학교 밖 인터넷에서 들어올 수 없어요.
 - 비밀번호가 네트워크로 오가니 서버 앞에 HTTPS(예: Caddy 리버스 프록시)를 두는 걸 권해요. 프록시를 쓰면 serve.py는 `--host` 없이 `127.0.0.1`에 두면 돼요.
 
 ## 내 Claude · Codex 연결 (MCP)
@@ -206,18 +206,19 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 | `add_comment` `react_to_diary` | 내 이름으로 댓글·질문·답글(@멘션) · 👍, "나도 읽어볼래요"(→ 읽을 목록) |
 | `update_paper_info` | 논문을 읽고 다이어리를 쓴 멤버나 관리자가 제목·저자·학회/저널·연도·링크의 확인된 사실 오류를 수정해요. 연구실 모두가 보는 공용 정보이며, 준 항목만 바뀌고 `reset`에 적은 항목은 원본으로 돌아가요 |
 | `list_studies` `get_study` | 논문 스터디 목록·상세 (참가자 다이어리 비교, 질문 보드, 정리 노트) |
-| `open_study` `join_study` `add_study_question` `vote_study_question` `draft_study_notes` | 스터디 열기(리딩 그룹이면 날짜·장소·발표 차례·후보 논문이 사이트처럼 채워짐) · 참가 · 질문 올리기·👍 · 정리 노트 **초안** |
-| `list_guides` `get_guide` `create_guide` `add_guide_item` `vote_guide_item` | 핵심 논문 가이드 보기(누가 읽었는지·내 진행·다룬 스터디·정기 모임 회차), 만들기, 링크·제목으로 논문 추가, 👍 |
-| `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_list_off_days` `admin_save_off_day` `admin_remove_off_day` `admin_merge_tags` `admin_rename_tag` `admin_create_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기, 연구실 휴무일, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
-| `admin_list_clusters` `admin_name_cluster` `admin_set_paper_tags` | 관리자 전용 — 지도 영역 이름·키워드 짓기(지도를 다시 만들어도 그 논문들을 따라감), 규칙이 잘못 붙인 분야·방법론 태그 고치기 |
+| `open_study` `join_study` `add_study_question` `vote_study_question` `draft_study_notes` | 스터디 열기(정기 스터디의 다음 회차면 날짜·장소·발표 차례가 사이트처럼 채워짐) · 참가 · 질문 올리기·👍 · 정리 노트 **초안** |
+| `list_regular_studies` | 정기 스터디 보기(참여자 · 주기 · 다음 날짜·발표자 · 회차 목록) |
+| `list_guides` `get_guide` `create_guide` `add_guide_item` `vote_guide_item` | 핵심 논문 가이드 보기(누가 읽었는지·내 진행·다룬 스터디), 만들기, 링크·제목으로 논문 추가, 👍 |
+| `list_tags` `create_tag` | 분야·방법론 태그 보기, 맞는 게 없으면 새로 만들기(누구나, 같은 이름은 기존 태그 재사용) |
+| `admin_list_members` `admin_update_member` `admin_set_member_quota` `admin_save_term` `admin_list_off_days` `admin_save_off_day` `admin_remove_off_day` `admin_merge_tags` `admin_rename_tag` | 관리자 전용 — 멤버 목록·역할·비활성화, 작성 의무(시작일·종료일·면제·목표), 학기, 연구실 휴무일, 태그 정리. 계정 생성·비밀번호는 사이트에서만 |
+| `admin_set_paper_tags` | 관리자 전용 — 규칙이 잘못 붙인 분야·방법론 태그 고치기 |
 
 예시:
 - "Labsidian에서 차선변경 강화학습 논문 중에 연구실 사람들이 좋게 본 거 찾아줘"
 - "읽을 목록에서 읽는 중인 논문 PDF 읽고 다이어리 초안 만들어줘" — 같은 항목에 초안이 저장되고 논문 정보·PDF·읽기 메모는 그대로 남아요
 - "나한테 온 질문 보여주고 답 초안 써줘, 내가 OK하면 달아줘"
-- "교통 예측 입문 다음 모임 잡아줘" — 후보(👍 많은 순)와 날짜·발표자를 보여 주고 열어요
+- "교통 예측 입문 스터디 다음 회차 잡아줘" — 날짜·발표자를 보여 주고, 읽을 논문을 물어본 뒤 열어요
 - (관리자) "비슷한 태그 찾아서 병합 계획 보여주고, 내가 OK하면 병합해줘"
-- (관리자) "지도 영역 이름 중에 내용이랑 안 맞는 거 찾아서 새 이름 제안해줘" — 관리자에게는 매달 1일 사이트 알림으로 정리할 때라고 알려 줘요
 
 `create_draft`는 `reading_item_id`로 기존 항목을 지정하거나, 논문 정보가 같은 읽을 목록 항목을 찾아서 초안을 저장해요.
 맞는 항목이 없으면 "다 읽음" 항목을 새로 만들어요. 다시 요청하면 그 항목의 초안만 바뀌고, 읽기 메모와 기존 첨부 파일은 남아요.
@@ -235,7 +236,7 @@ env = { LABSIDIAN_URL = "http://<서버 주소>:8765", LABSIDIAN_TOKEN = "<토�
 `search_papers` 등 논문 요약·`get_paper`·`my_reading_list` 결과에는 기존 `venue`·`year`와 별도로 `preprintVenue`·`preprintYear`, 함께 표시하는 문자열 `citation`이 있어요. 검색에도 출판·프리프린트 출처와 연도가 포함돼요.
 
 > Labsidian 서버(`scripts/serve.py`)가 켜져 있어야 해요(브라우저 탭은 없어도 돼요). 쓰기 요청은 서버가 사이트와 같은 규칙(`site/store.js`)으로 바로 처리해서 성공·거부 이유를 그 자리에서 돌려주고, 모든 요청과 결과는 DB의 `ops` 테이블(`GET /api/ops`)에 남아요. `LABSIDIAN_URL`이 어느 서버인지 정해요(기본은 이 컴퓨터의 8765, 데모는 8766). 공개 데모(GitHub Pages)에서는 동작하지 않아요.
-> 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_reading_group_session`(리딩 그룹 다음 모임).
+> 자주 하는 일은 MCP 프롬프트로도 있어요 — Claude Code에서 `/`를 치면 나오는 `diary_from_pdf`(PDF로 이번 주 다이어리) · `catch_up`(밀린 알림·질문 정리) · `prepare_study`(스터디 준비: 다이어리 비교·질문 제안) · `next_regular_study_session`(정기 스터디 다음 회차).
 > 동작 확인(데모 서버 `python scripts/serve.py 8766 --demo`): `python mcp/smoke_test.py 한서윤` · 쓰기 도구까지 전부 `--writes`(데모 서버에서만 돌아요)
 
 ## 데이터와 프라이버시

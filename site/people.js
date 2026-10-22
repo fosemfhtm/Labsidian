@@ -25,7 +25,7 @@
     const me = window.Store?.auth.current();
     if (!UI.P[a]) a = me && UI.P[me.id] ? me.id : people[0]?.id;
     if (!UI.P[b] || b === a) b = UI.P[a]?.similar[0]?.id || people.find(p => p.id !== a)?.id;
-    if (!a || !b) { view.innerHTML = `<div class="ui-empty">—</div>`; return; }
+    if (!a || !b) { view.innerHTML = `<div class="ui-empty">-</div>`; return; }
     const pa = UI.P[a], pb = UI.P[b], A = V.profile(a), B = V.profile(b);
     const both = Object.values(UI.PA).filter(p => p.readers.includes(a) && p.readers.includes(b)).sort((x, y) => y._last.localeCompare(x._last));
     const pick = (k, cur) => `<select data-pick="${k}" aria-label="${t("cmp.pick")}">${people.map(p => `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
