@@ -41,7 +41,7 @@
       "st.n.conclusion": "결론 · 배운 점", "st.n.open": "남은 질문", "st.n.next": "후속으로 읽을 논문 · 해볼 것", "st.n.save": "노트 저장", "st.n.saved": "{name} 님이 {at}에 저장",
       "st.n.draft": "🤖 {name} 님의 AI(MCP)가 만든 정리 초안이 있어요.", "st.n.loadDraft": "불러오기", "st.n.savedToast": "정리 노트를 저장했어요",
       "st.abstract": "초록", "st.reviewBadge": "📚 스터디",
-      "st.tab.prep": "준비", "st.tab.diary": "다이어리", "st.tab.picks": "소개 순서", "st.tab.notes": "정리",
+      "st.tab.prep": "질문", "st.tab.diary": "다이어리", "st.tab.picks": "소개 순서", "st.tab.notes": "정리", "st.tab.materials": "자료",
       "st.todo": "내 준비", "st.todo.diary": "같이 읽는 논문 다이어리 쓰기", "st.todo.pick": "가져올 논문 올리기", "st.todo.pickDiary": "가져온 논문 다이어리 쓰기",
       "st.editInfo": "일정·장소 수정", "st.save": "저장", "st.saved": "저장했어요",
       "st.todo.q": "궁금한 점 올리기 (선택)", "st.todo.allDone": "모임 준비를 마쳤어요", "st.todo.go": "하기", "st.todo.view": "보기", "st.todo.joinFirst": "참가하면 모임 전에 준비할 일이 여기 생겨요",
@@ -88,7 +88,7 @@
       "st.n.conclusion": "Conclusion · takeaways", "st.n.open": "Open questions", "st.n.next": "Follow-up papers · things to try", "st.n.save": "Save notes", "st.n.saved": "saved by {name} · {at}",
       "st.n.draft": "🤖 {name}'s AI (MCP) drafted notes.", "st.n.loadDraft": "Load draft", "st.n.savedToast": "Notes saved",
       "st.abstract": "Abstract", "st.reviewBadge": "📚 study",
-      "st.tab.prep": "Prepare", "st.tab.diary": "Entries", "st.tab.picks": "Order", "st.tab.notes": "Notes",
+      "st.tab.prep": "Questions", "st.tab.diary": "Entries", "st.tab.picks": "Order", "st.tab.notes": "Notes", "st.tab.materials": "Materials",
       "st.todo": "My to-dos", "st.todo.diary": "Write my entry on the common paper", "st.todo.pick": "Post the paper I'll bring", "st.todo.pickDiary": "Write my entry on the brought paper",
       "st.editInfo": "Edit date & place", "st.save": "Save", "st.saved": "Saved",
       "st.todo.q": "Post a question (optional)", "st.todo.allDone": "You're ready for the meeting", "st.todo.go": "Do it", "st.todo.view": "View", "st.todo.joinFirst": "Join to get your prep to-dos here",
@@ -303,10 +303,11 @@
         <button class="ui-btn small prominent" data-act="toguide" data-pid="${it.paperId || ""}" data-title="${esc(it.title)}" data-link="${esc(it.link || "")}">${t("gd.addBtn")}</button></div></details>` : "";
     };
     const past = st.closed || (st.date && st.date < S.today());
-    const tabs = ["prep", "diary", ...(st.bring ? ["picks"] : []), "notes"];
+    const tabs = ["prep", "diary", ...(st.bring ? ["picks"] : []), "notes", "materials"];
     let tab = params?.get("tab"); if (!tabs.includes(tab)) tab = past ? "notes" : "prep";
     const link = k => `#/study/${st.id}?tab=${k}`;
-    const count = { prep: qs.length ? String(qs.length) : "", diary: `${people.filter(u => byPerson[u]).length}/${people.length}`, picks: picks.length ? String(picks.length) : "", notes: hasNotes ? "✓" : "" };
+    const count = { prep: qs.length ? String(qs.length) : "", diary: `${people.filter(u => byPerson[u]).length}/${people.length}`, picks: picks.length ? String(picks.length) : "", notes: hasNotes ? "✓" : "",
+      materials: st.materials.length ? String(st.materials.length) : "" };
 
     // ---- my to-dos (only for members of an open study)
     const todo = [
@@ -342,6 +343,20 @@
               ${st.bring ? `<span class="ck ${st.picks?.[u] ? "on" : ""}">${st.picks?.[u] ? "✓" : "·"} ${t("st.prepPick")}</span>` : ""}</div>`).join("")}</div>
           ${p?.abstract ? `<details class="ui-card st-abs"><summary><h3>${t("st.abstract")}</h3></summary><p class="abstract-full">${esc(p.abstract)}</p></details>` : ""}
         </div></div>`;
+    // shared materials (slides, links): any member adds a file or a link; the adder, host or an admin removes it
+    const materialsTab = `<div class="ui-card st-materials">
+      ${st.materials.map(m => `<div class="ui-row two ruled">${UI.avatar(m.by)}
+        <span class="grow">${m.kind === "file" ? `<a class="link" data-fid="${esc(m.file.id)}" target="_blank" rel="noopener">${esc(m.title)}</a>` : `<a class="link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.title)}</a>`}
+          <div class="m">${name(m.by)} · ${esc(UI.shortDate(m.at.slice(0, 10)))}</div></span>
+        ${m.by === me.id || st.host === me.id || me.role === "admin" ? `<button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}
+      ${joined || me.role === "admin" ? `<form class="inline-form" id="st-material-form">
+        <input id="st-material-title" maxlength="80" required placeholder="${t("st.materialTitle")}" aria-label="${t("st.materialTitle")}">
+        <input id="st-material-url" type="url" placeholder="${t("st.materialUrl")}" aria-label="${t("st.materialUrl")}">
+        <button class="ui-btn small">${t("st.materialAdd")}</button>
+        <button type="button" class="ui-btn small" id="st-material-pick">${t("st.materialFile")}</button>
+        <input id="st-material-file" type="file" accept="application/pdf,image/*" hidden></form>
+        <p class="hint">${t("st.materialHint")}</p><p class="err" id="st-material-err"></p>` : ""}
+    </div>`;
     const diaryTab = `
       ${st.blind && !st.closed && !mine ? `<p class="ui-notice warn">${t("st.blindOn")}</p>` : ""}
       ${shownRevs.length > 1 ? `<div class="st-rates">${t("st.ratings")} ${shownRevs.map(r => `<span class="st-rate" title="${name(r.person)}">${UI.avatar(r.person)}${r.rating}</span>`).join("")}</div>` : ""}
@@ -408,20 +423,8 @@
         ${st.desc ? `<p class="st-desc full">${esc(st.desc)}</p>` : ""}
       </div>
       ${todoHtml}
-      <section class="ui-card"><h3>${t("st.materials")}</h3>
-        <div class="ui-list">${st.materials.map(m => `<div class="ui-row ruled">
-          ${m.kind === "file" ? `<a class="link" data-fid="${esc(m.file.id)}" target="_blank" rel="noopener">${esc(m.title)}</a>` : `<a class="link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.title)}</a>`}
-          <span class="m">${UI.avatar(m.by)} ${name(m.by)} · ${esc(UI.shortDate(m.at.slice(0, 10)))}</span>
-          ${m.by === me.id || st.host === me.id || me.role === "admin" ? `<button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}</div>
-        ${joined || me.role === "admin" ? `<form id="st-material-form">
-          <label class="fld"><span>${t("st.materialTitle")}</span><input id="st-material-title" maxlength="80" required></label>
-          <label class="fld"><span>${t("st.materialUrl")}</span><input id="st-material-url" type="url"></label>
-          <div class="form-foot"><button type="button" class="ui-btn" id="st-material-pick">${t("st.materialFile")}</button><button class="ui-btn">${t("st.materialAdd")}</button></div>
-          <input id="st-material-file" type="file" accept="application/pdf,image/*" hidden>
-          <p class="hint">${t("st.materialHint")}</p><p class="err" id="st-material-err"></p></form>` : ""}
-      </section>
       <div class="ui-seg page-tabs st-tabs">${tabs.map(k => `<a href="${link(k)}" aria-current="${tab === k ? "page" : "false"}">${t("st.tab." + k)}${count[k] ? ` <span class="cnt">${count[k]}</span>` : ""}</a>`).join("")}</div>
-      <div class="st-tab">${{ prep: prepTab, diary: diaryTab, picks: picksTab, notes: notesTab }[tab]}</div>`;
+      <div class="st-tab">${{ prep: prepTab, diary: diaryTab, picks: picksTab, notes: notesTab, materials: materialsTab }[tab]}</div>`;
     wireDetail(st, params);
   }
 
