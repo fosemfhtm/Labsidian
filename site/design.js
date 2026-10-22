@@ -32,6 +32,10 @@
     <section><h2 class="t-title2">색 · Color</h2>
       <p class="ui-list-h">시스템 색</p>
       <div class="sp-swatches">${SYS.map(c => `<div><span style="background:rgb(var(--${c}))"></span><b class="t-caption1">${c}</b></div>`).join("")}</div>
+      <p class="ui-list-h">데이터 색 (태그·사람) · 시스템 12 + 18</p>
+      <div class="sp-swatches">${window.Store.palette.slice(12).map(c => `<div><span style="background:rgb(var(--${c}))"></span><b class="t-caption1">${c}</b></div>`).join("")}</div>
+      <p class="ui-list-h">색 고르기 (.ui-swatches)</p>
+      <div class="ui-swatches" role="radiogroup" aria-label="색">${window.Store.palette.map((c, i) => `<button type="button" role="radio" aria-checked="${i === 7}" aria-label="${c}" title="${c}" style="--c:rgb(var(--${c}))"></button>`).join("")}</div>
       <p class="ui-list-h">회색</p>
       <div class="sp-swatches">${GRAYS.map(c => `<div><span style="background:rgb(var(--${c}))"></span><b class="t-caption1">${c}</b></div>`).join("")}</div>
       <p class="ui-list-h">의미 색</p>

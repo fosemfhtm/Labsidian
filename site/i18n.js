@@ -4,6 +4,10 @@
     ko: {
       "rating.label": "별점", "rating.value": "{n}점", "rating.unrated": "미평가",
       "nav.home": "홈", "nav.study": "스터디", "nav.graph": "그래프", "nav.people": "사람", "nav.papers": "논문",
+      // the 30 data colours (tags, people) + gray for "no colour"
+      "c.red": "빨강", "c.orange": "주황", "c.yellow": "노랑", "c.green": "초록", "c.mint": "민트", "c.teal": "청록", "c.cyan": "하늘", "c.blue": "파랑", "c.indigo": "남색", "c.purple": "보라", "c.pink": "분홍", "c.brown": "갈색",
+      "c.rose": "장미", "c.crimson": "진홍", "c.rust": "적갈", "c.olive": "올리브", "c.forest": "짙은 초록", "c.jade": "비취", "c.navy": "네이비", "c.cobalt": "코발트", "c.violet": "바이올렛", "c.grape": "포도", "c.magenta": "자홍", "c.wine": "와인",
+      "c.salmon": "연어", "c.khaki": "카키", "c.lime": "라임", "c.sky": "연하늘", "c.periwinkle": "연보라", "c.orchid": "연분홍", "c.gray2": "회색",
       // graph panel
       "g.find.ph": "제목·저자…", "g.colorBy": "색상 기준",
       "g.reset": "초기화", "g.tags": "분야", "g.methods": "방법론",
@@ -41,6 +45,9 @@
     en: {
       "rating.label": "Rating", "rating.value": "{n} stars", "rating.unrated": "Unrated",
       "nav.home": "Home", "nav.study": "Study", "nav.graph": "Graph", "nav.people": "People", "nav.papers": "Papers",
+      "c.red": "Red", "c.orange": "Orange", "c.yellow": "Yellow", "c.green": "Green", "c.mint": "Mint", "c.teal": "Teal", "c.cyan": "Cyan", "c.blue": "Blue", "c.indigo": "Indigo", "c.purple": "Purple", "c.pink": "Pink", "c.brown": "Brown",
+      "c.rose": "Rose", "c.crimson": "Crimson", "c.rust": "Rust", "c.olive": "Olive", "c.forest": "Forest", "c.jade": "Jade", "c.navy": "Navy", "c.cobalt": "Cobalt", "c.violet": "Violet", "c.grape": "Grape", "c.magenta": "Magenta", "c.wine": "Wine",
+      "c.salmon": "Salmon", "c.khaki": "Khaki", "c.lime": "Lime", "c.sky": "Sky", "c.periwinkle": "Periwinkle", "c.orchid": "Orchid", "c.gray2": "Gray",
       "g.find.ph": "Title, author…", "g.colorBy": "Color by",
       "g.reset": "Reset", "g.tags": "Fields", "g.methods": "Methods",
       "g.venues": "Venues", "g.venueType": "Type", "g.vt.journal": "Journal", "g.vt.conference": "Conference", "g.vt.preprint": "Preprint",

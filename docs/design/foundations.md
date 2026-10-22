@@ -76,7 +76,7 @@
 ### 2-1. 층 구조
 
 ```
-시스템 색 (red … brown, gray–gray6)   ← tokens.css 안에서만 직접 쓴다
+시스템 색 (red … brown, gray–gray6) + 데이터 색 18 (rose … orchid)   ← tokens.css 안에서만 직접 쓴다
    ↓
 의미 색 (label, fill, separator, accent, danger …)   ← 페이지·컴포넌트는 이것만 쓴다
    ↓
@@ -152,6 +152,8 @@
 | purple | 203,48,224 | 219,52,242 | 176,47,194 | 234,141,255 |
 | pink | 255,45,85 | 255,55,95 | 231,18,77 | 255,138,196 |
 | brown | 172,127,94 | 183,138,102 | 149,109,81 | 219,166,121 |
+
+데이터 색 18 (태그·사람, [data-viz.md §2](data-viz.md#2-색-체계)): 진한 단 rose crimson rust olive forest jade navy cobalt violet grape magenta wine, 옅은 단 salmon khaki lime sky periwinkle orchid. 라이트 값은 OKLab에서 골랐고(Apple 12색과의 최소 거리 0.10 이상), 다크는 진한 단을 밝게, 고대비 라이트는 어둡게, 고대비 다크는 밝게 옮긴 값이다. 값은 `tokens.css`에만 있다.
 
 회색 (라이트 / 다크): gray 142,142,147 / 142,142,147 · gray2 174,174,178 / 99,99,102 · gray3 199,199,204 / 72,72,74 · gray4 209,209,214 / 58,58,60 · gray5 229,229,234 / 44,44,46 · gray6 242,242,247 / 28,28,30
 

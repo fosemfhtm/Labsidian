@@ -10,7 +10,7 @@
       "ad.title": "관리자", "ad.only": "관리자만 볼 수 있어요",
       "ad.tab.members": "멤버", "ad.tab.tags": "태그", "ad.tab.terms": "학기", "ad.tab.data": "데이터", "ad.tab.log": "변경 기록",
       "ad.name": "이름", "ad.role": "역할", "ad.reviews": "다이어리", "ad.status": "상태", "ad.pending": "첫 로그인 전", "ad.active": "사용 중", "ad.disabled": "비활성",
-      "ad.reset": "비밀번호 초기화", "ad.disable": "비활성화", "ad.enable": "활성화", "ad.add": "멤버 추가", "ad.color": "색", "ad.c.red": "빨강", "ad.c.orange": "주황", "ad.c.yellow": "노랑", "ad.c.green": "초록", "ad.c.mint": "민트", "ad.c.teal": "청록", "ad.c.cyan": "하늘", "ad.c.blue": "파랑", "ad.c.indigo": "남색", "ad.c.purple": "보라", "ad.c.pink": "분홍", "ad.c.brown": "갈색", "ad.c.gray2": "회색",
+      "ad.reset": "비밀번호 초기화", "ad.disable": "비활성화", "ad.enable": "활성화", "ad.add": "멤버 추가",
       "ad.tempTitle": "임시 비밀번호", "ad.tempSub": "{name} 님에게 전달하세요. 첫 로그인 때 본인이 바꾸게 돼요. 이 창을 닫으면 다시 볼 수 없어요.",
       "ad.copy": "복사", "ad.close": "닫기", "ad.exists": "같은 이름이 이미 있어요",
       "ad.axis": "축", "ad.ko": "한국어", "ad.en": "English", "ad.uses": "사용", "ad.mergeInto": "병합 →", "ad.save": "저장", "ad.merge": "병합",
@@ -35,7 +35,7 @@
       "ad.title": "Admin", "ad.only": "Admins only",
       "ad.tab.members": "Members", "ad.tab.tags": "Tags", "ad.tab.terms": "Terms", "ad.tab.data": "Data", "ad.tab.log": "Change log",
       "ad.name": "Name", "ad.role": "Role", "ad.reviews": "Reviews", "ad.status": "Status", "ad.pending": "Not signed in yet", "ad.active": "Active", "ad.disabled": "Disabled",
-      "ad.reset": "Reset password", "ad.disable": "Disable", "ad.enable": "Enable", "ad.add": "Add member", "ad.color": "Colour", "ad.c.red": "Red", "ad.c.orange": "Orange", "ad.c.yellow": "Yellow", "ad.c.green": "Green", "ad.c.mint": "Mint", "ad.c.teal": "Teal", "ad.c.cyan": "Cyan", "ad.c.blue": "Blue", "ad.c.indigo": "Indigo", "ad.c.purple": "Purple", "ad.c.pink": "Pink", "ad.c.brown": "Brown", "ad.c.gray2": "Gray",
+      "ad.reset": "Reset password", "ad.disable": "Disable", "ad.enable": "Enable", "ad.add": "Add member",
       "ad.tempTitle": "Temporary password", "ad.tempSub": "Give this to {name}. They'll change it on first sign-in. It won't be shown again.",
       "ad.copy": "Copy", "ad.close": "Close", "ad.exists": "That name already exists",
       "ad.axis": "Axis", "ad.ko": "Korean", "ad.en": "English", "ad.uses": "Uses", "ad.mergeInto": "Merge →", "ad.save": "Save", "ad.merge": "Merge",
@@ -102,7 +102,7 @@
       }).join("")}
       </tbody></table></div>
       <form class="inline-form" id="ad-add"><b>${t("ad.add")}</b>
-        <input name="name" placeholder="${t("ad.name")}" required><label class="muted">${t("ad.color")} <input name="color" type="color" value="#ff9cac"></label>
+        <input name="name" placeholder="${t("ad.name")}" required>
         <label class="muted">${t("ad.start")} <input name="start" type="date"></label>
         <label class="ui-check"><input name="exempt" type="checkbox"> ${t("ad.dutyOff")}</label>
         <button class="ui-btn prominent small">${t("ad.add")}</button></form></div>`;
@@ -120,7 +120,7 @@
     const add = $("#ad-add", el);
     UI.submitOnce(add, async () => {
       try {
-        const r = await S.users.create({ name: add.name.value, color: add.color.value });
+        const r = await S.users.create({ name: add.name.value });   // colour: a free one of the 30; the member can change it on 내 페이지
         if (add.start.value || add.exempt.checked) await S.users.setQuota(r.id, { start: add.start.value || null, exempt: add.exempt.checked });
         showTemp(r.name, r.tempPassword, true);
       } catch (x) { LabToast(t("ad.exists")); }
@@ -151,11 +151,11 @@
   }
   function tags(el) {
     const usage = S.tags.usage();
-    // tag colours are system colour names, so they follow the theme (data-viz.md §2); an older custom hex stays selectable
-    const SYS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown", "gray2"];
+    // tag colours are data colour names, so they follow the theme (data-viz.md §2); an older custom hex stays selectable
+    const SYS = [...S.palette, "gray2"];
     const colorSelect = (c, attr) => {
       const cur = (String(c || "").match(/var\(--([a-z0-9]+)\)/) || [, c])[1], custom = !SYS.includes(cur) && /^#/.test(cur || "");
-      return `<select ${attr}>${custom ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : ""}${SYS.map(n => `<option value="${n}" ${n === cur ? "selected" : ""}>${t("ad.c." + n)}</option>`).join("")}</select>`;
+      return `<select ${attr}>${custom ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : ""}${SYS.map(n => `<option value="${n}" ${n === cur ? "selected" : ""}>${t("c." + n)}</option>`).join("")}</select>`;
     };
     const list = Object.values(UI.T).sort((a, b) => a.axis.localeCompare(b.axis) || (usage[b.id] || 0) - (usage[a.id] || 0));
     const opts = (x) => list.filter(y => y.axis === x.axis && y.id !== x.id).map(y => `<option value="${esc(y.id)}">${esc(UI.tl(y))}</option>`).join("");

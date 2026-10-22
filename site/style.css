@@ -116,7 +116,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 #tag-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .tag-area-label {
   position: absolute; left: 0; top: 0; pointer-events: auto; white-space: nowrap;
-  font: var(--t-headline); color: var(--c); text-align: center;
+  font: var(--t-headline); color: color-mix(in srgb, var(--c) 65%, var(--label)); text-align: center;   /* light tags (lime, sky…) stay readable */
   text-shadow: 0 0 6px var(--graph-bg), 0 0 12px var(--graph-bg), 0 0 2px var(--graph-bg);
 }
 .tag-area-label.faded { opacity: .25; }

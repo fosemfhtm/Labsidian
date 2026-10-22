@@ -43,13 +43,18 @@
   window.addEventListener("lab:data", index);
 
   // ---------- render helpers ----------
+  const INK = {};   // avatar initials colour per data colour; the theme decides, so forget it when the theme changes
+  window.addEventListener("lab:theme", () => { for (const k in INK) delete INK[k]; });
   const avatar = (id, big) => {
     const p = P[id];
     if (!p) return `<span class="avatar unknown">?</span>`;
-    // initials: dark on light colours (yellow, mint…), white otherwise — keeps them readable in both themes
-    const h = /^#/.test(p.color || "") ? p.color.slice(1) : "8e8e93", [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
-    const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
-    const ink = (lum + .05) / .0607 > 1.05 / (lum + .05) ? "var(--ink-on-light)" : "var(--on-color)";   // whichever of black/white contrasts more
+    // initials: dark on light colours (yellow, lime…), white otherwise — the colour is a data colour name, read from the theme
+    const name = /var\(--([a-z0-9]+)\)/.exec(p.color || "")?.[1] || "gray";
+    const ink = INK[name] ||= (() => {
+      const [r, g, b] = getComputedStyle(document.documentElement).getPropertyValue("--" + name).trim().split(/\s+/).map(Number);
+      const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
+      return (lum + .05) / .0607 > 1.05 / (lum + .05) ? "var(--ink-on-light)" : "var(--on-color)";   // whichever of black/white contrasts more
+    })();
     return `<span class="avatar${big ? " big" : ""}" title="${esc(p.name)}" style="background:${safeColor(p.color)};color:${ink};text-shadow:none">${esc(initial(p.name))}</span>`;
   };
   // a data colour that's safe inside style="": #hex or rgb(var(--name)); anything else → gray

@@ -210,7 +210,7 @@ function nodeReducer(node, data) {
   if (!nodeOn(node, data)) { res.hidden = true; return res; }
   const active = focusSet || hoverSet || areaSet || state.find;
   if (data.kind === "person") {
-    res.zIndex = 3; res.borderColor = toHex(BG);
+    res.zIndex = 3; res.borderColor = toHex(BG); res.color = hex(data.color);   // people carry rgb(var(--name)): resolve for this theme
     const filteredOut = state.people.size && !state.people.has(node.slice(2));
     if (filteredOut || (active && !active.has(node))) {
       res.color = THEME.dimPerson; res.zIndex = 1;
@@ -236,13 +236,13 @@ function edgeReducer(edge, data) {
   if (set) {
     const center = state.selected || state.hovered;
     const on = set.has(s) && set.has(tg) && (s === center || tg === center || state.depth > 1);
-    if (on) { res.color = fade(data.color, 0.9); res.size = 1.2; res.zIndex = 2; } else res.hidden = true;
+    if (on) { res.color = fade(hex(data.color), 0.9); res.size = 1.2; res.zIndex = 2; } else res.hidden = true;
     return res;
   }
   if (!state.layers.links) { res.hidden = true; return res; }
   const uid = s.slice(2), p = PA[tg];
   const dimmed = !matches(p) || (state.people.size && !state.people.has(uid));
-  res.color = dimmed ? fade(THEME.other, 0.05) : fade(data.color, 0.34);
+  res.color = dimmed ? fade(THEME.other, 0.05) : fade(hex(data.color), 0.34);
   return res;
 }
 

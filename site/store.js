@@ -9,16 +9,12 @@
   const MOCK_INITIAL_PASSWORD = "labsidian";
   const SEED = window.LAB;
   const DEMO = SEED.dataset === "demo";  // public demo lab: one-click sign-in, no forced password change
-  // design-lint: off (person colours are hex by design — members pick any colour; legacy palettes map old data)
-  // Apple system colours (light variants read well on both themes): orange blue green purple yellow cyan red pink gray mint teal brown indigo
-  const SYSTEM_COLORS = ["#ff8d28", "#0088ff", "#34c759", "#cb30e0", "#ffcc00", "#00c0e8", "#ff383c", "#ff2d55", "#8e8e93", "#00c8b3", "#00c3d0", "#ac7f5e", "#6155f5"];
-  // the 12 colours the site build hands out map to 12 different system colours, never gray ("other / none" in charts)
-  const LEGACY_TO_SYSTEM = { "#f78c6c": 0, "#82aaff": 1, "#c3e88d": 2, "#c792ea": 3, "#ffcb6b": 4, "#89ddff": 5, "#ff5370": 6, "#f07178": 7,
-    "#b2ccd6": 12, "#addb67": 9, "#7fdbca": 10, "#e2b93d": 11, "#ff9cac": 7, "#a6accd": 12, "#ffd580": 4, "#80cbc4": 10 };
-  const sysColor = c => (c && LEGACY_TO_SYSTEM[c.toLowerCase()] != null ? SYSTEM_COLORS[LEGACY_TO_SYSTEM[c.toLowerCase()]] : c);
-  // Data colours (docs/design/data-viz.md §2): topics, methods and map regions use system colour *names*, kept as
-  // "rgb(var(--name))" so they follow the theme. Older builds wrote fixed palettes — mapped here by position.
-  const SYS_NAMES = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown"];
+  // Data colours (docs/design/data-viz.md §2): tags and people use one of the 30 data colour *names* in tokens.css
+  // (Apple's 12 + 18 more), kept as "rgb(var(--name))" so they follow the theme.
+  const PALETTE = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown",
+    "rose", "crimson", "rust", "olive", "forest", "jade", "navy", "cobalt", "violet", "grape", "magenta", "wine",
+    "salmon", "khaki", "lime", "sky", "periwinkle", "orchid"];
+  // design-lint: off (old palettes: hex that older builds wrote for tags, mapped to names by position when read)
   const LEGACY_DATA = {};
   [[["#ff7b72", "#ffa657", "#d2a8ff", "#79c0ff", "#7ee787", "#f2cc60", "#ff9bce", "#a5d6ff", "#56d4dd", "#e3b341", "#bc8cff", "#ffb4a1",
      "#8ddb8c", "#f0883e", "#a371f7", "#6cb6ff", "#d0d7de"], ["red", "orange", "purple", "blue", "green", "yellow", "pink", "cyan", "teal", "brown", "indigo", "mint"]],
@@ -34,12 +30,10 @@
   const dataColor = c => {
     const k = String(c || "").trim().toLowerCase();
     if (/^rgb\(var\(--[a-z0-9]+\)\)$/.test(k)) return k;
-    const name = SYS_NAMES.includes(k) || k === "gray" || k === "gray2" ? k : LEGACY_DATA[k];
+    const name = PALETTE.includes(k) || k === "gray" || k === "gray2" ? k : LEGACY_DATA[k];
     if (name) return `rgb(var(--${name}))`;
     return /^#[0-9a-f]{3}([0-9a-f]{3})?$/.test(k) ? k : "rgb(var(--gray2))";   // a hex an admin picked stays as it is
   };
-  const PERSON_COLORS = ["#f78c6c", "#82aaff", "#c3e88d", "#c792ea", "#ffcb6b", "#89ddff", "#ff5370", "#f07178",
-    "#b2ccd6", "#addb67", "#7fdbca", "#e2b93d", "#ff9cac", "#a6accd", "#ffd580", "#80cbc4"];
   // design-lint: on
 
   const cleanRating = value => {
@@ -146,8 +140,8 @@
   const fileUrls = {};
   const cleanFiles = list => (Array.isArray(list) ? list : []).filter(f => f && f.id && (f.kind === "pdf" || f.kind === "image"))
     .map(({ id, name, type, size, kind }) => ({ id, name: String(name || "").slice(0, 200), type, size: +size || 0, kind }));
-  // tag colours: a system colour name (data-viz.md §2), or an older #hex; anything else → "gray2"
-  const safeColor = c => (SYS_NAMES.includes(c) || c === "gray2" || /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "gray2");
+  // tag colours: a data colour name (data-viz.md §2), or an older #hex; anything else → "gray2"
+  const safeColor = c => (PALETTE.includes(c) || c === "gray2" || /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "gray2");
   const cleanTag = id => { const m = /^([dmf]):(.+)$/.exec(String(id || "")); return m ? `${m[1]}:${m[2].toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)}` : null; };
   const isDate = d => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d;
 
@@ -348,15 +342,18 @@
     });
     const R = tid => resolveTag(tid, merges);
 
-    // people: seed + members created by admin; each member may pick their own colour.
+    // people: seed + members created by admin.
     // A disabled member disappears with their diaries (papers only they read go too); re-enabling brings it all back.
     const shown = id => !db.users[id]?.disabled;
     const people = ORIG.people.filter(p => shown(p.id)).map(p => ({ ...p }));
     Object.values(db.users).forEach(u => {
       if ((u.role === "admin" && u.id === "admin") || u.disabled) return;
-      if (!people.some(p => p.id === u.id)) people.push({ id: u.id, name: u.name, color: u.color || PERSON_COLORS[people.length % PERSON_COLORS.length], count: 0, avgRating: 0, topics: {}, dates: [], similar: [] });
+      if (!people.some(p => p.id === u.id)) people.push({ id: u.id, name: u.name, color: null, count: 0, avgRating: 0, topics: {}, dates: [], similar: [] });
     });
-    people.forEach(p => { const u = db.users[p.id]; p.color = sysColor(u?.color || p.color); if (u?.name) p.name = u.name; });
+    // colour: the member's own pick (one of the 30), else the build's default (near their most-read field), else a free one
+    const own = c => (PALETTE.includes(c) ? c : null), used = new Set();
+    people.forEach(p => { const u = db.users[p.id]; if (u?.name) p.name = u.name; p.color = own(u?.color) || own(p.color); if (p.color) used.add(p.color); });
+    people.forEach(p => { p.color ||= PALETTE.find(c => !used.has(c)) || "gray"; used.add(p.color); p.color = `rgb(var(--${p.color}))`; });
 
     // reviews: seed (with edits/deletes) + created on the site
     const allReviews = [];
@@ -621,6 +618,7 @@
     server: SERVER,
     demo: DEMO,
     today, termOf, normTitle, paperCitation, paperYear,
+    palette: PALETTE,   // the 30 data colour names, for colour pickers
     auth: {
       current,
       async signIn(name, password) {
@@ -674,7 +672,7 @@
         if (!["member", "admin"].includes(role)) throw new Error("forbidden");
         const id = uid("u");
         const tempPw = randomPassword();
-        db.users[id] = { id, name, role, color, pw: null, tempPw, mustChange: true, createdAt: now() };
+        db.users[id] = { id, name, role, color: PALETTE.includes(color) ? color : null, pw: null, tempPw, mustChange: true, createdAt: now() };
         log("user.create", name); save();
         return { id, name, tempPassword: tempPw };
       },
@@ -707,7 +705,7 @@
       },
       async setMyColor(color) {
         const me = requireUser();
-        if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error("color");
+        if (!PALETTE.includes(color)) throw new Error("color");
         db.users[me.id].color = color; log("user.color", `${me.name} ${color}`); save();
       },
       async setDisabled(id, disabled) {
@@ -1373,7 +1371,8 @@
         if (same) return same.id;
         let id = cleanTag(`${axis[0]}:${slug(labelEn || label) || uid("t")}`);
         if (SEED.topics.some(t => t.id === id) || db.tagOps.some(op => op.op === "create" && op.id === id)) id = cleanTag(`${axis[0]}:${uid("t")}`);
-        color = color || SYS_NAMES[SEED.topics.filter(t => t.axis === axis).length % SYS_NAMES.length];
+        const taken = new Set(SEED.topics.filter(t => t.axis === axis).map(t => (/var\(--([a-z0-9]+)\)/.exec(t.color) || [])[1]));
+        color = color || PALETTE.find(c => !taken.has(c)) || "gray2";   // a colour no other tag of this axis has yet
         db.tagOps.push({ op: "create", id, axis, label, labelEn: labelEn || label, color: safeColor(color), at: now() }); log("tag.create", label); save();
         buildDataset();
         if (!HEADLESS) window.dispatchEvent(new Event("lab:data"));

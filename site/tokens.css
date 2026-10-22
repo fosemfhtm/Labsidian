@@ -37,6 +37,11 @@
   /* ---------- system colours (rgb triplets so alpha can be applied) — dark values by default ---------- */
   --red: 255 66 69; --orange: 255 146 48; --yellow: 255 214 0; --green: 48 209 88; --mint: 0 218 195; --teal: 0 210 224;
   --cyan: 60 211 254; --blue: 0 145 255; --indigo: 109 124 255; --purple: 219 52 242; --pink: 255 55 95; --brown: 183 138 102;
+  /* 18 more data colours for tags and people (docs/design/decisions.md 2026-10-22): a deep and a light tier picked to sit
+     as far as possible from Apple's 12 and each other, inside the same lightness/chroma band */
+  --rose: 210 116 138; --crimson: 212 47 55; --rust: 186 109 54; --olive: 152 156 58; --forest: 61 143 64; --jade: 65 172 126;
+  --navy: 58 127 190; --cobalt: 47 82 225; --violet: 161 70 219; --grape: 177 126 199; --magenta: 209 52 164; --wine: 191 74 129;
+  --salmon: 248 164 162; --khaki: 199 194 116; --lime: 150 233 149; --sky: 126 226 251; --periwinkle: 172 184 254; --orchid: 251 181 250;
   --gray: 142 142 147; --gray2: 99 99 102; --gray3: 72 72 74; --gray4: 58 58 60; --gray5: 44 44 46; --gray6: 28 28 30;
   --accent-rgb: var(--indigo);
   --accent: rgb(var(--accent-rgb));
@@ -113,6 +118,9 @@
 [data-ui][data-theme="light"] {
   --red: 255 56 60; --orange: 255 141 40; --yellow: 255 204 0; --green: 52 199 89; --mint: 0 200 179; --teal: 0 195 208;
   --cyan: 0 192 232; --blue: 0 136 255; --indigo: 97 85 245; --purple: 203 48 224; --pink: 255 45 85; --brown: 172 127 94;
+  --rose: 170 80 103; --crimson: 194 22 40; --rust: 147 74 6; --olive: 117 119 3; --forest: 17 107 26; --jade: 3 135 91;
+  --navy: 14 91 151; --cobalt: 36 65 208; --violet: 124 21 178; --grape: 140 90 161; --magenta: 191 30 148; --wine: 150 34 94;
+  --salmon: 248 164 162; --khaki: 199 194 116; --lime: 150 233 149; --sky: 126 226 251; --periwinkle: 172 184 254; --orchid: 251 181 250;
   --gray: 142 142 147; --gray2: 174 174 178; --gray3: 199 199 204; --gray4: 209 209 214; --gray5: 229 229 234; --gray6: 242 242 247;
   --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: var(--accent);
   --sys-bg: #fff; --sys-bg-2: #f2f2f7; --sys-bg-3: #fff;
@@ -132,6 +140,9 @@
   [data-ui][data-theme="auto"] {
     --red: 255 56 60; --orange: 255 141 40; --yellow: 255 204 0; --green: 52 199 89; --mint: 0 200 179; --teal: 0 195 208;
     --cyan: 0 192 232; --blue: 0 136 255; --indigo: 97 85 245; --purple: 203 48 224; --pink: 255 45 85; --brown: 172 127 94;
+    --rose: 170 80 103; --crimson: 194 22 40; --rust: 147 74 6; --olive: 117 119 3; --forest: 17 107 26; --jade: 3 135 91;
+    --navy: 14 91 151; --cobalt: 36 65 208; --violet: 124 21 178; --grape: 140 90 161; --magenta: 191 30 148; --wine: 150 34 94;
+    --salmon: 248 164 162; --khaki: 199 194 116; --lime: 150 233 149; --sky: 126 226 251; --periwinkle: 172 184 254; --orchid: 251 181 250;
     --gray: 142 142 147; --gray2: 174 174 178; --gray3: 199 199 204; --gray4: 209 209 214; --gray5: 229 229 234; --gray6: 242 242 247;
     --label: #000; --label-2: #6e6e73; --label-3: rgb(60 60 67 / .3); --label-4: rgb(60 60 67 / .18); --label-meta: #6e6e73; --link-text: var(--accent);
     --sys-bg: #fff; --sys-bg-2: #f2f2f7; --sys-bg-3: #fff;
@@ -153,11 +164,17 @@
 [data-ui][data-contrast="more"] {
   --red: 255 97 101; --orange: 255 160 86; --yellow: 254 223 67; --green: 74 217 104; --mint: 84 223 203; --teal: 59 221 236;
   --cyan: 109 217 255; --blue: 92 184 255; --indigo: 167 170 255; --purple: 234 141 255; --pink: 255 138 196; --brown: 219 166 121;
+  --rose: 246 157 176; --crimson: 254 139 133; --rust: 221 149 100; --olive: 189 193 109; --forest: 107 179 106; --jade: 118 209 165;
+  --navy: 103 164 222; --cobalt: 116 153 253; --violet: 195 117 250; --grape: 213 165 234; --magenta: 254 143 214; --wine: 226 117 164;
+  --salmon: 254 181 179; --khaki: 211 207 137; --lime: 170 244 168; --sky: 164 235 254; --periwinkle: 188 198 255; --orchid: 254 202 253;
   --label-2: rgb(235 235 245 / .82); --label-3: rgb(235 235 245 / .6); --separator: rgb(140 140 146 / .9); --on-accent: #000;
 }
 [data-ui][data-theme="light"][data-contrast="more"] {
   --red: 233 21 45; --orange: 197 83 0; --yellow: 161 106 0; --green: 0 137 50; --mint: 0 133 117; --teal: 0 129 152;
   --cyan: 0 126 174; --blue: 30 110 244; --indigo: 86 74 222; --purple: 176 47 194; --pink: 231 18 77; --brown: 149 109 81;
+  --rose: 144 57 81; --crimson: 157 5 27; --rust: 115 57 4; --olive: 93 95 8; --forest: 4 82 14; --jade: 10 108 73;
+  --navy: 0 69 119; --cobalt: 21 34 180; --violet: 96 4 140; --grape: 116 67 136; --magenta: 158 5 121; --wine: 122 1 72;
+  --salmon: 174 97 96; --khaki: 131 126 47; --lime: 80 162 82; --sky: 48 155 179; --periwinkle: 106 116 181; --orchid: 178 113 178;
   --label-2: rgb(60 60 67 / .85); --label-3: rgb(60 60 67 / .62); --separator: rgb(60 60 67 / .55); --on-accent: #fff;
 }
 
@@ -374,6 +391,11 @@
 /* tooltip: values on charts (icon buttons use the title attribute) */
 :where([data-ui]) .ui-tooltip { background: var(--glass-sheen), var(--glass-tint-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
   box-shadow: var(--glass-rim), var(--shadow-2); border: 0; border-radius: var(--r-control-sm); padding: 8px 10px; font: var(--t-callout); color: var(--label); }
+/* colour swatches: pick one of the 30 data colours (a member's colour) — radio buttons, the picked one ringed in --label */
+:where([data-ui]) .ui-swatches { display: grid; grid-template-columns: repeat(6, 28px); gap: var(--s-2); }
+:where([data-ui]) .ui-swatches button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--c); cursor: pointer; }
+:where([data-ui]) .ui-swatches button[aria-checked="true"] { box-shadow: 0 0 0 2px var(--sys-bg), 0 0 0 4px var(--label); }
+:where([data-ui]) .ui-swatches button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ---------- alert (≤3 buttons; Cancel leading, action trailing) & sheet ---------- */
 :where([data-ui]).ui-scrim, :where([data-ui]) .ui-scrim { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: var(--scrim); animation: ui-fade var(--dur) var(--ease); }

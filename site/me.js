@@ -113,7 +113,9 @@
         <div class="btn-row">
           <select id="me-term" aria-label="${t("me.term")}">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
           <a class="ui-btn prominent" href="#/write">✎ ${t("me.write")}</a>
-          ${person ? `<label class="ui-btn color-pick" title="${t("me.color")}"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}<input type="color" id="me-color" value="${person.color}"></label>` : ""}
+          ${person ? `<details class="color-pick"><summary class="ui-btn"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}</summary>
+            <div class="ui-popover ui-swatches" role="radiogroup" aria-label="${t("me.color")}">${S.palette.map(c => `<button type="button" role="radio" data-c="${c}"
+              aria-checked="${person.color === `rgb(var(--${c}))`}" aria-label="${t("c." + c)}" title="${t("c." + c)}" style="--c:rgb(var(--${c}))"></button>`).join("")}</div></details>` : ""}
         </div>
       </div>
       ${draft ? `<div class="ui-notice draft-row">📝 ${t("me.draft")}: <b>${esc(draft.title || "(untitled)")}</b> <a class="ui-btn text" href="#/write">${t("me.continue")}</a></div>` : ""}
@@ -147,7 +149,10 @@
       ${S.server ? `<div class="ui-card me-ai" id="me-ai"></div>` : ""}`;
 
     $("#me-term", view).onchange = e => { termId = e.target.value; render(); };
-    $("#me-color", view)?.addEventListener("change", async e => { await S.users.setMyColor(e.target.value); LabReload("#/me", "🎨 ✓"); });
+    view.querySelector(".ui-swatches")?.addEventListener("click", async e => {
+      const c = e.target.closest("[data-c]")?.dataset.c; if (!c) return;
+      await S.users.setMyColor(c); LabReload("#/me", "🎨 ✓");
+    });
     $("#me-export", view)?.addEventListener("click", () => exportDocx(me, term, mine));
     calendar(term, mineAll, person);
     if (person) window.LabDiaries.mount($("#me-dl", view), { person: me.id, owner: true, term });

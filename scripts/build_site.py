@@ -20,13 +20,58 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / os.environ.get("LABSIDIAN_DATA", "data")
 DATASET = "" if DATA.resolve() == (ROOT / "data").resolve() else DATA.name
 
-PERSON_COLORS = ["#f78c6c", "#82aaff", "#c3e88d", "#c792ea", "#ffcb6b",
-                 "#89ddff", "#ff5370", "#f07178", "#b2ccd6", "#addb67",
-                 "#7fdbca", "#e2b93d"]
-# Data colours are system colour *names* (docs/design/data-viz.md §2): the site turns them into rgb(var(--name)),
-# so they follow light / dark / increased contrast. 12 colours, repeated when there are more tags.
-TOPIC_COLORS = ["red", "orange", "purple", "blue", "green", "yellow", "pink", "cyan", "teal", "brown", "indigo", "mint"]
-METHOD_COLORS = ["purple", "orange", "mint", "blue", "red", "teal", "yellow", "indigo", "green", "pink", "brown", "cyan"]
+# Data colours are *names* of the 30 data colours in site/tokens.css (Apple's 12 + 18 more, decisions.md 2026-10-22): the
+# site draws them as rgb(var(--name)), so they follow light / dark / increased contrast. Tags and people both use them.
+PALETTE = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown",
+           "rose", "crimson", "rust", "olive", "forest", "jade", "navy", "cobalt", "violet", "grape", "magenta", "wine",
+           "salmon", "khaki", "lime", "sky", "periwinkle", "orchid"]
+
+
+def palette_lab():
+    """each palette colour's light-theme value (tokens.css) in OKLab, where distance ≈ how different two colours look"""
+    css = (ROOT / "site" / "tokens.css").read_text(encoding="utf-8")
+    block = css[css.index('[data-ui][data-theme="light"] {'):]
+    rgb = dict(re.findall(r"--([a-z]+): (\d+ \d+ \d+);", block[:block.index("}")]))
+
+    def lab(triplet):
+        r, g, b = ((c / 255 / 12.92) if c <= 10 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in map(int, triplet.split()))
+        l, m, s = (x ** (1 / 3) for x in (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+                                          0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+                                          0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b))
+        return (0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+                0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s)
+    return {n: lab(rgb[n]) for n in PALETTE}
+
+
+def spread_colors(points, lab):
+    """tag -> colour name, so tags whose papers sit close on the map get colours that look far apart (a colour is reused
+    only past 30 tags). points: tag -> [(x, y)] of its papers; tags without papers take what is left, in palette order."""
+    cent = {k: (sum(x for x, _ in p) / len(p), sum(y for _, y in p) / len(p)) for k, p in points.items() if p}
+    xs = [c for p in points.values() for xy in p for c in xy]
+    scale = (sum(v * v for v in xs) / len(xs)) ** 0.5 if xs else 1   # ~ the map's spread
+    near = lambda a, b: math.exp(-(math.dist(cent[a], cent[b]) / (0.6 * scale)) ** 2) + 0.02
+    out = {}
+    for k in sorted(points, key=lambda k: -len(points[k])):
+        free = [c for c in PALETTE if c not in out.values()] or PALETTE
+        placed = [j for j in out if j in cent]
+        if k not in cent or not placed:
+            out[k] = free[0]
+            continue
+        out[k] = max(free, key=lambda c: min(math.dist(lab[c], lab[out[j]]) / near(k, j) for j in placed))
+    return out
+
+
+def person_colors(people, topic_color, lab):
+    """each member's default colour: their most-read field's colour, or the free colour closest to it when someone
+    with more diaries has it already (members pick their own from the same 30 on 내 페이지)"""
+    out = {}
+    for p in sorted(people, key=lambda p: -p["count"]):
+        top = next((t for t in p["topics"] if t.startswith("d:")), None) or next(iter(p["topics"]), None)
+        want = topic_color.get(top)
+        free = [c for c in PALETTE if c not in out.values()] or PALETTE
+        out[p["id"]] = min(free, key=lambda c: math.dist(lab[c], lab[want])) if want else free[0]
+    return out
+
 
 # Venue aliases: regex on the lower-cased raw string -> canonical short name
 VENUE_RULES = [
@@ -189,14 +234,15 @@ def main():
     for p in papers:  # citation edges inside our own corpus
         p["refs"] = sorted({s2id2pid[r] for r in p.pop("_refs") if r in s2id2pid and s2id2pid[r] != p["id"]})
 
-    # ---- topics ----
+    # ---- topics: colours spread over the map, so neighbouring areas never look alike ----
+    lab = palette_lab()
     topics = []
-    for i, (k, (label, _)) in enumerate(DOMAINS.items()):
-        topics.append({"id": f"d:{k}", "axis": "domain", "label": label, "labelEn": EN.get(k, label),
-                       "color": TOPIC_COLORS[i % len(TOPIC_COLORS)]})
-    for i, (k, (label, _)) in enumerate(METHODS.items()):
-        topics.append({"id": f"m:{k}", "axis": "method", "label": label, "labelEn": EN.get(k, label),
-                       "color": METHOD_COLORS[i % len(METHOD_COLORS)]})
+    for axis, pre, tax, xy in (("domain", "d", DOMAINS, ("x", "y")), ("method", "m", METHODS, ("mx", "my"))):
+        field = "domains" if axis == "domain" else "methods"
+        points = {k: [(p[xy[0]], p[xy[1]]) for p in papers if k in p[field] and xy[0] in p] for k in tax}
+        colors = spread_colors(points, lab)
+        for k, (label, _) in tax.items():
+            topics.append({"id": f"{pre}:{k}", "axis": axis, "label": label, "labelEn": EN.get(k, label), "color": colors[k]})
 
     # ---- people ----
     people = []
@@ -212,10 +258,13 @@ def main():
                 vec[f"m:{m}"] += 1
         vecs[r["id"]] = vec
         rs = [x["rating"] for x in mine if x["rating"]]
-        people.append({"id": r["id"], "name": r["name"], "color": PERSON_COLORS[i % len(PERSON_COLORS)],
+        people.append({"id": r["id"], "name": r["name"],
                        "count": len(mine), "avgRating": round(sum(rs) / len(rs), 2) if rs else 0,
                        "topics": dict(vec.most_common()),
                        "dates": sorted(Counter(x["date"] for x in mine).items())})
+    colors = person_colors(people, {t["id"]: t["color"] for t in topics}, lab)
+    for p in people:
+        p["color"] = colors[p["id"]]
     for p in people:
         sims = []
         for q in people:

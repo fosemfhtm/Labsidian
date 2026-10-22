@@ -93,13 +93,15 @@ mcp = FastMCP("labsidian", instructions=(
 
 
 # ------------------------------------------------------------------ data
-# tag colours are system colour names (docs/design/data-viz.md §2); a hex is still accepted for older callers
-TAG_COLORS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown", "gray2"]
+# tag colours are the 30 data colour names in site/tokens.css (docs/design/data-viz.md §2); a hex is still accepted for older callers
+TAG_COLORS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue", "indigo", "purple", "pink", "brown",
+              "rose", "crimson", "rust", "olive", "forest", "jade", "navy", "cobalt", "violet", "grape", "magenta", "wine",
+              "salmon", "khaki", "lime", "sky", "periwinkle", "orchid", "gray2"]
 
 
 def _validate_tag_color(color):
     if color and color not in TAG_COLORS and not re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})", color):
-        raise ToolError("color must be a system colour name: " + " ".join(TAG_COLORS))
+        raise ToolError("color must be a data colour name: " + " ".join(TAG_COLORS))
 
 
 def norm_title(t):
@@ -1053,8 +1055,9 @@ def admin_merge_tags(from_tag: str, into_tag: str) -> dict:
 
 @mcp.tool()
 def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color: str = "") -> dict:
-    """[admin] Rename a tag (Korean and/or English label) or change its colour — a system colour name
-    (red orange yellow green mint teal cyan blue indigo purple pink brown gray2), which follows the site's theme."""
+    """[admin] Rename a tag (Korean and/or English label) or change its colour — one of the 30 data colour names
+    (red orange yellow … brown, rose crimson rust olive forest jade navy cobalt violet grape magenta wine, salmon khaki
+    lime sky periwinkle orchid; gray2 = none), which follows the site's theme."""
     _validate_tag_color(color)
     u, d = require_admin(), DB.data()
     t = d["T"].get(tag_id)
@@ -1067,8 +1070,8 @@ def admin_rename_tag(tag_id: str, label_ko: str = "", label_en: str = "", color:
 @mcp.tool()
 def create_tag(axis: str, label_ko: str, label_en: str, color: str = "") -> dict:
     """Add a field (axis="domain") or method (axis="method") tag as me, when none in list_tags fits a paper. Ask the
-    user first and suggest the name. An existing tag with the same name is reused. color: a system colour name
-    (red orange yellow green mint teal cyan blue indigo purple pink brown gray2), default: the next in turn.
+    user first and suggest the name. An existing tag with the same name is reused. color: one of the 30 data colour
+    names (see admin_rename_tag), default: one no other tag of that axis has yet.
     Returns tag_id to pass to create_draft. Admins tidy (merge / rename) tags monthly."""
     _validate_tag_color(color)
     u = me()
