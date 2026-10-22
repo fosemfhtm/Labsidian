@@ -1,6 +1,6 @@
 /* Labsidian graph: field and method maps with tag-density areas.
  * Papers flip between tag-weighted semantic anchors; people settle among their papers.
- * Edges show readers, rings show shared papers, and colours follow the selected key.
+ * Edges show readers (only around a hovered/selected node unless the layer is on), rings show shared papers, and colours follow the selected key.
  */
 import Graph from "graphology";
 import Sigma from "sigma";
@@ -38,7 +38,7 @@ const state = {
   axis: "domain",
   colorBy: "person", people: new Set(), tags: new Set(), methods: new Set(), venues: new Set(), vtypes: new Set(),
   yearMin: YMIN, yearMax: YMAX, yearUnknown: true, minRating: 0, sharedOnly: false, mode: "dim",
-  layers: { links: true, regions: true, labels: true, timeline: false },
+  layers: { links: false, regions: true, labels: true, timeline: false },   // all reader edges at once are a hairball on real data
   physics: { ...DEFAULT_PHYSICS },
   timeIdx: reviewDates.length - 1, selected: null, depth: 1, hovered: null, find: null,
 };
