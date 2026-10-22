@@ -3,6 +3,21 @@
 A transportation & AI lab's shared paper diary. Vanilla JS single-page site in `site/` (no build step), served by
 `scripts/serve.py`; see README.md for data and MCP.
 
+## Workflow — where code changes go
+
+- `main` on GitHub is the source of truth. The lab's live site runs on a separate machine and is updated from `main`
+  by the maintainer; never edit code on the live machine, and never point tests or MCP writes at real lab data.
+- This repo is public: never commit server addresses, account names, keys, tokens, firewall/tunnel details or other
+  operations notes. Those live in private notes outside the repo.
+- Try changes against the demo lab: `python scripts/serve.py 8766 --demo` (and `python mcp/labsidian_mcp.py --http`
+  for the remote MCP mode).
+- Before pushing, run what you touched: `node scripts/test_store.mjs`, `node scripts/test_views.mjs`,
+  `python -m unittest discover -s scripts -p "test_*.py"`, `python mcp/smoke_test.py 한서윤 --writes` (demo server
+  running), plus the design lint below for UI changes.
+- Shared front-end helpers live in `site/app.js` (`LabUI`, e.g. `leaveGuard`, `submitOnce`); data rules live in
+  `site/store.js`, which also runs headless on the server — reuse them instead of re-implementing per page.
+- Bump the `?v=` of changed files in `site/index.html` / `site/login.html` so browsers fetch the new version.
+
 ## UI work — read the design rulebook first
 
 Before adding or changing anything visible (CSS, markup in JS, UI copy, charts), read `docs/design/README.md` and the
