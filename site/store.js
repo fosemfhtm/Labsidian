@@ -350,12 +350,15 @@
       if ((u.role === "admin" && u.id === "admin") || u.disabled) return;
       if (!people.some(p => p.id === u.id)) people.push({ id: u.id, name: u.name, color: null, count: 0, avgRating: 0, topics: {}, dates: [], similar: [] });
     });
-    // colour, one per person: own picks first (one of the 30), then the build's defaults (near their most-read field)
-    // that nobody picked, then — only for those left — a colour nobody has, so one clash never pushes everyone along
-    const own = c => (PALETTE.includes(c) ? c : null), used = new Set(), take = c => (c && !used.has(c) ? (used.add(c), c) : null);
-    people.forEach(p => { const u = db.users[p.id]; if (u?.name) p.name = u.name; p.pick = take(own(u?.color)); });
-    people.forEach(p => { p.pick ||= take(own(p.color)); });
-    people.forEach(p => { p.color = `rgb(var(--${p.pick || take(PALETTE.find(x => !used.has(x))) || "gray"}))`; delete p.pick; });
+    // colour, one per person: everyone starts on the build's default (near their most-read field); a member's own pick
+    // (one of the 30) replaces it only if nobody else has that colour — whoever has a colour keeps it; the rest get a free one
+    const own = c => (PALETTE.includes(c) ? c : null), owner = new Map();
+    people.forEach(p => { const u = db.users[p.id]; if (u?.name) p.name = u.name; p.c = own(p.color); if (owner.has(p.c)) p.c = null; if (p.c) owner.set(p.c, p.id); });
+    people.forEach(p => {
+      const pick = own(db.users[p.id]?.color);
+      if (pick && !owner.has(pick)) { owner.delete(p.c); p.c = pick; owner.set(pick, p.id); }
+    });
+    people.forEach(p => { if (!p.c) owner.set(p.c = PALETTE.find(x => !owner.has(x)) || "gray", p.id); p.color = `rgb(var(--${p.c}))`; delete p.c; });
 
     // reviews: seed (with edits/deletes) + created on the site
     const allReviews = [];
