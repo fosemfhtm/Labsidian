@@ -6,15 +6,14 @@ data/demo/parts/<id>.json  →  data/demo/diary.json + roster.json + s2_cache.js
 Then:  LABSIDIAN_DATA=data/demo  enrich_s2.py → build_map.py → build_site.py   (→ site/data.demo.js)
 
 Leak check (fails with exit 1): real member names anywhere, or any 8-word run copied from a real review.
+Validation and cache loading finish before existing demo outputs are replaced.
 """
 import json
 import random
 import re
-import sys
 from collections import Counter
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
 from build_site import norm_title, compile_tax, score, pick, cosine  # noqa: E402
 from taxonomy import DOMAINS, METHODS  # noqa: E402
 
@@ -41,9 +40,9 @@ def profiles(entries):
     return out
 
 
-def grams(text, n=NGRAM):
+def grams(text):
     w = re.findall(r"\w+", (text or "").lower())
-    return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+    return {" ".join(w[i:i + NGRAM]) for i in range(len(w) - NGRAM + 1)}
 
 
 def main():
@@ -122,7 +121,8 @@ def main():
     print("ratings", dict(sorted(Counter(e["rating"] for e in entries).items())),
           "| korean", sum(bool(re.search("[가-힣]", e["content"])) for e in entries),
           "| empty memo", sum(not e["memo"] for e in entries))
-    social_p = DEMO / "social.json"  # example studies / comments: same name + copy check on every text field
+    sources = []
+    social_p = DEMO / "social.json"  # example studies / comments: check every text field
     if social_p.exists():
         def texts(x):
             if isinstance(x, str):
@@ -133,16 +133,16 @@ def main():
             elif isinstance(x, list):
                 for v in x:
                     yield from texts(v)
-        for t in texts(json.loads(social_p.read_text(encoding="utf-8"))):
-            leaks += [f"social.json: real name {n}" for n in names if n in t]
-            if grams(t) & real_grams:
-                leaks.append(f"social.json: copied run “{next(iter(grams(t) & real_grams))}”")
-    # the demo film's sources (recording script, terminal scene, overlays) must not carry a real name or review either
+        sources.extend(("social.json", t) for t in texts(json.loads(social_p.read_text(encoding="utf-8"))))
+    # Include the demo film's recording script, terminal scene and overlays.
     for src in [*(ROOT / "video").glob("*.py"), *(ROOT / "video").glob("*.html"), *(ROOT / "video" / "remotion" / "src").glob("*")]:
-        txt = src.read_text(encoding="utf-8", errors="ignore")
-        leaks += [f"video/{src.name}: real name {n}" for n in names if n in txt]
-        if grams(txt) & real_grams:
-            leaks.append(f"video/{src.name}: copied run “{next(iter(grams(txt) & real_grams))}”")
+        if src.is_file():
+            sources.append((f"video/{src.name}", src.read_text(encoding="utf-8", errors="ignore")))
+    for label, text in sources:
+        leaks += [f"{label}: real name {n}" for n in names if n in text]
+        hit = grams(text) & real_grams
+        if hit:
+            leaks.append(f"{label}: copied run “{next(iter(hit))}”")
     real_prof, demo_prof = profiles(real), profiles(entries)
     print("closest real member (topic cosine):")
     for name, v in demo_prof.items():
@@ -155,9 +155,6 @@ def main():
     if leaks:
         raise SystemExit(1)
 
-    DEMO.joinpath("diary.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
-    DEMO.joinpath("roster.json").write_text(json.dumps([{"id": p["id"], "name": p["name"]} for p in personas],
-                                                       ensure_ascii=False), encoding="utf-8")
     # S2 metadata for the reused (public) papers; new ones get matched by enrich_s2.py
     c = json.loads((ROOT / "data" / "s2_cache.json").read_text(encoding="utf-8"))
     mk = {re.sub(r"[^0-9a-z]+", "", k) for k in keys}
@@ -166,9 +163,11 @@ def main():
     match = {k: v for k, v in c["match"].items() if k in mk}
     demo_c["match"].update(match)
     demo_c["detail"].update({v: c["detail"][v] for v in match.values() if v and v in c["detail"]})
+    DEMO.joinpath("diary.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
+    DEMO.joinpath("roster.json").write_text(json.dumps([{"id": p["id"], "name": p["name"]} for p in personas],
+                                                       ensure_ascii=False), encoding="utf-8")
     cache_p.write_text(json.dumps(demo_c, ensure_ascii=False), encoding="utf-8")
     print(f"wrote data/demo/diary.json, roster.json, s2_cache.json ({len(demo_c['detail'])} S2 records)")
-    return 0
 
 
 if __name__ == "__main__":

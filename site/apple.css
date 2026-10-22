@@ -80,12 +80,8 @@ body:has(#drawer.open) .legend { right: 548px; }
 .review { border-left: 0; background: var(--panel); border-radius: var(--r-card); padding: 14px 16px; box-shadow: var(--shadow-1); }
 .ui-card .review, .drawer .review, .shared-item .review, .pk-diary .review, .modal .review { background: none; box-shadow: none; border-radius: 0; border-top: .5px solid var(--separator); padding-inline: 0; }
 .review.st-missing { border: 1.5px dashed var(--separator); background: none; box-shadow: none; }
-.rv-head { font-size: var(--fs-body); }
-.rv-head b { font-size: var(--fs-body); }
 .rv-body { color: var(--label); font-size: var(--fs-body); line-height: 1.6; }
-.review.full .rv-body { font-size: var(--fs-body); }
 .rv-body:not(.open) { -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
-.rv-body:not(.open)::after { display: none; }
 .rv-toggle { color: var(--accent); font-size: var(--fs-body); }
 .rv-memo { background: none; border-top: .5px solid var(--separator); border-radius: 0; padding: var(--s-3) 0 0; font-size: var(--fs-body); color: var(--label); }   /* inside a card: a separator, not a grey box (Settings) */
 .rv-memo::before { font-size: var(--fs-subhead); letter-spacing: .06em; }
@@ -99,9 +95,6 @@ body:has(#drawer.open) .legend { right: 548px; }
 
 /* ---------- buttons (roles: normal / primary / destructive) ---------- */
 .ui-btn.text.back { display: inline-flex; align-items: center; min-height: 28px; }
-.err { color: var(--danger); }
-
-/* ---------- segmented controls (in-page tabs, graph settings) ---------- */
 
 /* ---------- fields ---------- */
 .tag-input { background: var(--fill-4); border: 0; border-radius: var(--r-control); }
@@ -145,8 +138,6 @@ html[data-ui] { font: 400 100%/1.5 var(--font); }
 .drawer { background: var(--glass-sheen), color-mix(in srgb, var(--sys-bg-2) 92%, transparent); }
 [data-theme="light"] .drawer { background: var(--glass-sheen), color-mix(in srgb, var(--sys-bg) 90%, transparent); }
 @media (prefers-color-scheme: light) { [data-theme="auto"] .drawer { background: var(--glass-sheen), color-mix(in srgb, var(--sys-bg) 90%, transparent); } }
-
-.rv-toggle { color: var(--link-text); }
 
 /* contrast pass (≥ 4.5:1 for text, decorative glyphs excepted) */
 nav a { color: var(--label); }

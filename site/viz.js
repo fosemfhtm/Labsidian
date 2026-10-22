@@ -50,7 +50,7 @@
   let areaCache = null, methodCache = null;
   window.addEventListener("lab:data", () => { areaCache = methodCache = null; });
   function areas() {
-    if (areaCache?.d === D()) return areaCache.list;
+    if (areaCache) return areaCache;
     const papers = D().papers.filter(p => p.a), size = {}, sx = {}, sy = {};
     papers.forEach(p => { size[p.a] = (size[p.a] || 0) + 1; sx[p.a] = (sx[p.a] || 0) + p.x; sy[p.a] = (sy[p.a] || 0) + p.y; });
     const mx = papers.reduce((s, p) => s + p.x, 0) / (papers.length || 1), my = papers.reduce((s, p) => s + p.y, 0) / (papers.length || 1);
@@ -64,8 +64,7 @@
     const base = a => a.name.split(" · ")[0], seen = {};
     list.forEach(a => (seen[base(a)] = (seen[base(a)] || 0) + 1));
     list.forEach(a => { if (seen[base(a)] === 1) a.name = base(a); });
-    areaCache = { d: D(), list };
-    return list;
+    return (areaCache = list);
   }
   // ---- methods: the lab's 7 most used, then "other"
   function methodAxes() {

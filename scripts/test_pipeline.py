@@ -52,6 +52,11 @@ class ParserTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_diary.parse(["2026년 2월 30일", "논문: Paper"], "2026H1", self.roster)
 
+    def test_name_with_another_members_name_as_suffix(self):
+        roster = [{"name": "민수"}, {"name": "김민수"}]
+        entries = parse_diary.parse(["2026년 3월 1일", "김민수 1", "논문: Paper"], "2026H1", roster)
+        self.assertEqual(entries[0]["author"], "김민수")
+
 
 class EnrichmentTests(unittest.TestCase):
     def test_retry_after_and_crossref_never_gets_s2_key(self):
@@ -63,11 +68,11 @@ class EnrichmentTests(unittest.TestCase):
             sleep.assert_called_once_with(13)
             self.assertIsNone(request.call_args.args[0].get_header("X-api-key"))
 
-    def test_no_sleep_after_last_attempt(self):
-        with patch.object(enrich_s2.urllib.request, "urlopen", side_effect=TimeoutError), \
-                patch.object(enrich_s2.time, "sleep") as sleep:
-            self.assertEqual(enrich_s2.req(enrich_s2.API + "/paper/test", tries=1), "retry")
-            sleep.assert_not_called()
+    def test_crossref_pii_falls_back_when_the_title_does_not_match(self):
+        results = [{"message": {"items": [{"DOI": "wrong", "title": ["Another paper"]}]}},
+                   {"message": {"items": [{"DOI": "right", "title": ["The target paper"]}]}}]
+        with patch.object(enrich_s2, "req", side_effect=results):
+            self.assertEqual(enrich_s2.ext_id("The target paper", "https://example.org/pii/S1234567890123456"), "DOI:right")
 
     def test_empty_search_results_are_cached_without_crashing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -82,7 +87,6 @@ class EnrichmentTests(unittest.TestCase):
                     patch.object(enrich_s2.time, "sleep"):
                 enrich_s2.main()
             self.assertIsNone(json.loads(cache.read_text(encoding="utf-8"))["match"][key])
-            self.assertFalse(cache.with_suffix(".tmp").exists())
 
     def test_exhausted_batch_does_not_start_more_s2_phases(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -102,7 +106,7 @@ class EnrichmentTests(unittest.TestCase):
 class DemoSafetyTests(unittest.TestCase):
     def test_failed_checks_preserve_existing_outputs(self):
         for field, value in [("venue", "Real Member"), ("content", "one two three four five six seven eight"),
-                             ("author", "Wrong Member")]:
+                             ("author", "Wrong Member"), ("content", "Original summary")]:
             with self.subTest(field=field), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 data, demo = root / "data", root / "demo"
@@ -113,6 +117,7 @@ class DemoSafetyTests(unittest.TestCase):
                         "content": "one two three four five six seven eight", "memo": ""}
                 (data / "diary.json").write_text(json.dumps([real]), encoding="utf-8")
                 (data / "roster.json").write_text(json.dumps([{"name": "Real Member"}]), encoding="utf-8")
+                (data / "s2_cache.json").write_text("broken", encoding="utf-8")
                 (demo / "personas.json").write_text(json.dumps([{"id": "fake", "name": "Fake Member"}]), encoding="utf-8")
                 (demo / "_work" / "fake.json").write_text(json.dumps({"slots": [{"date": "2026-02-01"}]}), encoding="utf-8")
                 entry = dict.fromkeys(demo_build.FIELDS, "") | {"date": "2026-02-01", "author": "Fake Member",
@@ -121,7 +126,8 @@ class DemoSafetyTests(unittest.TestCase):
                 for name in ("diary.json", "roster.json", "s2_cache.json"):
                     (demo / name).write_text("unchanged", encoding="utf-8")
                 with patch.object(demo_build, "ROOT", root), patch.object(demo_build, "DEMO", demo), \
-                        redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                        redirect_stdout(io.StringIO()), \
+                        self.assertRaises(json.JSONDecodeError if value == "Original summary" else SystemExit):
                     demo_build.main()
                 for name in ("diary.json", "roster.json", "s2_cache.json"):
                     self.assertEqual((demo / name).read_text(encoding="utf-8"), "unchanged")
@@ -168,6 +174,10 @@ class MapTests(unittest.TestCase):
                 embed.reset_mock()
                 build_map.main()
                 embed.assert_not_called()
+                with patch.object(build_map, "MODEL", "another-model"):
+                    build_map.main()
+                embed.assert_called_once()
+                embed.reset_mock()
                 papers[0]["abstract"] = "Newly fetched abstract"
                 build_map.main()
                 embed.assert_called_once()

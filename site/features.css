@@ -1,7 +1,6 @@
 /* Labsidian — accounts, writing, social, my page, admin (loaded after style.css) */
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
 .err { color: var(--danger); font-size: var(--fs-body); min-height: 1em; margin: 6px 0; }
-.hint { font-size: var(--fs-callout); color: var(--text-3); }
 em.hint { font-style: normal; display: block; margin-top: 4px; }
 .ellip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
 .right { text-align: right; }
@@ -250,10 +249,7 @@ details.fld summary { cursor: pointer; }
 .feed-ctx .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); }
 .feed-ctx b { color: var(--text); cursor: pointer; }
 .feed-ctx .m, .feed-ctx .also { color: var(--text-3); }
-.feed-item.act { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px 14px; cursor: pointer; }
-.feed-item.act:hover { border-color: var(--separator); }
-.feed-item.act.question { border-left: 3px solid var(--star); }
-.feed-item.act.idea { border-left: 3px solid rgb(var(--green)); }
+.feed-item.act { padding: 12px 14px; cursor: pointer; }
 .act-body { font-size: var(--fs-body); line-height: 1.55; white-space: pre-wrap; }
 .act-paper { font-size: var(--fs-callout); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-side { position: sticky; top: calc(var(--top-h) + 16px); display: grid; gap: var(--s-6); }
@@ -284,8 +280,6 @@ details.fld summary { cursor: pointer; }
 .st-desc { margin: 0; color: var(--text-2); font-size: var(--fs-body); line-height: 1.55; }
 .st-desc.full { white-space: pre-wrap; margin-top: 10px; max-width: 820px; }
 .st-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.st-avs { display: inline-flex; }
-.st-avs .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); margin-right: -5px; border: 2px solid var(--panel); }
 .st-avs .did .avatar { box-shadow: 0 0 0 2px rgb(var(--green)); }
 .st-cands { margin-bottom: 16px; }
 .st-cands h4 { margin: 0 0 4px; }
@@ -301,7 +295,6 @@ details.fld summary { cursor: pointer; }
 .st-notes { display: grid; gap: 4px; }
 .st-board h3 { margin-top: 0; }
 .st-q-form { display: grid; gap: 6px; margin: 8px 0 10px; }
-.st-q-form textarea { resize: vertical; }
 .st-q-form .ui-btn { justify-self: end; }
 .st-qs { display: grid; gap: 8px; }
 .st-q { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: var(--s-3) 0; border-top: .5px solid var(--separator); font-size: var(--fs-body); }
@@ -313,7 +306,6 @@ details.fld summary { cursor: pointer; }
 .st-q .vote { align-self: start; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-control); color: var(--text-2); cursor: pointer; padding: 4px 8px; font-size: var(--fs-callout); white-space: nowrap; }
 .st-q .vote.on { border-color: var(--accent); color: var(--accent); background: rgb(var(--accent-rgb) / .1); }
 .rv-head a.ui-pill { background: rgb(var(--green) / .12); color: rgb(var(--green)); text-decoration: none; cursor: pointer; }
-.feed-item.act.study { border-left: 3px solid rgb(var(--green)); }
 .act-paper .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); margin-right: -4px; vertical-align: middle; }
 .side-st { display: grid; gap: 2px; }
 .side-st .m { color: var(--text-3); font-size: var(--fs-callout); }
@@ -441,8 +433,6 @@ details.fld summary { cursor: pointer; }
 @media (max-width: 760px) { .lang.ui-seg.gate-lang { display: inline-grid; } }
 @media (max-width: 420px) { .top .logo { font-size: 0; gap: 0; } }   /* mark only: the wordmark doesn't fit beside the controls */
 @media (max-width: 420px) { .top #nav a { padding: 6px 2px; font-size: var(--fs-caption1); } }   /* small phones: all six tabs still fit (English is the longest) */
-
-/* ---------- my own diary stands out among the others on a paper ---------- */
 
 /* ---------- popovers of the calendar / interest chart: the elevated surface of the design system ---------- */
 .cal-tip, .drift-tip { position: absolute; z-index: 5; line-height: 1.45; pointer-events: none; }

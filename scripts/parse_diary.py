@@ -37,13 +37,11 @@ def docx_paragraphs(path):
 
 
 def find_name(line, names, aliases):
-    """Return the last roster name in a name line (handles '홍길동1김철수')."""
-    remainder = line
-    for name in sorted(names, key=len, reverse=True):
-        remainder = remainder.replace(name, "")
-    hits = [(line.rfind(n), n) for n in names if n in line]
-    if hits and not re.sub(r"[\d\s]+", "", remainder):
-        return max(hits)[1]
+    """Return the last whole roster name, preferring longer names over overlapping suffixes."""
+    pattern = "|".join(map(re.escape, sorted(names, key=len, reverse=True)))
+    hits = list(re.finditer(pattern, line)) if names else []
+    if hits and not re.sub(r"[\d\s]+", "", re.sub(pattern, "", line)):
+        return hits[-1].group()
     return aliases.get(re.sub(r"[\d\s]+$", "", line))
 
 
@@ -87,7 +85,6 @@ def parse(lines, term, roster):
                 cur = {"date": date, "dateNote": note, "author": author or "미상",
                        "title": val, "link": "", "venue": "", "authors": "",
                        "rating": 0, "content": [], "memo": [], "term": term}
-                field = None
             elif cur is None:
                 continue
             elif key == "link":

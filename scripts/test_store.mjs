@@ -27,6 +27,9 @@ function boot(db = {}, user = "admin", lab = seed()) {
 const a = boot();
 const admin = op => a.applyOp({ actor: "admin", ...op });
 await assert.rejects(a.applyOp({ actor: "bob", op: "term.save", term: {} }), /forbidden/);
+for (const op of ["tag.merge", "tag.rename", "tag.create", "quota.set", "user.role", "user.disable", "cluster.name", "paper.tags", "offday.save", "offday.remove"]) {
+  await assert.rejects(a.applyOp({ actor: "bob", op }), /forbidden/);
+}
 a.db().users.bob.disabled = true;
 await assert.rejects(a.applyOp({ actor: "bob", op: "comment", reviewId: "r1", body: "x" }), /actor/);
 a.db().users.bob.disabled = false;
@@ -40,6 +43,8 @@ assert.equal(a.store.calendar.workdays("2026-06-01", "2026-06-02"), 2);
 assert.equal(a.store.calendar.workdays("2026-06-03", "2026-06-03"), 0);
 await assert.rejects(a.store.users.setRole("admin", "member"), /forbidden/);
 await assert.rejects(a.store.users.setDisabled("admin", true), /forbidden/);
+await assert.rejects(admin({ op: "user.role", member: "admin", role: "member" }), /forbidden/);
+await assert.rejects(admin({ op: "user.disable", member: "admin", disabled: true }), /forbidden/);
 
 await assert.rejects(a.applyOp({ actor: "bob", op: "comment", reviewId: "missing", body: "x" }), /review.missing/);
 const q = await a.applyOp({ actor: "bob", op: "comment", reviewId: "r1", kind: "question", body: "Hi @Alice @Carol" });
@@ -66,11 +71,15 @@ await admin({ op: "tag.create", axis: "domain", label: "Temporary", labelEn: "te
 await admin({ op: "tag.merge", from: "d:t23", into: "d:temporary" });
 await a.store.tags.undo(23);
 assert.equal(a.snapshot().papers.find(p => p.id === "p1").domains[0], "t23");
+const cycle = boot({ tagOps: [{ op: "merge", from: "d:t0", into: "d:t1" }, { op: "merge", from: "d:t1", into: "d:t0" }] });
+assert.equal(cycle.snapshot().papers.find(p => p.id === "p1").domains[0], "t1");
 const gid = (await admin({ op: "guide.create", guide: { title: "Guide" } })).guideId;
 assert.ok(a.db().guides[gid]);
 a.store.suggestTags({ title: "First paper" });
 await admin({ op: "paper.meta", paperId: "p1", title: "Uniquequasar measurement" });
 assert.equal(a.store.suggestTags({ title: "Uniquequasar measurement" }).similar[0].id, "p1");
+await assert.rejects(admin({ op: "paper.meta", paperId: "p1", title: "Must not persist", year: "bad" }), /paper.meta.invalid/);
+assert.equal(a.snapshot().papers.find(p => p.id === "p1").title, "Uniquequasar measurement");
 const pairSeed = seed();
 pairSeed.reviews.push({ ...pairSeed.reviews[0], id: "r3", person: "bob" });
 const pair = boot({}, "admin", pairSeed);
@@ -95,6 +104,10 @@ await c.store.reading.update("item", { files: [] });
 assert.deepEqual(removed, ["unused"]);
 await c.store.reviews.remove("r1");
 assert.deepEqual(removed, ["unused", "shared"]);
+c.store.reading._add("p1");
+assert.equal(c.store.reading.list().length, 1);
+assert.equal(await c.store.reading.toggle("p1"), false);
+assert.equal(c.store.reading.has("p1"), false);
 const d = boot({ reading: { alice: [{ id: "item", files: [{ id: "shared", kind: "pdf" }] }] } }, "alice");
 d.store.files.remove = async () => assert.fail("shared attachment was deleted");
 await d.store.reviews.remove("r1");

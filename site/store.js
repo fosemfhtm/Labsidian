@@ -314,7 +314,7 @@
   const SEED_TOPICS = SEED.topics.map(t => ({ ...t }));
   const ORIG = { papers: SEED.papers, reviews: SEED.reviews, people: SEED.people };
   let paperIndex = new Map(), paperKeyIndex = new Map(), reviewIndex = new Map();
-  function resolveTag(id, merges) { const seen = new Set(); while (merges[id] && !seen.has(id)) { seen.add(id); id = merges[id]; } return id; }
+  function resolveTag(id, merges) { while (merges[id]) id = merges[id]; return id; }
 
   function buildDataset() {
     // topics: seed + created, renamed, merged
@@ -499,7 +499,7 @@
     });
     const N = papers.length, idf = w => Math.log(1 + N / (1 + (df[w] || 0)));
     const vecs = docs.map(tf => { const v = {}; let n = 0; for (const w in tf) { v[w] = (1 + Math.log(tf[w])) * idf(w); n += v[w] ** 2; } n = Math.sqrt(n) || 1; for (const w in v) v[w] /= n; return v; });
-    lex = { n: N, papers, vecs, idf };
+    lex = { papers, vecs, idf };
     return lex;
   }
   function lexSimilar(text, papers, k = 10) {
@@ -543,12 +543,6 @@
     if (!to || to === me || !db.users[to]) return;
     (db.notifications[to] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: me, ...n });
     db.notifications[to] = db.notifications[to].slice(0, 200);
-  }
-  function mentionsIn(body) {
-    const names = Object.values(db.users).map(u => u.name).sort((a, b) => b.length - a.length);
-    const found = new Set();
-    names.forEach(nm => { if (body.includes("@" + nm)) found.add(findUser(nm).id); });
-    return [...found];
   }
   const reviewById = id => reviewIndex.get(id);
   const fileInUse = (fid, except) => SEED.allReviews.some(r => r.id !== except?.id && (r.files || []).some(f => f.id === fid))
@@ -835,11 +829,11 @@
         const c = { id: uid("c_"), reviewId, parent, kind, body, author: me.id, at: now(), resolved: false };
         db.comments[c.id] = c;
         const told = new Set();
-        const tell = (to, type) => { if (to && !told.has(to)) { told.add(to); notify(to, { type, reviewId, commentId: c.id, paperId: r?.paper, excerpt: body.slice(0, 80) }); } };
+        const tell = (to, type) => { if (to && !told.has(to)) { told.add(to); notify(to, { type, reviewId, commentId: c.id, paperId: r.paper, excerpt: body.slice(0, 80) }); } };
         // one notification per person: review author > replied-to commenter > mentioned
-        if (r) tell(r.person, kind === "question" ? "question" : kind === "idea" ? "idea" : "comment");
-        if (parent && db.comments[parent]) tell(db.comments[parent].author, "reply");
-        mentionsIn(body).forEach(u => tell(u, "mention"));
+        tell(r.person, kind);
+        if (parent) tell(db.comments[parent].author, "reply");
+        Object.values(db.users).filter(u => body.includes("@" + u.name)).forEach(u => tell(u.id, "mention"));
         save();
         return c;
       },
@@ -1297,10 +1291,11 @@
         const p = paperIndex.get(paperId);
         return (db.reading[me.id] || []).some(x => x.paperId === paperId || (p && x.key === p.key));
       },
-      _add(paperId) { const me = current(); if (!me) return; const l = (db.reading[me.id] ||= []); if (!l.some(x => x.paperId === paperId)) l.unshift({ paperId, at: now() }); },
+      _add(paperId) { const me = current(); if (me && !Store.reading.has(paperId)) (db.reading[me.id] ||= []).unshift({ paperId, at: now() }); },
       async toggle(paperId) {
         const me = requireUser();
-        const l = (db.reading[me.id] ||= []), i = l.findIndex(x => x.paperId === paperId);
+        const l = (db.reading[me.id] ||= []), key = paperIndex.get(paperId)?.key;
+        const i = l.findIndex(x => x.paperId === paperId || (key && x.key === key));
         if (i >= 0) l.splice(i, 1); else l.unshift({ paperId, at: now() });
         save();
         return i < 0;
@@ -1512,9 +1507,6 @@
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
     if (!actor || actor.disabled) throw new Error("actor");
-    const adminOnly = ["tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "cluster.name", "paper.tags",
-      "offday.save", "offday.remove"];
-    if (adminOnly.includes(op.op) && actor.role !== "admin") throw new Error("forbidden");
     actingAs = op.actor;
     let res = {};
     try {
@@ -1620,12 +1612,10 @@
       if (op.op === "term.save") await Store.terms.save(op.term);
       if (op.op === "offday.save") await Store.calendar.save(op.offDay);
       if (op.op === "offday.remove") await Store.calendar.remove(op.offDayId);
-      if (op.op === "user.role" || op.op === "user.disable") {
-        if (!db.users[op.member] || op.member === op.actor) throw new Error("forbidden");  // nobody locks themselves out
-        if (op.op === "user.role") await Store.users.setRole(op.member, op.role === "admin" ? "admin" : "member");
-        else await Store.users.setDisabled(op.member, !!op.disabled);
-      }
+      if (op.op === "user.role") await Store.users.setRole(op.member, op.role);
+      if (op.op === "user.disable") await Store.users.setDisabled(op.member, op.disabled);
       if (op.op === "cluster.name") {
+        requireAdmin();
         const c = (SEED.clusters || []).find(x => x.id === op.clusterId); if (!c) throw new Error("cluster.missing");
         const ko = String(op.ko || "").trim().slice(0, 60), en = String(op.en || "").trim().slice(0, 60);
         if (!ko && !en) { if (c.customKey) delete db.clusterNames[c.customKey]; }  // back to the automatic name
@@ -1641,18 +1631,12 @@
       if (op.op === "paper.meta") {
         const p = SEED.allPapers.find(x => x.id === op.paperId);
         if (!p) throw new Error("paper.missing");
-        const reader = p.reviews.some(id => reviewById(id)?.person === op.actor) ||
-          Object.values(db.reviews).some(r => r.paper === p.id && r.person === op.actor);
-        if (actor.role !== "admin" && !reader) throw new Error("forbidden");
-        const patch = {};
+        if (actor.role !== "admin" && !p.readers.includes(op.actor)) throw new Error("forbidden");
+        const meta = { ...(db.paperMeta[p.id] || {}) };
         for (const [field, limit] of Object.entries({ title: 300, venue: 200, authors: 500, year: 4, preprintVenue: 200, preprintYear: 4, link: 500 })) {
           if (!(field in op)) continue;
           const value = String(op[field] ?? "").trim();
           if (value.length > limit || (["year", "preprintYear"].includes(field) && value && !/^\d{4}$/.test(value))) throw new Error("paper.meta.invalid");
-          patch[field] = value;
-        }
-        const meta = { ...(db.paperMeta[p.id] || {}) };
-        for (const [field, value] of Object.entries(patch)) {
           if (!value) delete meta[field];
           else meta[field] = ["year", "preprintYear"].includes(field) ? +value : value;
           if (field === "venue") {
@@ -1666,6 +1650,7 @@
         res = { paperId: p.id };
       }
       if (op.op === "paper.tags") {
+        requireAdmin();
         const p = SEED.allPapers.find(x => x.id === op.paperId); if (!p) throw new Error("paper.missing");
         const ids = (op.tags || []).map(cleanTag).filter(Boolean);
         if (ids.some(t => !/^[dm]:/.test(t) || !SEED.topics.some(x => x.id === t))) throw new Error("tag.unknown");

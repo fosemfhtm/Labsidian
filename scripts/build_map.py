@@ -1,7 +1,7 @@
 """Semantic map: papers -> embeddings -> 2D layout + 2-level clusters + labels + neighbors.
 
 Usage (needs the ML venv):
-    .venv/Scripts/python scripts/build_map.py [--reuse]   # --reuse: skip re-embedding if papers unchanged
+    .venv/Scripts/python scripts/build_map.py [--reuse]   # reuse only when model, titles and abstracts match
 Writes data/map.json, which build_site.py merges into site/data.js.
 
 Pipeline
@@ -28,7 +28,6 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(Path(__file__).parent))
 from build_site import norm_title, compile_tax, score, pick  # noqa: E402
 from taxonomy import DOMAINS, METHODS, EN  # noqa: E402
 
@@ -118,7 +117,7 @@ def ctfidf(docs_by_cluster, topn=3):
 
 def main():
     papers = load_papers()
-    fingerprint = hashlib.sha256(json.dumps([(p["title"], p["abstract"]) for p in papers],
+    fingerprint = hashlib.sha256(json.dumps([MODEL, [(p["title"], p["abstract"]) for p in papers]],
                                             ensure_ascii=False).encode("utf-8")).hexdigest()
     if not papers:
         (DATA / "map.json").write_text(json.dumps({"model": MODEL, "inputs": fingerprint, "papers": {}, "clusters": []}),

@@ -55,13 +55,11 @@ def req(url, body=None, tries=6):  # S2 and Crossref share transient-error handl
             retry_after = e.headers.get("Retry-After")
             if retry_after:
                 try:
-                    delay = float(retry_after)
-                except ValueError:
-                    try:
-                        delay = (parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)).total_seconds()
-                    except (TypeError, ValueError, OverflowError):
-                        delay = 0
-                wait = max(wait, delay)
+                    delay = float(retry_after) if retry_after.isdecimal() else (
+                        parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)).total_seconds()
+                    wait = max(wait, delay)
+                except (TypeError, ValueError, OverflowError):
+                    pass
         except (urllib.error.URLError, TimeoutError):
             pass
         if attempt + 1 < tries:
@@ -87,21 +85,19 @@ def ext_id(title, link):
     m = re.search(r"10\.\d{4,9}/[^\s\"<>?#]+", link or "")
     if m and "arxiv" not in m.group(0).lower():
         return "DOI:" + m.group(0).rstrip(".,;)").removesuffix("/full").removesuffix("/abstract")
+    q = urllib.parse.urlencode({"query.bibliographic": title[:250], "rows": 2, "select": "DOI,title"})
+    urls = [f"https://api.crossref.org/works?{q}"]
     m = re.search(r"pii/(S?[0-9X]{15,17})", link or "", re.I)
     if m:
-        r = req(f"https://api.crossref.org/works?filter=alternative-id:{m.group(1)}&rows=1&select=DOI,title")
+        urls.insert(0, f"https://api.crossref.org/works?filter=alternative-id:{m.group(1)}&rows=1&select=DOI,title")
+    for url in urls:
+        r = req(url)
         if r == "retry":
             return r
-        hit = next((x for x in (r or {}).get("message", {}).get("items", [])
-                    if same_title(title, (x.get("title") or [""])[0])), None)
-        if hit:
-            return "DOI:" + hit["DOI"]
-    q = urllib.parse.urlencode({"query.bibliographic": title[:250], "rows": 2, "select": "DOI,title"})
-    r = req(f"https://api.crossref.org/works?{q}")
-    if r == "retry":
-        return r
-    hit = next((x for x in (r or {}).get("message", {}).get("items", []) if same_title(title, (x.get("title") or [""])[0])), None)
-    return "DOI:" + hit["DOI"] if hit else ""
+        for hit in (r or {}).get("message", {}).get("items", []):
+            if same_title(title, (hit.get("title") or [""])[0]):
+                return "DOI:" + hit["DOI"]
+    return ""
 
 
 def main():

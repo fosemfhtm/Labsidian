@@ -1,12 +1,11 @@
 """Usage: .venv/Scripts/python scripts/eval_trust.py   (needs site/data.js + data/emb_specter2.npy)
 (1) Does SPECTER2 closeness track real academic relatedness in OUR corpus?  (citations between our papers, same venue)
 (2) How much does the 2-D map distort it?  (3) What does the current 'interest %' measure vs. shared papers?"""
-import json, re, sys
+import json, re
 from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
 from build_site import norm_title
 D = json.loads(re.sub(r"^[^=]*=\s*", "", (ROOT / "site/data.js").read_text(encoding="utf-8")).rstrip().rstrip(";"))
 E = np.load(ROOT / "data/emb_specter2.npy"); keys = json.loads((ROOT / "data/emb_keys.json").read_text(encoding="utf-8"))

@@ -47,21 +47,25 @@ class ServerTests(unittest.TestCase):
     def test_operation_log_and_records_commit_together(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = serve.Store(Path(tmp) / "test.db")
+            op = {"id": "op1", "op": "test"}
             try:
-                store.con.execute("CREATE TRIGGER reject_ops BEFORE INSERT ON ops BEGIN SELECT RAISE(ABORT, 'rejected'); END")
-                with self.assertRaises(Exception):
-                    store.write([("reviews", "r", {"text": "test"})], [], {"id": "op1", "op": "test"})
-                self.assertEqual(store.version(), 0)
-                self.assertEqual(store.db(), {})
-                store.con.execute("DROP TRIGGER reject_ops")
-                store.write([("reviews", "r", {"text": "test"})], [], {"id": "op1", "op": "test"})
-                self.assertEqual(store.changes(0)["ops"][0]["id"], "op1")
-                self.assertEqual(store.changes(1), {"version": 1, "ops": []})
-                store.con.execute("BEGIN IMMEDIATE")
-                store.write([("reviews", "rolled_back", {})], [])
-                store.con.rollback()
-                self.assertNotIn("rolled_back", store.db()["reviews"])
-                self.assertEqual(store.version(), 1)
+                with patch.object(serve, "STORE", store), patch.object(serve.WORKER, "call", return_value={
+                    "ok": True, "db": {"reviews": {"r": {"text": "test"}}}
+                }) as worker:
+                    store.con.execute("CREATE TRIGGER reject_ops BEFORE INSERT ON ops BEGIN SELECT RAISE(ABORT, 'rejected'); END")
+                    with self.assertRaises(Exception):
+                        serve.apply_op(op)
+                    self.assertEqual(store.version(), 0)
+                    self.assertEqual(store.db(), {})
+                    store.con.execute("DROP TRIGGER reject_ops")
+                    self.assertTrue(serve.apply_op(op)["ok"])
+                    self.assertEqual(store.changes(0)["ops"][0]["id"], "op1")
+                    self.assertEqual(store.changes(1), {"version": 1, "ops": []})
+                    serve.apply_op({**op, "id": "noop"})
+                    worker.reset_mock()
+                    self.assertTrue(serve.apply_op({**op, "id": "noop"})["duplicate"])
+                    worker.assert_not_called()
+                    self.assertEqual(store.version(), 1)
             finally:
                 store.con.close()
 

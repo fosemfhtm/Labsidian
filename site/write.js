@@ -59,7 +59,7 @@
   function saveDraft() {
     clearTimeout(saveTimer); saveTimer = null;
     const at = S.drafts.save(collect());
-    if (at) $("#w-saved", view).textContent = t("w.saved", { time: new Date(at).toLocaleTimeString(lang === "ko" ? "ko-KR" : "en-US", { hour: "2-digit", minute: "2-digit" }) });
+    if (at) { dirty = false; $("#w-saved", view).textContent = t("w.saved", { time: new Date(at).toLocaleTimeString(lang === "ko" ? "ko-KR" : "en-US", { hour: "2-digit", minute: "2-digit" }) }); }
   }
   function leave() {
     if (uploading || publishing) return false;
@@ -76,7 +76,7 @@
     if (saveTimer) saveDraft();
     clearTimeout(suggestTimer);
     growObservers.forEach(o => o.disconnect()); growObservers = [];
-    dirty = false;
+    dirty = false; form = null;
   }
   window.addEventListener("beforeunload", e => {
     if (saveTimer) saveDraft();
@@ -191,7 +191,7 @@
         rating = fromReading.draft.rating || 0; tags = [...(fromReading.draft.tags || [])];
       }
     }
-    paintStars(); paintTags(); paintFiles(); dateHint(); refreshSide();
+    UI.paintRatingInput($("#w-stars", view), rating); paintTags(); paintFiles(); dateHint(); refreshSide();
     wire();
   }
 
@@ -200,11 +200,9 @@
     preprintVenue: val("w-preprintVenue"), preprintYear: val("w-preprintYear"),
     abstract: val("w-abstract"), date: val("w-date") || editing?.date || S.today(), content: $("#w-content", view).value, memo: $("#w-memo", view).value, rating, tags, files, studyId: study?.id || null, pick: !!pick, fromDraft, readingItemId: fromReading?.id || null });
 
-  function paintStars() { UI.paintRatingInput($("#w-stars", view), rating); }
   const topicLabel = id => { const x = UI.T[id]; return x ? UI.tl(x) : id.slice(2); };
-  const topicColor = id => UI.safeColor(UI.T[id]?.color);
   function paintTags() {
-    $("#w-tags", view).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${esc(id)}"><span class="dot" style="background:${topicColor(id)}"></span>${esc(topicLabel(id))} ✕</button>`).join("");
+    $("#w-tags", view).innerHTML = tags.map(id => `<button type="button" class="ui-chip" aria-pressed="true" data-id="${esc(id)}"><span class="dot" style="background:${UI.safeColor(UI.T[id]?.color)}"></span>${esc(topicLabel(id))} ✕</button>`).join("");
   }
   // ---- diary date: how it will read next to the actual posting date
   function dateHint() {
@@ -273,7 +271,7 @@
     if (!d.title && !d.content) { $("#w-suggest", view).innerHTML = ""; $("#w-similar", view).innerHTML = ""; return; }
     const sug = S.suggestTags(d);
     $("#w-suggest", view).innerHTML = sug.tags.filter(x => !tags.includes(x.id)).map(x =>
-      `<button type="button" class="ui-btn small" data-add="${esc(x.id)}"><span class="dot" style="background:${topicColor(x.id)}"></span>+ ${esc(topicLabel(x.id))}</button>`).join("") || `<span class="muted">—</span>`;
+      `<button type="button" class="ui-btn small" data-add="${esc(x.id)}"><span class="dot" style="background:${UI.safeColor(UI.T[x.id]?.color)}"></span>+ ${esc(topicLabel(x.id))}</button>`).join("") || `<span class="muted">—</span>`;
     $("#w-similar", view).innerHTML = sug.similar.map(x => UI.miniPaper(UI.PA[x.id], Math.round(x.score * 100) + "%")).join("");
   }
 
@@ -314,7 +312,7 @@
     UI.wireRatingInput($("#w-stars", view), n => { rating = n; changed(); });
     $("#w-tags", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; tags = tags.filter(x => x !== c.dataset.id); paintTags(); changed(); };
     $("#w-suggest", view).onclick = e => { const c = e.target.closest("[data-add]"); if (c) addTag(c.dataset.add); };
-    $("#w-discard", view)?.addEventListener("click", () => { if (uploading || publishing) return; clearTimeout(saveTimer); saveTimer = null; S.drafts.clear(); render(new URLSearchParams()); });
+    $("#w-discard", view)?.addEventListener("click", () => { if (uploading || publishing) return; S.drafts.clear(); render(new URLSearchParams()); });
 
     // tag autocomplete
     const q = $("#w-tag-q", view), pop = $("#w-tag-pop", view);
@@ -364,7 +362,7 @@
       if (!d.title) return (err.textContent = t("w.need.title"));
       if (!d.rating) return (err.textContent = t("w.need.rating"));
       if (!d.content.trim() && !d.memo.trim()) return (err.textContent = t("w.need.body"));
-      const btn = form.querySelector("button.ui-btn.prominent"); if (btn.disabled) return;
+      const btn = form.querySelector("button.ui-btn.prominent");
       publishing = true; btn.disabled = true; clearTimeout(saveTimer); saveTimer = null;
       try {
         const paper = editing ? UI.PA[editing.paper] : study && prePaper ? prePaper :
@@ -380,9 +378,7 @@
       } catch (error) {
         console.warn("diary save failed", error);
         err.textContent = t("pm.failed");
-        btn.disabled = false;
-      } finally {
-        publishing = false;
+        publishing = false; btn.disabled = false;
       }
     };
     $("#w-del", view)?.addEventListener("click", async () => {

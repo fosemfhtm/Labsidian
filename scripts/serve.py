@@ -122,7 +122,7 @@ def check_pw(u, pw):
     stored, pw = u.get("pw"), pw or ""
     if not isinstance(pw, str) or (stored is not None and not isinstance(stored, str)):
         return False, False
-    if isinstance(stored, str) and stored.startswith("pbkdf2$"):
+    if stored and stored.startswith("pbkdf2$"):
         try:
             _, rounds, salt, h = stored.split("$")
             rounds = int(rounds)
@@ -200,7 +200,7 @@ class Store:
             return False
         return not any(u.get("pw") for u in self.users().values())
 
-    def write(self, upserts, deletes, op=None):
+    def write(self, upserts, deletes):
         """one transaction, one new version → (prev, version)"""
         with self.lock:
             own_transaction = not self.con.in_transaction
@@ -214,8 +214,6 @@ class Store:
                 for coll, id_ in deletes:
                     self.con.execute("DELETE FROM records WHERE coll=? AND id=?", (coll, id_))
                 self.con.execute("INSERT OR REPLACE INTO meta VALUES ('version', ?)", (str(v),))
-                if op is not None:
-                    self.log_op(op, "ok", None, v)
                 if own_transaction:
                     self.con.execute("COMMIT")
             except Exception:
@@ -224,18 +222,13 @@ class Store:
                 raise
             return prev, v
 
-    def replace(self, new_db, op=None):
+    def replace(self, new_db):
         """store a whole db (from the worker / an import) as the minimal set of record changes"""
         with self.lock:
             old, new = records_of(self.db()), records_of(new_db)
             ups = [(c, i, v) for (c, i), v in new.items() if (c, i) not in old or old[(c, i)] != v]
             dels = [k for k in old if k not in new]
-            if ups or dels:
-                return self.write(ups, dels, op)
-            v = self.version()
-            if op is not None:
-                self.log_op(op, "ok", None, v)
-            return v, v
+            return self.write(ups, dels) if ups or dels else (self.version(), self.version())
 
     def changes(self, since):
         version = self.version()
@@ -440,7 +433,8 @@ def apply_op(op):
             return {"ok": True, "id": op["id"], "version": STORE.version(), "duplicate": True}
         r = WORKER.call({"cmd": "apply", "db": STORE.db(), "op": op})
         if r.get("ok"):
-            _, v = STORE.replace(r["db"], op)
+            _, v = STORE.replace(r["db"])
+            STORE.log_op(op, "ok", None, v)
             return {"ok": True, "id": op["id"], "version": v, "result": r.get("result") or {}}
         STORE.log_op(op, "error", r.get("error"), STORE.version())
         return {"ok": False, "id": op["id"], "error": r.get("error")}
@@ -467,7 +461,7 @@ def guard(me, upserts, deletes):
     for coll, id_, value in upserts:
         if coll == "users":
             old = stored.get(id_)
-            if not isinstance(value, dict) or (id_ != me and not admin) or (not old and not admin):
+            if (id_ != me and not admin) or (not old and not admin):
                 continue
             value = dict(value)
             if admin and isinstance(value.get("tempPw"), str):  # "reset password" / a new account: a temporary password
@@ -653,8 +647,7 @@ class Handler(SimpleHTTPRequestHandler):
             if self.command != "HEAD":
                 self.wfile.write(row[1])
             return
-        elif u.path.startswith("/api/"):
-            return self.send_error(404)
+        return self.send_error(404)
 
     def _post(self, req):
         u = urlparse(self.path)
@@ -788,15 +781,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"error": "signin"}, 401)
             if len(tid) != 16 or any(c not in "0123456789abcdef" for c in tid):
                 return self.send_error(404)
-            with STORE.lock:
-                n = STORE.con.execute("DELETE FROM sessions WHERE user=? AND kind='mcp' AND substr(hash, 1, 16)=?", (who, tid)).rowcount
+            n = STORE.con.execute("DELETE FROM sessions WHERE user=? AND kind='mcp' AND substr(hash, 1, 16)=?", (who, tid)).rowcount
             return self.send_json({"ok": True}) if n else self.send_error(404)
         if not self.path.startswith("/api/files/"):
             return self.send_error(404)
         if not who:
             return self.send_json({"error": "signin"}, 401)
-        with STORE.lock:
-            STORE.con.execute("DELETE FROM files WHERE id=?", (self.file_id(),))
+        STORE.con.execute("DELETE FROM files WHERE id=?", (self.file_id(),))
         self.send_json({"ok": True})
 
 

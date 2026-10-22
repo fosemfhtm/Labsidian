@@ -576,7 +576,7 @@
   }
 
   // ---------- routing ----------
-  const rendered = {};
+  let peopleRendered = false;
   let inAppNavs = 0;
   window.addEventListener("hashchange", () => inAppNavs++);
   window.LabBack = (fallback = "#/home") => (inAppNavs > 0 ? history.back() : (location.hash = fallback));
@@ -590,11 +590,11 @@
     shownHash = location.hash;
     const [path, qs] = location.hash.replace(/^#\//, "").split("?");
     const [view, rawArg] = path.split("/");
-    let arg = rawArg;
-    try { decodeURIComponent(arg || ""); } catch { arg = ""; }
-    if (view === "shared" && (window.LabPages || {}).study) { location.replace("#/study?tab=shared"); return; }
+    let arg;
+    try { arg = decodeURIComponent(rawArg || ""); } catch { arg = ""; }
+    if (view === "shared" && pages.study) { location.replace("#/study?tab=shared"); return; }
     const v = ["graph", "people", "papers", "shared", "paper", "person", ...Object.keys(pages)].includes(view) ? view : pages.home ? "home" : "graph";
-    if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(decodeURIComponent(arg || "")); }
+    if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(arg); }
     else if (v !== shownView) closeDrawer();  // a link out of the drawer (compare, topic page, a guide…) leaves it behind
     if (shownView === "graph" && v !== "graph") window.LabGraph?.hide?.();
     shownView = v;
@@ -609,12 +609,12 @@
       closeDrawer();
     }
     if (v === "graph") window.LabGraph?.show();
-    if (v === "people" && !rendered.people) { renderPeople(); rendered.people = true; }
+    if (v === "people" && !peopleRendered) { renderPeople(); peopleRendered = true; }
     if (v === "papers") renderPapers();
     if (pages[v]) pages[v].render(new URLSearchParams(qs || ""), arg);
     window.scrollTo(0, 0);
   }
-  const rerender = () => { rendered.people = rendered.shared = false; route(); };
+  const rerender = () => { peopleRendered = false; route(); };
 
   window.I18N.apply();
   document.querySelectorAll("#lang button").forEach(b => {
@@ -623,7 +623,7 @@
   });
   initPaperFilters();
   window.addEventListener("hashchange", route);
-  window.addEventListener("lab:data", () => { rendered.people = false; });
+  window.addEventListener("lab:data", () => { peopleRendered = false; });
 
   // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
   const papersTabs = on => `<div class="ui-seg page-tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]

@@ -239,8 +239,8 @@ def paper(ref):
     raise ToolError(f"no paper matching {ref!r} — try search_papers first")
 
 
-def tag_label(tid, d=None):
-    t = (d if d is not None else DB.data())["T"].get(tid)
+def tag_label(tid, d):
+    t = d["T"].get(tid)
     return f"{t['label']} / {t.get('labelEn', '')}" if t else tid
 
 
@@ -276,8 +276,7 @@ def paper_citation(p):
     return " · ".join(v for v in (published, preprint) if v)
 
 
-def brief(p, d=None):
-    d = d if d is not None else DB.data()
+def brief(p, d):
     return {"id": p["id"], "title": p["title"], "venue": p.get("venueNorm") or p.get("venue", ""), "year": p.get("year"),
             "preprintVenue": p.get("preprintVenue"), "preprintYear": p.get("preprintYear"), "citation": paper_citation(p),
             "rating": p.get("rating"), "readers": [d["P"].get(r, {}).get("name", r) for r in p.get("readers", [])],
@@ -291,9 +290,8 @@ def term_for():
     return next((t for t in d["terms"] if t["start"] <= day <= t["end"]), d["terms"][-1])
 
 
-def quota(u, term, d=None):
+def quota(u, term, d):
     """Use the server's working-day duty rules, never a second calendar calculation."""
-    d = d if d is not None else DB.data()
     duty = ((d.get("duties") or {}).get(term["id"]) or {}).get(u["id"])
     if duty is None:
         raise ToolError("the server snapshot has no diary duty for this member and term — update the Labsidian server")
@@ -389,7 +387,7 @@ def get_person(name: str) -> dict:
             "similarPeople": [{"name": d["P"][s["id"]]["name"], "similarity": s["sim"], "readTogether": s["shared"]}
                               for s in (p.get("similar") or [])[:5] if s["id"] in d["P"]],
             "thisTerm": {"term": term["id"], "written": n, **q},
-            "recent": [{"date": r["date"], "rating": r["rating"], **brief(d["PA"][r["paper"]], d)} for r in mine[:10] if r["paper"] in d["PA"]],
+            "recent": [{**brief(d["PA"][r["paper"]], d), "date": r["date"], "rating": r["rating"]} for r in mine[:10] if r["paper"] in d["PA"]],
             "open": f"{SITE}/#/person/{u['id']}"}
 
 
@@ -421,12 +419,12 @@ def similar_papers(paper_ref: str = "", text: str = "", limit: int = 8) -> list[
     if paper_ref:
         p = paper(paper_ref)
         return [brief(d["PA"][q], d) | {"similarity": s} for q, s in p.get("nb", [])[:limit] if q in d["PA"]]
-    words = [w for w in re.findall(r"[a-z][a-z\-]{2,}|[가-힣]{2,}", text.lower())]
+    words = set(re.findall(r"[a-z][a-z\-]{2,}|[가-힣]{2,}", text.lower()))
     df = Counter(w for p in d["papers"] for w in set(re.findall(r"[a-z][a-z\-]{2,}|[가-힣]{2,}", p["_hay"])))
     N = len(d["papers"])
     scored = []
     for p in d["papers"]:
-        s = sum(math.log(1 + N / (1 + df[w])) for w in set(words) if w in p["_hay"])
+        s = sum(math.log(1 + N / (1 + df[w])) for w in words if w in p["_hay"])
         if s:
             scored.append((s, p))
     scored.sort(key=lambda x: -x[0])
@@ -480,12 +478,8 @@ def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False
 
 # ------------------------------------------------------------------ write tools (applied by the server as the member)
 def _done(op, extra=None):
-    return {"applied": op["id"], **{_snake(k): v for k, v in (op.get("result") or {}).items()},
+    return {"applied": op["id"], **{re.sub(r"(?<!^)([A-Z])", r"_\1", k).lower(): v for k, v in (op.get("result") or {}).items()},
             "note": "Done — open pages pick it up within a few seconds.", **(extra or {})}
-
-
-def _snake(k):
-    return re.sub(r"(?<!^)([A-Z])", r"_\1", k).lower()   # itemId → item_id
 
 
 def _attach_pdf(path):
@@ -706,10 +700,9 @@ def _study(study_id):
     return st
 
 
-def _hidden_for(r, viewer_id, d=None):
+def _hidden_for(r, viewer_id, d):
     """Study 'write first, then read': a member's entry on the common paper of an open blind study stays hidden
     from anyone who hasn't written their own entry on that paper (same rule as the site)."""
-    d = d if d is not None else DB.data()
     if not r or r["person"] == viewer_id or not r.get("studyId"):
         return False
     st = next((x for x in d.get("studies") or [] if x["id"] == r["studyId"]), None)
@@ -1154,7 +1147,7 @@ def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
     if bad:
         raise ToolError(f"not field/method tags: {bad} — use list_tags")
     return _done(DB.apply({"op": "paper.tags", "actor": u["id"], "paperId": p["id"], "tags": tags,
-                           "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": brief(p)["title"]})
+                           "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": p["title"]})
 
 
 @mcp.tool()

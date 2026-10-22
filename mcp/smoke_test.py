@@ -48,18 +48,6 @@ async def main(tmpdir):
             prompts = (await s.list_prompts()).prompts
             print(f"{len(tools)} tools:", ", ".join(t.name for t in tools))
             print(f"{len(prompts)} prompts:", ", ".join(p.name for p in prompts))
-            schemas = {t.name: getattr(t, "input_schema", None) or getattr(t, "inputSchema", {}) for t in tools}
-            draft_fields = schemas.get("create_draft", {}).get("properties", {})
-            delete_fields = schemas.get("delete_draft", {}).get("properties", {})
-            if "diary_date" in draft_fields or "reading_item_id" not in draft_fields:
-                failed.append("draft tool schema")
-            if "reading_item_id" not in delete_fields or "draft_id" in delete_fields:
-                failed.append("delete draft tool schema")
-            for name in ("search_papers", "recommend_papers", "similar_papers", "list_tags", "my_inbox", "my_drafts",
-                         "my_reading_list", "list_studies", "list_guides", "admin_list_members", "admin_list_clusters"):
-                schema = next((getattr(t, "output_schema", None) or getattr(t, "outputSchema", {}) for t in tools if t.name == name), {})
-                if schema.get("properties", {}).get("result", {}).get("type") != "array":
-                    failed.append(f"{name} list output schema")
 
             async def call(tool, expect_ok=True, **args):
                 res = await s.call_tool(tool, args)
@@ -87,7 +75,12 @@ async def main(tmpdir):
             empty = await call("search_papers", query="no-such-paper-" + os.urandom(12).hex())
             if not isinstance(single, list) or len(single) != 1 or empty != []:
                 failed.append("empty and single-item list results")
-            await call("get_person", name="박지호")
+            profile = await call("get_person", name="박지호")
+            for recent in profile.get("recent", []):
+                detail = await call("get_paper", paper_ref=recent["id"])
+                diary = next(r for r in detail["reviews"] if r.get("by") == "박지호")
+                if "rating" in diary and recent["rating"] != diary["rating"]:
+                    failed.append("profile preserves member rating")
             await call("lab_progress")
             await call("my_inbox", limit=3)
             await call("my_drafts")

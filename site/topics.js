@@ -34,7 +34,6 @@
   }
 
   function renderPage(_, tid) {
-    tid = decodeURIComponent(tid || "");
     const x = UI.T[tid];
     if (!x) { pageView.innerHTML = `${UI.papersTabs("topics")}<div class="ui-empty">404</div>`; return; }
     const guides = window.Store ? Store.guides.forTag(tid) : [];
