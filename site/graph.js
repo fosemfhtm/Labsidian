@@ -12,9 +12,7 @@ const D = window.LAB, UI = window.LabUI, { t } = window.I18N;
 const { P, T, R, esc } = UI;
 const $ = s => document.querySelector(s);
 
-let papers, PA, reviewDates, YMIN, YMAX, venuesSorted, venueName, PAPER_SCALE;
-// top venues get system colours in this order; the rest are "other" (gray) — docs/design/data-viz.md §2
-const VENUE_NAMES = ["blue", "red", "green", "orange", "purple", "cyan", "yellow", "teal", "pink", "indigo"];
+let papers, PA, reviewDates, YMIN, YMAX, venuesSorted, PAPER_SCALE;
 function readData() {
   papers = D.papers.filter(p => p.x != null);
   PA = Object.fromEntries(papers.map(p => [p.id, p]));
@@ -28,7 +26,6 @@ function readData() {
   const venueCount = {};
   papers.forEach(p => p.venueNorm && (venueCount[p.venueNorm] = (venueCount[p.venueNorm] || 0) + 1));
   venuesSorted = Object.entries(venueCount).sort((a, b) => b[1] - a[1]);
-  venueName = Object.fromEntries(venuesSorted.slice(0, VENUE_NAMES.length).map(([v], i) => [v, VENUE_NAMES[i]]));
   PAPER_SCALE = Math.min(1, Math.pow(900 / Math.max(1, papers.length), 0.25));
 }
 readData();
@@ -66,8 +63,7 @@ const hexOf = c => {
   const v = CSSV("--" + name).split(/\s+/).map(Number);
   return v.length === 3 && v.every(n => !isNaN(n)) ? toHex(v) : toHex(hexRgb(CSSV("--sys-bg")));
 };
-let BG, DARK, THEME, MIX = {}, venueColor = {}, yearStops = [];
-const YEAR_NAMES = ["blue", "cyan", "green", "yellow", "orange"];   // old → new
+let BG, DARK, THEME, MIX = {};
 // read the theme's colours (again after the theme changes: retheme())
 function readTheme() {
   HEXC = {}; MIX = {};
@@ -75,10 +71,8 @@ function readTheme() {
   THEME = {
     ring: CSSV("--label"), label: CSSV("--label"), label2: CSSV("--label-2"),   // ring = "read by 2+ people"
     halo: `rgba(${BG.join(",")},0.92)`, box: CSSV("--sys-bg-3"), boxLine: CSSV("--separator"),
-    font: CSSV("--font"), dim: hex("gray5"), dimPerson: hex("gray4"), other: hex("gray"), unknown: hex("gray2"),
+    font: CSSV("--font"), dim: hex("gray5"), dimPerson: hex("gray4"), other: hex("gray"),
   };
-  venueColor = Object.fromEntries(Object.entries(venueName).map(([v, n]) => [v, hex(n)]));
-  yearStops = YEAR_NAMES.map(hex);
 }
 readTheme();
 function fade(hex, a) {
@@ -87,17 +81,9 @@ function fade(hex, a) {
   const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
   return (MIX[key] = "#" + c.map((v, i) => Math.round(BG[i] + (v - BG[i]) * a).toString(16).padStart(2, "0")).join(""));
 }
-function yearColor(y) {
-  if (!y) return THEME.unknown;
-  const k = (y - YMIN) / Math.max(1, YMAX - YMIN) * (yearStops.length - 1);
-  const i = Math.min(yearStops.length - 2, Math.floor(k)), f = k - i;
-  const a = hexRgb(yearStops[i]), b = hexRgb(yearStops[i + 1]);
-  return toHex(a.map((v, j) => v + (b[j] - v) * f));
-}
-function paperColor(p) {
-  if (state.colorBy === "tag") return hex(T[tagId(axisTags(p)[0])]?.color || "gray2");
-  if (state.colorBy === "year") return yearColor(window.Store.paperYear(p));
-  if (state.colorBy === "venue") return venueColor[p.venueNorm] || THEME.other;
+function paperColor(p) {   // colour key: first reader (default), or the paper's first field / method
+  if (state.colorBy === "domain") return hex(T["d:" + p.domains[0]]?.color || "gray2");
+  if (state.colorBy === "method") return hex(T["m:" + p.methods[0]]?.color || "gray2");
   return P[p._first]?.color ? hex(P[p._first].color) : THEME.other;
 }
 
@@ -135,18 +121,39 @@ function paperCentroid(mine) {
   return { x: mine.reduce((sum, p) => sum + anchorX(p), 0) / mine.length,
     y: mine.reduce((sum, p) => sum + anchorY(p), 0) / mine.length };
 }
+// each person's spot on the current map: the centre of their papers, nudged apart just enough that people don't sit on
+// top of each other (centres crowd mid-map); gap ~0.4 of build_map's spread (100 · √(n/900) per std)
+function peopleAnchors() {
+  const pts = D.people.map(u => ({ id: "u:" + u.id, mine: papers.filter(p => p.readers.includes(u.id)) }))
+    .filter(u => u.mine.length).map(u => ({ id: u.id, ...paperCentroid(u.mine) }));
+  const gap = 40 * Math.sqrt(Math.max(1, papers.length / 900));
+  for (let it = 0; it < 100; it++) {
+    let moved = false;
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      const a = pts[i], b = pts[j];
+      let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d >= gap) continue;
+      if (!d) { dx = 1; dy = 0; d = 1; }
+      const k = (gap - d) / d / 2;
+      a.x -= dx * k; a.y -= dy * k; b.x += dx * k; b.y += dy * k; moved = true;
+    }
+    if (!moved) break;
+  }
+  return new Map(pts.map(p => [p.id, p]));
+}
 function buildGraph() {
   if (graph) graph.clear(); else graph = new Graph();
   papers.forEach(p => graph.addNode(p.id, {
     kind: "paper", type: "border", x: anchorX(p), y: anchorY(p), ax: anchorX(p), ay: anchorY(p),
-    size: PAPER_SCALE * Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),
+    size: PAPER_SCALE * 0.9 * Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),   // a little smaller, so the tag areas lead
     label: p.title.length > 46 ? p.title.slice(0, 44) + "…" : p.title,
     borderSize: p.readers.length > 1 ? 0.28 : 0,
   }));
+  const spots = peopleAnchors();   // new members appear once they've written something
   D.people.forEach(u => {
-    const mine = papers.filter(p => p.readers.includes(u.id));
-    if (!mine.length) return; // new members appear once they've written something
-    const { x, y } = paperCentroid(mine);
+    const spot = spots.get("u:" + u.id);
+    if (!spot) return;
+    const { x, y } = spot;
     graph.addNode("u:" + u.id, {
       kind: "person", type: "border", x, y, ax: x, ay: y, size: PAPER_SCALE * (10 + Math.sqrt(u.count) * 0.55), label: u.name, color: u.color,
       borderSize: 0.16, forceLabel: matchMedia("(min-width: 761px)").matches,   // phones: let sigma drop labels that would overlap
@@ -212,7 +219,7 @@ function nodeReducer(node, data) {
     return res;
   }
   const p = PA[node];
-  res.color = paperColor(p);
+  res.color = active ? paperColor(p) : fade(paperColor(p), 0.75);   // at rest papers recede behind the areas; a focus brings them back
   res.borderColor = THEME.ring;
   res.zIndex = 1;
   const dimmed = !matches(p) || (active && !active.has(node));
@@ -308,8 +315,7 @@ function computeTagAreas() {
       }
       return contours.max * Math.max(0.5, lo) / 33;
     });
-    const threshold = [...weights].sort((a, b) => a - b)[Math.floor(pts.length * 0.3)];
-    const blobs = contours(threshold).coordinates.map(poly => {
+    const blobsAt = th => contours(th).coordinates.map(poly => {
       const ring = poly[0], members = pts.map((p, i) => inside(p, ring) && !poly.slice(1).some(hole => inside(p, hole)) ? i : -1).filter(i => i >= 0);
       let area = 0;
       for (let i = 1; i < ring.length; i++) area += ring[i - 1][0] * ring[i][1] - ring[i][0] * ring[i - 1][1];
@@ -319,9 +325,11 @@ function computeTagAreas() {
         x: x0 + members.reduce((s, i) => s + pts[i][0] * weights[i], 0) / total,
         y: y0 + members.reduce((s, i) => s + pts[i][1] * weights[i], 0) / total };
     }).filter(Boolean).sort((a, b) => b.count - a.count);
-    // the main patch, plus a second only where the tag really sits in two places
-    blobs.splice(blobs[1] && blobs[1].count >= blobs[0].count * 0.35 ? 2 : 1);
-    if (blobs.length) areas.push({ id, blobs, ...blobs[0] });
+    // one connected area per tag, holding ~90% of its papers: where the tag sits in two places, lower the outline
+    // until the two patches join (at most ~6×), then keep the main one
+    let threshold = [...weights].sort((a, b) => a - b)[Math.floor(pts.length * 0.1)], blobs = blobsAt(threshold);
+    for (let i = 0; i < 5 && blobs[1] && blobs[1].count >= blobs[0].count * 0.35; i++) blobs = blobsAt(threshold *= 0.7);
+    if (blobs.length) areas.push({ id, blobs: blobs.slice(0, 1), ...blobs[0] });
   });
   areas = areas.sort((a, b) => b.count - a.count);
   buildLabels();
@@ -351,7 +359,8 @@ function drawOverlay() {
         ctx.closePath();
       });
       const col = hex(T[id].color);
-      ctx.fillStyle = col + (dimAll ? "0a" : "30"); ctx.fill("evenodd");   // no outline: overlapping tags blend instead of crossing lines
+      ctx.fillStyle = col + (dimAll ? "0a" : "40"); ctx.fill("evenodd");
+      if (!dimAll) { ctx.strokeStyle = col + "80"; ctx.lineWidth = 1; ctx.stroke(); }   // the edge makes each area readable where they meet
     }));
     ctx.globalAlpha = 1;
   }
@@ -403,9 +412,9 @@ function flipAxis(axis) {
   cy /= nodes.length;
   state.axis = axis;
   try { localStorage.setItem("lab.mapAxis", axis); } catch (e) {}
+  const spots = peopleAnchors();
   nodes.forEach(n => {
-    const target = n.kind === "paper" ? { x: anchorX(PA[n.id]), y: anchorY(PA[n.id]) }
-      : paperCentroid(papers.filter(p => p.readers.includes(n.id.slice(2))));
+    const target = n.kind === "paper" ? { x: anchorX(PA[n.id]), y: anchorY(PA[n.id]) } : spots.get(n.id);
     n.ax = target.x; n.ay = target.y;
     n.fx = n.fy = null; n.vx = n.vy = 0;
   });
@@ -523,20 +532,13 @@ function renderPeopleLegend() {
       [...D.people].filter(u => u.count).sort((a, b) => b.count - a.count).map(u => `<div class="ui-row pl ${s.people.size && !s.people.has(u.id) ? "off" : ""} ${s.people.has(u.id) ? "on" : ""}" data-id="${u.id}">
         <i style="background:${u.color}"></i><span>${esc(u.name)}</span><span class="muted">${u.count}</span></div>`).join("") +
       `<div class="lg-note"><i class="ring"></i>${t("g.sharedRing")}</div>`;
-  } else if (s.colorBy === "tag") {
-    const counts = {};
-    papers.forEach(p => axisTags(p).forEach(key => { const id = tagId(key); if (T[id]) counts[id] = (counts[id] || 0) + 1; }));
-    el.innerHTML = `<div class="lg-title">${t(s.axis === "method" ? "g.methods" : "g.tags")}</div>` +
+  } else {
+    const pre = s.colorBy === "method" ? "m:" : "d:", counts = {};
+    papers.forEach(p => (pre === "m:" ? p.methods : p.domains).forEach(key => { if (T[pre + key]) counts[pre + key] = (counts[pre + key] || 0) + 1; }));
+    el.innerHTML = `<div class="lg-title">${t(pre === "m:" ? "g.methods" : "g.tags")}</div>` +
       Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([id, count]) =>
         `<div class="ui-row pl" data-tag="${esc(id)}"><i style="--c:${hex(T[id].color)}"></i><span>${esc(UI.tl(T[id]))}</span><span class="muted">${count}</span></div>`).join("") +
       `<div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
-  } else if (s.colorBy === "year") {
-    el.innerHTML = `<div class="lg-title">${t("g.color.year")}</div><div class="lg-ramp" style="background:linear-gradient(90deg,${YEAR_NAMES.map(n => `rgb(var(--${n}))`).join(",")})"></div>
-      <div class="lg-ramp-l"><span>${YMIN}</span><span>${YMAX}</span></div><div class="lg-note"><i class="unknown"></i>${t("g.unknown")}</div>`;
-  } else {
-    el.innerHTML = `<div class="lg-title">${t("g.color.venue")}</div>` +
-      venuesSorted.slice(0, VENUE_NAMES.length).map(([v]) => `<div class="ui-row pl" data-venue="${esc(v)}"><i style="background:rgb(var(--${venueName[v]}))"></i><span>${esc(v)}</span></div>`).join("") +
-      `<div class="lg-note"><i class="other"></i>${t("g.others")}</div>`;
   }
 }
 function updateToolbar() {
@@ -637,8 +639,6 @@ function initUI() {
     if (tag) { const [axis, key] = tag.dataset.tag.split(":"); toggleSet(axis === "d" ? s.tags : s.methods, key); renderPopovers(); changed(); return; }
     const row = e.target.closest(".pl[data-id]");
     if (row) { toggleSet(s.people, row.dataset.id); changed(); return; }
-    const vrow = e.target.closest(".pl[data-venue]");
-    if (vrow) { toggleSet(s.venues, vrow.dataset.venue); renderPopovers(); changed(); }
   });
   $("#g-people").addEventListener("dblclick", e => {
     const row = e.target.closest(".pl[data-id]");

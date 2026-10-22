@@ -11,7 +11,8 @@ Pipeline
   2. SPECTER2 embeddings (AllenAI; trained on citation links -> "academically related"), mean-centred
   3. the paper's field / method tags (keyword rules, same as build_site.py) appended as a weighted tag vector, so
      papers people file under the same tag pull together while the text still orders them within it
-     (weight 0.4 kept ~ the same text neighbours; 1.0 split the map into one island per tag — 2026-10-22 test)
+     (weight 0.7: 10 nearest map neighbours share the paper's main tag 83% (field) / 91% (method) of the time, vs 67/59%
+     at 0.4, with most text neighbours kept; 1.0+ gains ~1 point more and splits the map into one island per tag — 2026-10-22)
   4. UMAP 2-d, cosine, fixed seed: the field map (x, y); the method map (mx, my) starts from the field map so the
      graph can flip between them with papers staying roughly in their column
   5. top-k cosine neighbours per paper on the text alone (for "similar papers" and local-graph edges)
@@ -28,7 +29,7 @@ from taxonomy import DOMAINS, METHODS  # noqa: E402
 
 MODEL = "allenai/specter2"
 SEED = 42
-TAG_WEIGHT = 0.4
+TAG_WEIGHT = 0.7
 
 
 def load_papers():

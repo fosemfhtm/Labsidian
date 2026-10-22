@@ -187,5 +187,4 @@ body:has(#drawer.open) #view-graph .focus-bar { left: calc((100% - 548px) / 2); 
 .menu-hint { padding: 0 var(--s-2); }
 .drift-legend { margin-top: var(--s-2); }
 .lg-note i.unknown { background: rgb(var(--gray2)); }
-.lg-note i.other { background: rgb(var(--gray)); }
 .load-more { display: flex; margin: var(--s-3) auto; }

@@ -149,8 +149,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   scrollbar-width: thin; scrollbar-color: var(--fill) transparent;
 }
 .lg-title { font-size: var(--fs-subhead); color: var(--text-3); margin-bottom: 6px; font-weight: 600; }
-.lg-ramp { height: 8px; border-radius: var(--r-xs); width: 180px; }
-.lg-ramp-l { display: flex; justify-content: space-between; color: var(--text-3); font-size: var(--fs-subhead); margin: 2px 0 6px; }
 
 .timeline {
   position: absolute; left: 300px; right: 14px; bottom: 14px; z-index: 5; display: flex; align-items: center; gap: 12px;
