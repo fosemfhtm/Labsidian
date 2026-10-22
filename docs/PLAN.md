@@ -159,7 +159,7 @@ venues       (id, name, short, aliases[])            -- 저널명 정규화
 reviews      (id, paper_id, author_id, term, diary_date, rating, content, memo,
               status[draft|published], created_at, updated_at)
               -- diary_date = 어느 주 다이어리로 칠지(밀려 쓰기·미리 쓰기 가능, 작성률·학기 계산 기준)
-              -- created_at = 실제 등록 시각(따로 보관, 화면에 "N일 늦게 등록"/"미리 작성"으로 표시)
+              -- created_at = 실제 등록 시각(따로 보관, 화면에는 표시하지 않음 — 2026-10-22 결정)
 attachments  (id, review_id, kind[pdf|image], name, mime, size, storage_path, created_at)
               -- 파일은 Storage 버킷 "attachments" (PDF 20MB · 이미지 5MB, 이미지는 1600px webp로 줄여서 올림)
 tags         (id, label, axis[domain|method|free], parent_id, aliases[], color)

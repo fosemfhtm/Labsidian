@@ -39,7 +39,7 @@
       "d.citesIn": "우리 연구실에서 읽은 논문 중 이 논문이 인용한 것",
       "d.showInGraph": "그래프에서 보기",
       "rv.expand": "펼치기", "rv.collapse": "접기", "rv.memo": "MEMO",
-      "rv.late": "{n}일 늦게 등록", "rv.early": "{n}일 미리 작성", "rv.regAt": "실제 등록: {at}", "rv.diaryDate": "다이어리 날짜", "d.pdf": "📄 PDF 보기", "d.studies": "논문 스터디", "d.studyCommon": "같이 읽은 논문", "d.studyPicked": "{names} 님이 가져온 논문", "d.studyWith": "함께 소개된 논문",
+      "rv.diaryDate": "다이어리 날짜", "d.pdf": "📄 PDF 보기", "d.studies": "논문 스터디", "d.studyCommon": "같이 읽은 논문", "d.studyPicked": "{names} 님이 가져온 논문", "d.studyWith": "함께 소개된 논문",
       "close": "닫기", "unknownPerson": "미상", "d.back": "뒤로", "d.fullPage": "크게 보기",
     },
     en: {
@@ -76,7 +76,7 @@
       "d.citesIn": "Lab-read papers this one cites",
       "d.showInGraph": "Show in graph",
       "rv.expand": "Expand", "rv.collapse": "Collapse", "rv.memo": "MEMO",
-      "rv.late": "posted {n}d late", "rv.early": "written {n}d ahead", "rv.regAt": "Actually posted: {at}", "rv.diaryDate": "Diary date", "d.pdf": "📄 Open PDF", "d.studies": "Paper studies", "d.studyCommon": "read together", "d.studyPicked": "brought by {names}", "d.studyWith": "Introduced alongside",
+      "rv.diaryDate": "Diary date", "d.pdf": "📄 Open PDF", "d.studies": "Paper studies", "d.studyCommon": "read together", "d.studyPicked": "brought by {names}", "d.studyWith": "Introduced alongside",
       "close": "Close", "unknownPerson": "Unknown", "d.back": "Back", "d.fullPage": "Open full page",
     },
   };

@@ -161,16 +161,9 @@
   const linkHtml = l => /^https?:\/\//.test(l)
     ? `<a href="${esc(l)}" target="_blank" rel="noopener noreferrer">${esc(l)}</a>` : esc(l);
 
-  // diary date (which week it counts for) vs. when it was actually posted
+  // a local calendar day from an ISO timestamp (toISOString() is UTC)
   const localDay = iso => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
   const shortDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", weekday: "short" }) : "";
-  const regBadge = r => {
-    if (!r.createdAt || !r.date) return "";
-    const n = Math.round((Date.parse(localDay(r.createdAt)) - Date.parse(r.date)) / 864e5);
-    if (!n) return "";
-    const at = new Date(r.createdAt).toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    return `<span class="ui-pill ${n > 0 ? "warn" : "info"}" title="${esc(t("rv.regAt", { at }))}">${t(n > 0 ? "rv.late" : "rv.early", { n: Math.abs(n) })}</span>`;
-  };
   // attachments: <img>/<a> carry data-fid; hydrateFiles() swaps in the stored blob URL
   const kb = n => (n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
   const filesHtml = files => {
@@ -240,7 +233,7 @@
       ${opts.title ? `<a class="rv-paper" href="#/paper/${r.paper}">${esc(PA[r.paper]?.title || "")}</a>` : ""}
       <div class="kv">${esc(Store.paperCitation(PA[r.paper]))}</div>
       <div class="rv-head">${avatar(r.person)}<b data-open="person:${r.person}">${esc(p.name)}</b>${stars(r.rating)}
-        <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>${regBadge(r)}
+        <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>
         ${mine ? `<span class="ui-pill accent">${t("rv.mine")}</span>` : ""}
         ${r.studyId && window.Store?.studies.get(r.studyId) ? `<a class="ui-pill ok" href="#/study/${r.studyId}">${t("st.reviewBadge")}</a>` : ""}</div>
       ${r.content ? `<div class="rv-body ${long ? "" : "open"}">${esc(r.content)}</div>
