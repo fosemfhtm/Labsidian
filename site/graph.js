@@ -39,7 +39,7 @@ const state = {
   timeIdx: reviewDates.length - 1, selected: null, depth: 1, hovered: null, find: null,
 };
 let focusSet = null, hoverSet = null, matchCache = new Map();
-let graph, renderer, sim, simById = {}, started = false;
+let graph, renderer, sim, simById = {}, started = false, visible = false, timeTimer = null;
 
 let flipping = false;
 const anchorX = p => state.axis === "method" ? (p.mx ?? p.x) : p.x;
@@ -319,7 +319,7 @@ function computeTagAreas() {
   buildLabels();
 }
 function drawOverlay() {
-  if (!renderer) return;
+  if (!renderer || !visible) return;
   const el = $("#graph"), dpr = window.devicePixelRatio || 1, w = el.clientWidth, h = el.clientHeight;
   if (regionCanvas.width !== w * dpr || regionCanvas.height !== h * dpr) {
     regionCanvas.width = w * dpr; regionCanvas.height = h * dpr;
@@ -636,7 +636,7 @@ function initUI() {
     el.checked = s.layers[k];
     el.onchange = () => {
       s.layers[k] = el.checked;
-      if (k === "timeline") { $(".timeline").hidden = !el.checked; if (!el.checked) { s.timeIdx = reviewDates.length - 1; $("#t-range").value = s.timeIdx; } }
+      if (k === "timeline") { $(".timeline").hidden = !el.checked; if (!el.checked) { stopTimeline(); s.timeIdx = reviewDates.length - 1; $("#t-range").value = s.timeIdx; $("#t-label").textContent = reviewDates[s.timeIdx] || ""; } }
       changed();
     };
   });
@@ -685,16 +685,19 @@ function initUI() {
   const setT = i => { s.timeIdx = i; tr.value = i; tlab.textContent = reviewDates[i]; changed(); };
   tlab.textContent = reviewDates[s.timeIdx];
   tr.oninput = () => setT(+tr.value);
-  let timer = null;
   play.onclick = () => {
-    if (timer) { clearInterval(timer); timer = null; play.textContent = "▶"; return; }
+    if (timeTimer) { stopTimeline(); return; }
     if (s.timeIdx >= reviewDates.length - 1) setT(0);
     play.textContent = "❚❚";
-    timer = setInterval(() => {
-      if (s.timeIdx >= reviewDates.length - 1) { clearInterval(timer); timer = null; play.textContent = "▶"; return; }
+    timeTimer = setInterval(() => {
+      if (s.timeIdx >= reviewDates.length - 1) { stopTimeline(); return; }
       setT(s.timeIdx + 1);
     }, 140);
   };
+}
+function stopTimeline() {
+  clearInterval(timeTimer); timeTimer = null;
+  $("#t-play").textContent = "▶";
 }
 
 // ---------------- drag ----------------
@@ -767,7 +770,7 @@ function start() {
     defaultDrawNodeLabel: drawLabel, defaultDrawNodeHover: drawHover,
     labelRenderedSizeThreshold: 8, labelDensity: 0.35, labelGridCellSize: 160,
     minCameraRatio: 0.03, maxCameraRatio: 3, stagePadding: 30,
-    allowInvalidContainer: true, // the graph keeps simulating while another page is shown
+    allowInvalidContainer: true, // routes can hide the container before Sigma's next frame
   });
   const xs = papers.flatMap(p => [p.x, p.mx ?? p.x]), ys = papers.flatMap(p => [p.y, p.my ?? p.y]), m = 1.25;
   renderer.setCustomBBox({ x: [Math.min(...xs) * m, Math.max(...xs) * m], y: [Math.min(...ys) * m, Math.max(...ys) * m] });
@@ -825,8 +828,8 @@ const demo = {
 
 window.LabGraph = {
   demo,
-  show() { setTimeout(() => { start(); renderer?.resize(); renderer?.refresh(); }, 0); },
-  hide() { sim?.stop(); },   // nothing keeps simulating on other pages
+  show() { visible = true; setTimeout(() => { if (!visible) return; start(); renderer?.resize(); renderer?.refresh(); }, 0); },
+  hide() { visible = false; stopTimeline(); sim?.stop(); },
   select(id, opts) { start(); if (renderer) select(id, opts); },
 };
 if (UI.currentView() === "graph") window.LabGraph.show();

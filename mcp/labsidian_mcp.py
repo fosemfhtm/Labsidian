@@ -85,11 +85,7 @@ TAG_COLORS = ["red", "orange", "yellow", "green", "mint", "teal", "cyan", "blue"
 
 
 def _tag_color_ok(c):
-    return c in TAG_COLORS or _re_hex(c)
-
-
-def _re_hex(c):
-    return bool(re.fullmatch(r"#[0-9a-fA-F]{3,8}", c or ""))
+    return c in TAG_COLORS or bool(re.fullmatch(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})", c or ""))
 
 
 def norm_title(t):
@@ -128,9 +124,11 @@ class ServerBackend:
                 raise ToolError(f"The Labsidian server at {SITE} didn't accept this MCP server's sign-in — set LABSIDIAN_TOKEN "
                                 "(your admin makes one: python scripts/serve.py --token <your name>)")
             try:
-                return json.loads(e.read())
+                payload = json.loads(e.read())
             except ValueError:
-                raise ToolError(f"Labsidian server error {e.code} at {SITE}{path}")
+                payload = None
+            detail = payload.get("error") if isinstance(payload, dict) else payload
+            raise ToolError(f"Labsidian server error {e.code} at {SITE}{path}" + (f": {detail}" if detail else "")) from e
         except (urllib.error.URLError, OSError):
             raise ToolError(f"The Labsidian server isn't running at {SITE} — start it with: python scripts/serve.py")
 
@@ -149,26 +147,17 @@ class ServerBackend:
             d["R"] = {r["id"]: r for r in d["reviews"]}
             d["T"] = {t["id"]: t for t in d["topics"]}
             d["U"] = {u["id"]: u for u in d["users"]}
+            viewer = next((u["id"] for u in d["users"] if ME and ME.lower() in (u["id"].lower(), u["name"].lower())), "")
             for p in d["papers"]:
                 p["_key"] = norm_title(p["title"])
                 # search_papers ranks title first, then authors/publication/preprint metadata and abstract, then diaries
                 p["_f"] = {"title": p["title"].lower(), "meta": ((p.get("authors") or "") + " " + paper_citation(p)).lower(),
                            "abstract": (p.get("abstract") or "").lower(),
-                           "diaries": " ".join(d["R"][r]["content"] + " " + d["R"][r]["memo"] for r in p["reviews"] if r in d["R"] and not self._blind(d, d["R"][r])).lower()}
+                           "diaries": " ".join(d["R"][r]["content"] + " " + d["R"][r]["memo"] for r in p["reviews"] if r in d["R"] and not _hidden_for(d["R"][r], viewer, d)).lower()}
                 p["_hay"] = " ".join(p["_f"].values())
             self.d = d
         return self.d
 
-    @staticmethod
-    def _blind(d, r):
-        """write-first rule for the configured member (see _hidden_for), evaluated while indexing"""
-        if not ME or not r.get("studyId"):
-            return False
-        me_ = next((u for u in d["users"] if u["id"].lower() == ME.lower() or u["name"].lower() == ME.lower()), None)
-        st = next((x for x in d.get("studies") or [] if x["id"] == r["studyId"]), None)
-        if not me_ or not st or st.get("closed") or not st.get("blind") or st.get("paperId") != r["paper"] or r["person"] == me_["id"] or r["person"] not in st.get("members", []):
-            return False
-        return not any(x["paper"] == r["paper"] and x["person"] == me_["id"] for x in d["reviews"])
 
     def apply(self, op):
         """one command → the op with what the server made ("result": ids)"""
@@ -190,9 +179,14 @@ class ServerBackend:
         return fid
 
     def get_file(self, fid):
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", fid):
+            raise ToolError("invalid file_id — use an id from my_reading_list, get_paper or get_study")
         try:
-            with self._http.open(self.request(f"/api/files/{urllib.request.quote(fid)}"), timeout=120) as r:
-                return r.read(), r.headers.get("Content-Type") or ""
+            with self._http.open(self.request(f"/api/files/{fid}"), timeout=120) as r:
+                data = r.read(PDF_LIMIT + 1)
+                if len(data) > PDF_LIMIT:
+                    raise ToolError("the file is over 20 MB (the site's limit)")
+                return data, r.headers.get("Content-Type") or ""
         except urllib.error.HTTPError as e:
             raise ToolError(f"no file {fid!r} on the server" if e.code == 404 else f"Labsidian server error {e.code}")
         except (urllib.error.URLError, OSError):
@@ -245,8 +239,8 @@ def paper(ref):
     raise ToolError(f"no paper matching {ref!r} — try search_papers first")
 
 
-def tag_label(tid):
-    t = DB.data()["T"].get(tid)
+def tag_label(tid, d):
+    t = d["T"].get(tid)
     return f"{t['label']} / {t.get('labelEn', '')}" if t else tid
 
 
@@ -267,41 +261,26 @@ def paper_citation(p):
     return " · ".join(v for v in (published, preprint) if v)
 
 
-def brief(p):
-    d = DB.data()
+def brief(p, d):
     return {"id": p["id"], "title": p["title"], "venue": p.get("venueNorm") or p.get("venue", ""), "year": p.get("year"),
             "preprintVenue": p.get("preprintVenue"), "preprintYear": p.get("preprintYear"), "citation": paper_citation(p),
             "rating": p.get("rating"), "readers": [d["P"].get(r, {}).get("name", r) for r in p.get("readers", [])],
-            "tags": [tag_label(t) for t in paper_tags(p)], "open": f"{SITE}/#/paper/{p['id']}"}
+            "tags": [tag_label(t, d) for t in paper_tags(p)], "open": f"{SITE}/#/paper/{p['id']}"}
 
 
-def term_for(day=None):
-    d, day = DB.data(), day or date.today().isoformat()
+def term_for():
+    d, day = DB.data(), date.today().isoformat()
+    if not d["terms"]:
+        raise ToolError("the lab has no diary terms — ask an admin to add one")
     return next((t for t in d["terms"] if t["start"] <= day <= t["end"]), d["terms"][-1])
 
 
-def quota(u, term):
-    """a member's diary duty in a term, as the site computes it (working days, holidays, start/end dates, fixed targets)"""
-    duty = ((DB.data().get("duties") or {}).get(term["id"]) or {}).get(u["id"])
-    if duty:
-        return {k: v for k, v in duty.items() if k in ("exempt", "notYet", "left", "start", "end", "workdays", "target", "custom")}
-    return _quota_fallback(u, term)
-
-
-def _quota_fallback(u, term):  # only for a server too old to send "duties"
-    q = u.get("quota") or {}
-    if q.get("exempt"):
-        return {"exempt": True, "target": 0}
-    start = max(q.get("start") or term["start"], term["start"])
-    if start > term["end"]:
-        return {"exempt": True, "target": 0, "notYet": True}
-    end = min(q.get("end") or term["end"], term["end"])  # graduated / left the lab
-    if end < start:
-        return {"exempt": True, "target": 0, "left": True}
-    span = lambda a, b: (date.fromisoformat(b) - date.fromisoformat(a)).days + 1
-    auto = round((term.get("target") or 0) * span(start, end) / span(term["start"], term["end"]))
-    custom = (q.get("targets") or {}).get(term["id"])
-    return {"exempt": False, "start": start, "end": end, "target": int(custom) if custom not in (None, "") else auto}
+def quota(u, term, d):
+    """Use the server's working-day duty rules, never a second calendar calculation."""
+    duty = ((d.get("duties") or {}).get(term["id"]) or {}).get(u["id"])
+    if duty is None:
+        raise ToolError("the server snapshot has no diary duty for this member and term — update the Labsidian server")
+    return {k: v for k, v in duty.items() if k in ("exempt", "notYet", "left", "start", "end", "workdays", "target", "custom")}
 
 
 # ------------------------------------------------------------------ read tools
@@ -315,7 +294,7 @@ def whoami() -> dict:
 
 
 @mcp.tool()
-def search_papers(query: str = "", person_name: str = "", tag: str = "", min_rating: float = 0, term: str = "", limit: int = 15) -> list:
+def search_papers(query: str = "", person_name: str = "", tag: str = "", min_rating: float = 0, term: str = "", limit: int = 15) -> list[dict]:
     """Search the lab's papers. query matches title/authors/publication and preprint venues and years/abstract/diary
     text (every word must match somewhere); results rank title first, then metadata and abstract, then diaries,
     and then by how many members read the paper. Without a query: most-read first.
@@ -345,7 +324,7 @@ def search_papers(query: str = "", person_name: str = "", tag: str = "", min_rat
     weight = {"title": 6, "meta": 3, "abstract": 2, "diaries": 1}
     score = lambda p: sum(max((w for f, w in weight.items() if word in p["_f"][f]), default=0) for word in words)
     out.sort(key=lambda p: (-score(p), -len(p["readers"]), -(p.get("rating") or 0)))
-    return [brief(p) for p in out[:max(1, min(limit, 50))]]
+    return [brief(p, d) for p in out[:max(1, min(limit, 50))]]
 
 
 @mcp.tool()
@@ -356,23 +335,24 @@ def get_paper(paper_ref: str, include_comments: bool = True) -> dict:
     d = DB.data()
     p = paper(paper_ref)
     reviews = []
+    viewer = me()["id"] if ME else ""
     for rid in p["reviews"]:
         r = d["R"].get(rid)
         if not r:
             continue
-        if _hidden_for(r, me()["id"] if ME else ""):
+        if _hidden_for(r, viewer, d):
             reviews.append({"review_id": rid, "by": d["P"].get(r["person"], {}).get("name", r["person"]),
                             "hidden": "written for a 'write first, then read' study — post your own entry on this paper to see it"})
             continue
         item = {"review_id": rid, "by": d["P"].get(r["person"], {}).get("name", r["person"]), "date": r["date"], "rating": r["rating"],
-                "summary": r["content"], "memo": r["memo"], "tags": [tag_label(t) for t in r.get("tags", [])], "files": file_list(r.get("files"))}
+                "summary": r["content"], "memo": r["memo"], "tags": [tag_label(t, d) for t in r.get("tags", [])], "files": file_list(r.get("files"))}
         if include_comments:
             item["comments"] = [{"comment_id": c["id"], "by": d["P"].get(c["author"], {}).get("name", c["author"]), "kind": c["kind"],
                                  "body": c["body"], "resolved": c.get("resolved"), "reply_to": c.get("parent")}
                                 for c in d.get("comments", []) if c["reviewId"] == rid]
         reviews.append(item)
-    return {**brief(p), "authors": p.get("authors"), "link": p.get("link"), "abstract": p.get("abstract"),
-            "similar": [brief(d["PA"][q]) for q, _ in p.get("nb", [])[:5] if q in d["PA"]], "reviews": reviews}
+    return {**brief(p, d), "authors": p.get("authors"), "link": p.get("link"), "abstract": p.get("abstract"),
+            "similar": [brief(d["PA"][q], d) for q, _ in p.get("nb", [])[:5] if q in d["PA"]], "reviews": reviews}
 
 
 @mcp.tool()
@@ -385,18 +365,18 @@ def get_person(name: str) -> dict:
     mine = sorted((r for r in d["reviews"] if r["person"] == u["id"]), key=lambda r: r["date"], reverse=True)
     term = term_for()
     n = sum(1 for r in mine if term["start"] <= r["date"] <= term["end"])
-    q = quota(u, term)
+    q = quota(u, term, d)
     return {"name": u["name"], "role": u.get("role"), "diaries": len(mine), "avgRating": p.get("avgRating"),
-            "interests": [{"tag": tag_label(k), "papers": v} for k, v in list((p.get("topics") or {}).items())[:10]],
+            "interests": [{"tag": tag_label(k, d), "papers": v} for k, v in list((p.get("topics") or {}).items())[:10]],
             "similarPeople": [{"name": d["P"][s["id"]]["name"], "similarity": s["sim"], "readTogether": s["shared"]}
                               for s in (p.get("similar") or [])[:5] if s["id"] in d["P"]],
             "thisTerm": {"term": term["id"], "written": n, **q},
-            "recent": [{"date": r["date"], "rating": r["rating"], **brief(d["PA"][r["paper"]])} for r in mine[:10] if r["paper"] in d["PA"]],
+            "recent": [{**brief(d["PA"][r["paper"]], d), "date": r["date"], "rating": r["rating"]} for r in mine[:10] if r["paper"] in d["PA"]],
             "open": f"{SITE}/#/person/{u['id']}"}
 
 
 @mcp.tool()
-def recommend_papers(name: str = "", limit: int = 10) -> list:
+def recommend_papers(name: str = "", limit: int = 10) -> list[dict]:
     """Papers others read in the member's top fields that they haven't read yet, closest to what they read first
     (SPECTER2 neighbours), then most recent (default: me). Same list as the person page."""
     d = DB.data()
@@ -412,26 +392,27 @@ def recommend_papers(name: str = "", limit: int = 10) -> list:
     cand = [x for x in d["papers"] if u["id"] not in x["readers"] and set(x.get("domains", [])) & set(top)]
     cand.sort(key=lambda x: last(x), reverse=True)
     cand.sort(key=lambda x: near.get(x["id"], 0), reverse=True)
-    return [brief(x) for x in cand[:limit]]
+    return [brief(x, d) for x in cand[:max(1, min(limit, 50))]]
 
 
 @mcp.tool()
-def similar_papers(paper_ref: str = "", text: str = "", limit: int = 8) -> list:
+def similar_papers(paper_ref: str = "", text: str = "", limit: int = 8) -> list[dict]:
     """Papers similar to a lab paper (by its SPECTER2 neighbours) or to free text (keyword overlap)."""
     d = DB.data()
+    limit = max(1, min(limit, 50))
     if paper_ref:
         p = paper(paper_ref)
-        return [brief(d["PA"][q]) | {"similarity": s} for q, s in p.get("nb", [])[:limit] if q in d["PA"]]
-    words = [w for w in re.findall(r"[a-z][a-z\-]{2,}|[가-힣]{2,}", text.lower())]
+        return [brief(d["PA"][q], d) | {"similarity": s} for q, s in p.get("nb", [])[:limit] if q in d["PA"]]
+    words = set(re.findall(r"[a-z][a-z\-]{2,}|[가-힣]{2,}", text.lower()))
     df = Counter(w for p in d["papers"] for w in set(re.findall(r"[a-z][a-z\-]{2,}|[가-힣]{2,}", p["_hay"])))
     N = len(d["papers"])
     scored = []
     for p in d["papers"]:
-        s = sum(math.log(1 + N / (1 + df[w])) for w in set(words) if w in p["_hay"])
+        s = sum(math.log(1 + N / (1 + df[w])) for w in words if w in p["_hay"])
         if s:
             scored.append((s, p))
     scored.sort(key=lambda x: -x[0])
-    return [brief(p) for _, p in scored[:limit]]
+    return [brief(p, d) for _, p in scored[:limit]]
 
 
 @mcp.tool()
@@ -446,14 +427,14 @@ def lab_progress(term: str = "") -> dict:
         if u["id"] == "admin" or u.get("disabled"):
             continue
         n = sum(1 for r in d["reviews"] if r["person"] == u["id"] and t["start"] <= r["date"] <= t["end"])
-        q = quota(u, t)
+        q = quota(u, t, d)
         rows.append({"name": u["name"], "written": n, **q, "rate": None if q["exempt"] or not q["target"] else round(100 * n / q["target"])})
     rows.sort(key=lambda r: (r["rate"] is None, -(r["rate"] or 0)))
     return {"term": t, "members": rows}
 
 
 @mcp.tool()
-def list_tags() -> list:
+def list_tags() -> list[dict]:
     """All tags with axis (domain=field, method, free=keyword), Korean/English labels and how many papers use them."""
     d = DB.data()
     use = Counter(t for p in d["papers"] for t in paper_tags(p))
@@ -462,7 +443,7 @@ def list_tags() -> list:
 
 
 @mcp.tool()
-def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False) -> list:
+def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False) -> list[dict]:
     """My notifications: questions/comments/ideas on my diaries, replies, @mentions, 👍, study invites and reminders.
     Each has the ids to act on it — answer a question with add_comment(review_id, …, reply_to=comment_id),
     open a study with get_study(study_id). mark_read marks the returned ones as read on the site."""
@@ -474,19 +455,15 @@ def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False
     link = lambda n: (f"{SITE}/#/paper/{n['paperId']}" if n.get("paperId") else f"{SITE}/#/study/{n['studyId']}" if n.get("studyId")
                       else f"{SITE}/#/guide/{n['guideId']}" if n.get("guideId") else None)
     keys = (("review_id", "reviewId"), ("comment_id", "commentId"), ("study_id", "studyId"), ("guide_id", "guideId"))
-    return [{"id": n["id"], "type": n["type"], "from": _name(n.get("actor")), "at": n["at"], "read": bool(n.get("read")),
+    return [{"id": n["id"], "type": n["type"], "from": _name(n.get("actor"), d), "at": n["at"], "read": bool(n.get("read")),
              "paper": d["PA"].get(n.get("paperId"), {}).get("title"), "excerpt": n.get("excerpt"),
              **{k: n[v] for k, v in keys if n.get(v)}, "open": link(n)} for n in ns]
 
 
 # ------------------------------------------------------------------ write tools (applied by the server as the member)
 def _done(op, extra=None):
-    return {"applied": op["id"], **{_snake(k): v for k, v in (op.get("result") or {}).items()},
+    return {"applied": op["id"], **{re.sub(r"(?<!^)([A-Z])", r"_\1", k).lower(): v for k, v in (op.get("result") or {}).items()},
             "note": "Done — open pages pick it up within a few seconds.", **(extra or {})}
-
-
-def _snake(k):
-    return re.sub(r"(?<!^)([A-Z])", r"_\1", k).lower()   # itemId → item_id
 
 
 def _attach_pdf(path):
@@ -494,7 +471,11 @@ def _attach_pdf(path):
     path = os.path.expanduser(path.strip().strip('"'))
     if not os.path.isfile(path):
         raise ToolError(f"no file at {path!r}")
-    data = open(path, "rb").read()
+    try:
+        with open(path, "rb") as f:
+            data = f.read(PDF_LIMIT + 1)
+    except OSError as e:
+        raise ToolError(f"couldn't read PDF {path!r}: {e}") from e
     if not data.startswith(b"%PDF"):
         raise ToolError(f"{os.path.basename(path)} isn't a PDF")
     if len(data) > PDF_LIMIT:
@@ -550,8 +531,6 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
             raise ToolError("unknown reading_item_id — see my_reading_list")
         files += [f for f in x.get("files") or [] if f.get("kind") == "pdf"]
         title, link, authors, venue, year = title or x["title"], link or x.get("link") or "", authors or x.get("authors") or "", venue or x.get("venue") or "", year or str(x.get("year") or "")
-    if pdf_path:
-        files.append(_attach_pdf(pdf_path))
     if not memo.strip():
         raise ToolError("memo (critique) is required — lab rule since May 2024")
     bad = [t for t in (tags or []) if t not in d["T"] and not t.startswith("f:")]
@@ -560,6 +539,8 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
     if not any(t[:2] in ("d:", "m:") for t in tags or []):
         raise ToolError("give at least one field (d:…) or method (m:…) tag from list_tags; if none fits, create_tag first")
     tags = [t if not t.startswith("f:") else "f:" + re.sub(r"[^0-9a-z가-힣_-]+", "-", t[2:].lower()).strip("-")[:40] for t in (tags or [])]
+    if pdf_path:
+        files.append(_attach_pdf(pdf_path))
     op = DB.apply({"op": "draft", "actor": u["id"], "itemId": reading_item_id, "summary": title[:60],
                    "title": title, "link": link, "venue": venue, "authors": authors, "year": year, "abstract": abstract,
                    "files": files, "data": {"summary": summary, "memo": memo, "rating": float(rating), "tags": tags or []}})
@@ -567,7 +548,7 @@ def create_draft(title: str, summary: str, memo: str, rating: float = 0, tags: l
 
 
 @mcp.tool()
-def my_drafts() -> list:
+def my_drafts() -> list[dict]:
     """My reading-list items with an AI diary draft, newest draft first (no separate draft inbox)."""
     u = me()
     items = [x for x in (DB.data().get("reading") or {}).get(u["id"], []) if x.get("draft")]
@@ -617,19 +598,20 @@ def react_to_diary(review_id: str, kind: str = "like", on: bool = True) -> dict:
 
 
 @mcp.tool()
-def my_reading_list(status: str = "") -> list:
+def my_reading_list(status: str = "") -> list[dict]:
     """My reading list: papers to read (todo), being read (reading), read but not written up (read), and ones I already
     wrote a diary on (written). Each item has an id for update_reading_item / create_draft(reading_item_id=…), the
     paper's details, my note and its PDFs (download_pdf to read one)."""
     u = me()
-    items = (DB.data().get("reading") or {}).get(u["id"]) or []
+    d = DB.data()
+    items = (d.get("reading") or {}).get(u["id"]) or []
     state = lambda x: "written" if x.get("written") else x.get("status", "todo")
     if status and status not in ("todo", "reading", "read", "written"):
         raise ToolError("status: todo | reading | read | written")
     return [{"id": x["id"], "status": state(x), "title": x["title"], "authors": x.get("authors"), "venue": x.get("venue"), "year": x.get("year"),
              "preprintVenue": x.get("preprintVenue"), "preprintYear": x.get("preprintYear"), "citation": paper_citation(x),
              "link": x.get("link"), "note": x.get("note"), "addedAt": x.get("addedAt"), "readAt": x.get("readAt"), "pdfs": file_list(x.get("files")),
-             "hasDraft": bool(x.get("draft")), "labPaper": x.get("paperId"), "readInLabBy": [_name(r) for r in x.get("readers") or []]}
+             "hasDraft": bool(x.get("draft")), "labPaper": x.get("paperId"), "readInLabBy": [_name(r, d) for r in x.get("readers") or []]}
             for x in items if not status or state(x) == status]
 
 
@@ -644,9 +626,9 @@ def add_to_reading_list(paper_ref: str = "", link: str = "", title: str = "", no
         raise ToolError("status: todo | reading | read")
     if not (paper_ref or link or title):
         raise ToolError("give paper_ref, link or title")
+    p = paper(paper_ref) if paper_ref else None
     files = [_attach_pdf(pdf_path)] if pdf_path else []
-    if paper_ref:
-        p = paper(paper_ref)
+    if p:
         return _done(DB.apply({"op": "reading.add", "actor": u["id"], "paperId": p["id"], "note": note, "status": status, "files": files,
                                "summary": p["title"][:60]}), {"open": f"{SITE}/#/reading"})
     try:
@@ -684,10 +666,15 @@ def download_pdf(file_id: str) -> dict:
     every = [f for x in (d.get("reading") or {}).values() for i in x for f in i.get("files") or []] + \
             [f for r in d["reviews"] for f in r.get("files") or []] + [f for st in d.get("studies") or [] for f in st.get("files") or []]
     name = next((f.get("name") for f in every if f.get("id") == file_id), None) or file_id + ".pdf"
-    os.makedirs(FILES, exist_ok=True)
-    path = os.path.join(FILES, re.sub(r'[\\/:*?"<>|]+', "_", name if name.lower().endswith(".pdf") else name + ".pdf"))
-    with open(path, "wb") as f:
-        f.write(data)
+    try:
+        os.makedirs(FILES, exist_ok=True)
+        name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name).strip(". ") or "paper"
+        # Exclusive creation prevents duplicate names or planted symlinks from overwriting local files.
+        with tempfile.NamedTemporaryFile(prefix="labsidian-" + name[:80] + "-", suffix=".pdf", dir=os.path.abspath(FILES), delete=False) as f:
+            path = f.name
+            f.write(data)
+    except OSError as e:
+        raise ToolError(f"couldn't save PDF in {FILES!r}: {e}") from e
     return {"path": path, "bytes": len(data)}
 
 
@@ -700,10 +687,9 @@ def _study(study_id):
     return st
 
 
-def _hidden_for(r, viewer_id):
+def _hidden_for(r, viewer_id, d):
     """Study 'write first, then read': a member's entry on the common paper of an open blind study stays hidden
     from anyone who hasn't written their own entry on that paper (same rule as the site)."""
-    d = DB.data()
     if not r or r["person"] == viewer_id or not r.get("studyId"):
         return False
     st = next((x for x in d.get("studies") or [] if x["id"] == r["studyId"]), None)
@@ -712,12 +698,13 @@ def _hidden_for(r, viewer_id):
     return not any(x["paper"] == r["paper"] and x["person"] == viewer_id for x in d["reviews"])
 
 
-def _name(uid):
-    return DB.data()["P"].get(uid, {}).get("name") or DB.data()["U"].get(uid, {}).get("name") or uid
+def _name(uid, d=None):
+    d = d if d is not None else DB.data()
+    return d["P"].get(uid, {}).get("name") or d["U"].get(uid, {}).get("name") or uid
 
 
 @mcp.tool()
-def list_studies(include_past: bool = False) -> list:
+def list_studies(include_past: bool = False) -> list[dict]:
     """Paper studies in the lab (open ones first; include_past adds finished ones)."""
     d = DB.data()
     out = []
@@ -729,7 +716,7 @@ def list_studies(include_past: bool = False) -> list:
         rnd = sorted((x for x in d.get("studies") or [] if x.get("groupId") == st.get("groupId")), key=lambda x: (x.get("date") or "9999", x.get("createdAt", ""))).index(st) + 1 if g else None
         out.append({"id": st["id"], "title": st["title"], "date": st.get("date") or None, "time": st.get("time") or None, "place": st.get("place") or None,
                     **({"regular_study": g["title"], "round": rnd, "group_id": g["id"]} if g else {}),
-                    "presenter": _name(st["presenter"]), "members": [_name(u) for u in st["members"]], "questions": len(qs),
+                    "presenter": _name(st["presenter"], d), "members": [_name(u, d) for u in st["members"]], "questions": len(qs),
                     "closed": bool(st.get("closed")), "open": f"{SITE}/#/study/{st['id']}"})
     return out
 
@@ -743,23 +730,23 @@ def get_study(study_id: str) -> dict:
     p = d["PA"].get(st.get("paperId") or "")
     viewer = me()["id"] if ME else ""
     revs = [d["R"][r] for r in (p or {}).get("reviews", []) if r in d["R"]]
-    hidden = [r for r in revs if _hidden_for(r, viewer)]
+    hidden = [r for r in revs if _hidden_for(r, viewer, d)]
     revs = [r for r in revs if r not in hidden]
     picks = sorted((st.get("picks") or {}).values(), key=lambda x: (x.get("order", 1e9), x.get("at", "")))
     qs = sorted([q for q in d.get("studyQuestions") or [] if q["studyId"] == st["id"]], key=lambda q: (q.get("done", False), -len(q.get("votes", []))))
     return {
         "id": st["id"], "title": st["title"], "date": st.get("date") or None, "time": st.get("time") or None, "place": st.get("place") or None,
-        "about": st.get("desc", ""), "presenter": _name(st["presenter"]), "members": [_name(u) for u in st["members"]], "closed": bool(st.get("closed")),
-        "paper": ({**brief(p), "abstract": p.get("abstract", "")} if p else {"title": st["title"], "link": st.get("link", ""), "inLab": False}),
-        "reviews": [{"review_id": r["id"], "by": _name(r["person"]), "rating": r.get("rating"), "diary_date": r["date"],
+        "about": st.get("desc", ""), "presenter": _name(st["presenter"], d), "members": [_name(u, d) for u in st["members"]], "closed": bool(st.get("closed")),
+        "paper": ({**brief(p, d), "abstract": p.get("abstract", "")} if p else {"title": st["title"], "link": st.get("link", ""), "inLab": False}),
+        "reviews": [{"review_id": r["id"], "by": _name(r["person"], d), "rating": r.get("rating"), "diary_date": r["date"],
                      "summary": r.get("content", ""), "memo": r.get("memo", ""), "for_this_study": r.get("studyId") == st["id"]} for r in revs],
-        "not_reviewed_yet": [_name(u) for u in st["members"] if u not in {r["person"] for r in revs} | {r["person"] for r in hidden}],
-        "hidden_until_you_write": [_name(r["person"]) for r in hidden],
+        "not_reviewed_yet": [_name(u, d) for u in st["members"] if u not in {r["person"] for r in revs} | {r["person"] for r in hidden}],
+        "hidden_until_you_write": [_name(r["person"], d) for r in hidden],
         "write_first": bool(st.get("blind")), "everyone_brings_a_paper": bool(st.get("bring")),
-        "brought_papers": [{"order": i + 1, "by": _name(pk["uid"]), "title": pk["title"], "why": pk.get("why", ""),
-                            "paper": brief(d["PA"][pk["paperId"]]) if pk.get("paperId") in d["PA"] else {"title": pk["title"], "link": pk.get("link", "")}}
+        "brought_papers": [{"order": i + 1, "by": _name(pk["uid"], d), "title": pk["title"], "why": pk.get("why", ""),
+                            "paper": brief(d["PA"][pk["paperId"]], d) if pk.get("paperId") in d["PA"] else {"title": pk["title"], "link": pk.get("link", "")}}
                            for i, pk in enumerate(picks)],
-        "questions": [{"question_id": q["id"], "by": _name(q["author"]), "question": q["body"], "votes": len(q.get("votes", [])),
+        "questions": [{"question_id": q["id"], "by": _name(q["author"], d), "question": q["body"], "votes": len(q.get("votes", [])),
                        "i_voted": viewer in (q.get("votes") or []), "discussed": q.get("done", False)} for q in qs],
         "pdfs": file_list(st.get("files")), "i_am_member": viewer in st["members"],
         "notes": st.get("notes"), "open": f"{SITE}/#/study/{st['id']}",
@@ -813,7 +800,7 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: s
             date.fromisoformat(on_date)
         except ValueError:
             raise ToolError("on_date must be YYYY-MM-DD")
-    if at_time and not re.fullmatch(r"\d{1,2}:\d{2}", at_time):
+    if at_time and not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", at_time):
         raise ToolError("at_time must be HH:MM")
     g = _group(group_id) if group_id else None
     p = paper(paper_ref) if paper_ref else None
@@ -862,10 +849,10 @@ def list_regular_studies() -> list:
     for g in d.get("groups") or []:
         c = g.get("cadence")
         sessions = sorted((x for x in d.get("studies") or [] if x.get("groupId") == g["id"]), key=lambda x: (x.get("date") or "9999", x.get("createdAt", "")))
-        out.append({"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "members": [_name(u) for u in g.get("members") or []],
+        out.append({"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"], d), "members": [_name(u, d) for u in g.get("members") or []],
                     "schedule": f"every {'other ' if c.get('every') == 2 else ''}{DAYS[c['weekday']]} {c.get('time', '')}".strip() if c else None,
-                    "place": g.get("place") or None, "next_date": g.get("nextDate") or None, "next_presenter": _name(g.get("nextPresenter")),
-                    "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenter": _name(x["presenter"]),
+                    "place": g.get("place") or None, "next_date": g.get("nextDate") or None, "next_presenter": _name(g.get("nextPresenter"), d),
+                    "sessions": [{"round": i + 1, "study_id": x["id"], "title": x["title"], "date": x.get("date") or None, "presenter": _name(x["presenter"], d),
                                   "finished": bool(x.get("closed")), "has_notes": bool(x.get("notes"))} for i, x in enumerate(sessions)],
                     "open": f"{SITE}/#/group/{g['id']}"})
     return out
@@ -892,13 +879,13 @@ def _tag_id(x):
 
 
 @mcp.tool()
-def list_guides(tag: str = "") -> list:
+def list_guides(tag: str = "") -> list[dict]:
     """Core-paper guides: lists of key papers per topic that the lab curates together (optionally only those with a
     field/method tag). Shows how far I am (papers I wrote a diary on) in each."""
     d, uid = DB.data(), (me()["id"] if ME else "")
     tid = _tag_id(tag) if tag else ""
     mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
-    return [{"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "tags": [tag_label(x) for x in g.get("tags") or []],
+    return [{"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"], d), "tags": [tag_label(x, d) for x in g.get("tags") or []],
              "papers": len(g["items"]), "i_wrote": sum(1 for it in g["items"] if it.get("paperId") in mine), "open": f"{SITE}/#/guide/{g['id']}"}
             for g in d.get("guides") or [] if not tid or tid in (g.get("tags") or [])]
 
@@ -911,12 +898,12 @@ def get_guide(guide_id: str) -> dict:
     uid = me()["id"] if ME else ""
     mine = {r["paper"] for r in d["reviews"] if r["person"] == uid}
     st = {x["id"]: x for x in d.get("studies") or []}
-    sec = lambda sid: [{"item_id": it["id"], "title": it["title"], "paper": brief(d["PA"][it["paperId"]]) if it.get("paperId") in d["PA"] else {**(it.get("meta") or {}), "inLab": False},
-                        "note": it.get("note", ""), "added_by": _name(it["by"]), "votes": len(it.get("votes") or []),
-                        "read_by": [_name(u) for u in it.get("readers") or []], "i_wrote": it.get("paperId") in mine,
+    sec = lambda sid: [{"item_id": it["id"], "title": it["title"], "paper": brief(d["PA"][it["paperId"]], d) if it.get("paperId") in d["PA"] else {**(it.get("meta") or {}), "inLab": False},
+                        "note": it.get("note", ""), "added_by": _name(it["by"], d), "votes": len(it.get("votes") or []),
+                        "read_by": [_name(u, d) for u in it.get("readers") or []], "i_wrote": it.get("paperId") in mine,
                         "studies": [{"id": s, "title": st[s]["title"], "date": st[s].get("date") or None} for s in it.get("studies") or [] if s in st]}
                        for it in g["items"] if it["section"] == sid]
-    return {"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"]), "tags": [tag_label(x) for x in g.get("tags") or []],
+    return {"id": g["id"], "title": g["title"], "about": g.get("desc", ""), "by": _name(g["owner"], d), "tags": [tag_label(x, d) for x in g.get("tags") or []],
             "sections": [{"section": x["title"], "papers": sec(x["id"])} for x in g["sections"]], "open": f"{SITE}/#/guide/{g['id']}"}
 
 
@@ -1031,7 +1018,7 @@ def admin_set_member_quota(name: str, exempt: bool | None = None, start_date: st
 
 
 @mcp.tool()
-def admin_list_members(term: str = "") -> list:
+def admin_list_members(term: str = "") -> list[dict]:
     """[admin] Every account with role, active/disabled, raw diary-duty settings and the duty for a term (default current)."""
     require_admin()
     d = DB.data()
@@ -1039,7 +1026,7 @@ def admin_list_members(term: str = "") -> list:
     if not t:
         raise ToolError(f"unknown term {term!r}; terms: {[x['id'] for x in d['terms']]}")
     return [{"id": u["id"], "name": u["name"], "role": u.get("role"), "disabled": bool(u.get("disabled")),
-             "dutySettings": u.get("quota") or {}, "term": t["id"], "duty": quota(u, t) if u["id"] in d["P"] else None,
+             "dutySettings": u.get("quota") or {}, "term": t["id"], "duty": quota(u, t, d) if u["id"] in d["P"] else None,
              "written": sum(1 for r in d["reviews"] if r["person"] == u["id"] and t["start"] <= r["date"] <= t["end"])}
             for u in d["users"]]
 
@@ -1129,7 +1116,7 @@ def admin_set_paper_tags(paper_ref: str, tags: list[str]) -> dict:
     if bad:
         raise ToolError(f"not field/method tags: {bad} — use list_tags")
     return _done(DB.apply({"op": "paper.tags", "actor": u["id"], "paperId": p["id"], "tags": tags,
-                           "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": brief(p)["title"]})
+                           "summary": f"{p['title'][:50]} → {', '.join(tags) or '(auto)'}"}), {"paper": p["title"]})
 
 
 @mcp.tool()

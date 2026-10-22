@@ -12,7 +12,8 @@ data/demo/*.migrated.json
 data/demo/labsidian.db*
 data/demo/_backup/
 
-site/data.js
+site/data*
+!site/data.demo.js
 vault/
 *.docx
 

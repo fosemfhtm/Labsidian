@@ -50,7 +50,7 @@
     const h = /^#/.test(p.color || "") ? p.color.slice(1) : "8e8e93", [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0);
     const L = [r, g, b].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }), lum = .2126 * L[0] + .7152 * L[1] + .0722 * L[2];
     const ink = (lum + .05) / .0607 > 1.05 / (lum + .05) ? "var(--ink-on-light)" : "var(--on-color)";   // whichever of black/white contrasts more
-    return `<span class="avatar${big ? " big" : ""}" title="${esc(p.name)}" style="background:${esc(p.color)};color:${ink};text-shadow:none">${esc(initial(p.name))}</span>`;
+    return `<span class="avatar${big ? " big" : ""}" title="${esc(p.name)}" style="background:${safeColor(p.color)};color:${ink};text-shadow:none">${esc(initial(p.name))}</span>`;
   };
   // a data colour that's safe inside style="": #hex or rgb(var(--name)); anything else → gray
   const safeColor = c => (/^#[0-9a-f]{3,8}$/i.test(c || "") || /^rgb\(var\(--[a-z0-9]+\)\)$/.test(c || "") ? c : "rgb(var(--gray2))");
@@ -101,9 +101,9 @@
     return x ? `<span class="ui-tag ${esc(x.axis)}" data-open="topic:${esc(tid)}"><span class="dot" style="background:${safeColor(x.color)}"></span>${esc(tl(x))}</span>` : "";
   };
   const bars = (items, max) => `<div class="bars">${items.map(([label, n, color, open]) => `
-    <div class="bar-row ${open ? "click" : ""}" ${open ? `data-open="${open}"` : ""}>
+    <div class="bar-row ${open ? "click" : ""}" ${open ? `data-open="${esc(open)}"` : ""}>
       <span class="lbl">${esc(label)}</span>
-      <span class="track"><span class="fill" style="width:${(100 * n / max).toFixed(1)}%;background:${color}"></span></span>
+      <span class="track"><span class="fill" style="width:${(100 * n / max).toFixed(1)}%;background:${safeColor(color)}"></span></span>
       <span class="n">${n}</span>
     </div>`).join("")}</div>`;
   const linkHtml = l => /^https?:\/\//.test(l)
@@ -164,7 +164,8 @@
   document.addEventListener("click", e => {
     const img = e.target.closest(".rv-imgs img[src]"); if (!img) return;
     const box = document.createElement("div"); box.className = "lightbox";
-    box.innerHTML = `<img src="${img.src}" alt="">`; box.onclick = () => box.remove();
+    const preview = document.createElement("img"); preview.src = img.src; preview.alt = "";
+    box.appendChild(preview); box.onclick = () => box.remove();
     document.body.appendChild(box);
   });
 
@@ -255,7 +256,7 @@
     const other = me && me.id !== id && P[me.id] ? me.id : p.similar[0]?.id;
     return `
       <div class="pd-head"><div class="pc-head">${avatar(id, true)}
-        <div><h2>${esc(p.name)}</h2><div class="pc-meta">${D.terms.join(", ")} Paper Diary</div></div></div></div>
+        <div><h2>${esc(p.name)}</h2><div class="pc-meta">${D.terms.map(esc).join(", ")} Paper Diary</div></div></div></div>
       ${pr.role ? `<div class="pf-role">${esc(pr.role)}</div>` : ""}
       ${me?.id === id ? `<p class="pf-self">${t("pf.self")} · <a href="#/me">${t("pf.toMe")} →</a></p>` : ""}
       <div class="pf-stats">
@@ -397,16 +398,6 @@
     }
   }
 
-  function renderShared() {
-    const list = D.papers.filter(p => p.readers.length > 1)
-      .sort((a, b) => b.readers.length - a.readers.length || b._last.localeCompare(a._last));
-    $("#shared-list").innerHTML = list.map(p => `
-      <div class="ui-card shared-item">
-        <h3 data-open="paper:${p.id}">${esc(p.title)}</h3>
-        <div class="pr-meta"><span>${esc(Store.paperCitation(p))}</span>${stars(p.rating)}${topicIds(p).map(tag).join("")}</div>
-        <div class="rev-cols">${p.reviews.map(r => reviewHtml(R[r])).join("")}</div>
-      </div>`).join("");
-  }
 
 
   // ---------- full-screen detail pages ----------
@@ -539,19 +530,25 @@
   }
 
   // ---------- routing ----------
-  const rendered = {};
+  let peopleRendered = false;
   let inAppNavs = 0;
   window.addEventListener("hashchange", () => inAppNavs++);
   window.LabBack = (fallback = "#/home") => (inAppNavs > 0 ? history.back() : (location.hash = fallback));
   const currentView = () => (location.hash.replace(/^#\//, "").split(/[?/]/)[0] || "home");
-  let shownView = null;
-  function route() {
-    const [path, qs] = location.hash.replace(/^#\//, "").split("?");
-    const [view, arg] = path.split("/");
-    if (view === "shared" && (window.LabPages || {}).study) { location.replace("#/study?tab=shared"); return; }
+  let shownView = null, shownHash = location.hash;
+  function route(event) {
     const pages = window.LabPages || {};
+    if (event?.type === "hashchange" && pages[shownView]?.leave?.() === false) {
+      history.replaceState(null, "", shownHash || "#/home"); return;
+    }
+    shownHash = location.hash;
+    const [path, qs] = location.hash.replace(/^#\//, "").split("?");
+    const [view, rawArg] = path.split("/");
+    let arg;
+    try { arg = decodeURIComponent(rawArg || ""); } catch { arg = ""; }
+    if (view === "shared" && pages.study) { location.replace("#/study?tab=shared"); return; }
     const v = ["graph", "people", "papers", "shared", "paper", "person", ...Object.keys(pages)].includes(view) ? view : pages.home ? "home" : "graph";
-    if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(decodeURIComponent(arg || "")); }
+    if (v === "paper" || v === "person") { closeDrawer(); (v === "paper" ? paperPage : personPage)(arg); }
     else if (v !== shownView) closeDrawer();  // a link out of the drawer (compare, topic page, a guide…) leaves it behind
     if (shownView === "graph" && v !== "graph") window.LabGraph?.hide?.();
     shownView = v;
@@ -566,12 +563,12 @@
       closeDrawer();
     }
     if (v === "graph") window.LabGraph?.show();
-    if (v === "people" && !rendered.people) { renderPeople(); rendered.people = true; }
+    if (v === "people" && !peopleRendered) { renderPeople(); peopleRendered = true; }
     if (v === "papers") renderPapers();
     if (pages[v]) pages[v].render(new URLSearchParams(qs || ""), arg);
     window.scrollTo(0, 0);
   }
-  const rerender = () => { rendered.people = rendered.shared = false; route(); };
+  const rerender = () => { peopleRendered = false; route(); };
 
   window.I18N.apply();
   document.querySelectorAll("#lang button").forEach(b => {
@@ -580,11 +577,12 @@
   });
   initPaperFilters();
   window.addEventListener("hashchange", route);
+  window.addEventListener("lab:data", () => { peopleRendered = false; });
 
   // tabs shared by the papers list, the fields & methods page and the guides (docs/PEOPLE_TOPICS_GUIDES.md §6)
   const papersTabs = on => `<div class="ui-seg page-tabs papers-tabs">${[["papers", "#/papers", "pt.list"], ["topics", "#/topics", "pt.topics"], ["guides", "#/guides", "pt.guides"]]
     .map(([k, href, key]) => `<a href="${href}" aria-current="${on === k ? "page" : "false"}">${t(key)}</a>`).join("")}</div>`;
-  window.LabUI = { openDrawer, closeDrawer, esc, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
+  window.LabUI = { openDrawer, closeDrawer, esc, safeColor, stars, ratingText, ratingInput, paintRatingInput, wireRatingInput, avatar, avStack, tl, topicIds, currentView, reviewHtml, miniPaper, tag, bars, kb, localDay, hydrateFiles,
     buzz, papersTabs, paperTopicCount, topicDetail,
     rerender, P, T, PA, R, refreshDrawer: () => drawer.classList.contains("open") && lastDrawer && openDrawer(...lastDrawer, { fromGraph: true }) };
   // page modules (write/me/admin/…) load after this file, so route once everything is in place

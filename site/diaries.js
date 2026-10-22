@@ -221,7 +221,6 @@
     }
     function update() { list(); drift(); }
     tools(); update();
-    return { refresh: update };
   }
 
   window.LabDiaries = { mount };

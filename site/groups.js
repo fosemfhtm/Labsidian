@@ -54,7 +54,7 @@
 
   // a card on the study list
   function tile(g) {
-    return `<a class="ui-card grp-tile" href="#/group/${g.id}"><div class="grp-tile-t">${esc(g.title)}</div>
+    return `<a class="ui-card grp-tile" href="#/group/${encodeURIComponent(g.id)}"><div class="grp-tile-t">${esc(g.title)}</div>
       <p class="grp-info">${[rhythm(g), doneRounds(g) && t("grp.rounds", { n: doneRounds(g) })].filter(Boolean).map(esc).join(" · ")}</p>
       ${nextLine(g) ? `<p class="grp-info">${esc(nextLine(g))}</p>` : ""}
       ${UI.avStack(g.members, 6)}</a>`;
@@ -66,14 +66,14 @@
       <label class="fld"><span>${t("grp.name")}</span><input name="title" required maxlength="120" placeholder="${t("grp.name.ph")}" value="${esc(g?.title || "")}"></label>
       <label class="fld"><span>${t("grp.desc")}</span><textarea name="desc" rows="2" placeholder="${t("grp.desc.ph")}">${esc(g?.desc || "")}</textarea></label>
       <div class="fld"><span>${t("grp.members")}</span><div class="chips" id="grp-members">
-        ${people.map(p => `<button type="button" class="ui-chip" aria-pressed="${picked.has(p.id)}" data-u="${p.id}" ${p.id === (g?.owner || me.id) ? "disabled" : ""}><span class="dot" style="--c:${p.color};background:var(--c)"></span>${esc(p.name)}</button>`).join("")}</div></div>
+        ${people.map(p => `<button type="button" class="ui-chip" aria-pressed="${picked.has(p.id)}" data-u="${esc(p.id)}" ${p.id === (g?.owner || me.id) ? "disabled" : ""}><span class="dot" style="--c:${UI.safeColor(p.color)};background:var(--c)"></span>${esc(p.name)}</button>`).join("")}</div></div>
       <div class="grp-cad">
         <label class="fld"><span>${t("grp.cadence")}</span><select name="every"><option value="1">${t("grp.every1")}</option><option value="2" ${c?.every === 2 ? "selected" : ""}>${t("grp.every2")}</option></select></label>
         <label class="fld"><span>${t("grp.weekday")}</span><select name="weekday"><option value="">${t("grp.noWeekday")}</option>${[1, 2, 3, 4, 5, 6, 0].map(i => `<option value="${i}" ${c && c.weekday === i ? "selected" : ""}>${wdName(i)}</option>`).join("")}</select></label>
         <label class="fld"><span>${t("grp.time")}</span><input type="time" name="time" value="${esc(c?.time || "")}"></label>
         <label class="fld"><span>${t("grp.place")}</span><input name="place" maxlength="80" value="${esc(g?.place || "")}"></label></div>
       <p class="err" id="grp-err"></p>
-      <div class="form-foot"><a class="ui-btn" href="${g ? "#/group/" + g.id : "#/study"}">${t("grp.cancel")}</a><button class="ui-btn prominent">${g ? t("grp.save") : t("grp.create")}</button></div></form>`;
+      <div class="form-foot"><a class="ui-btn" href="${g ? "#/group/" + encodeURIComponent(g.id) : "#/study"}">${t("grp.cancel")}</a><button class="ui-btn prominent">${g ? t("grp.save") : t("grp.create")}</button></div></form>`;
   }
 
   function wireForm(g) {
@@ -86,24 +86,24 @@
         members: [...view.querySelectorAll('#grp-members .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u),
         cadence: { weekday: f.weekday.value, time: f.time.value, every: f.every.value } };
       const id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data);
-      location.hash = "#/group/" + id;
+      location.hash = "#/group/" + encodeURIComponent(id);
     };
   }
 
   function page(g, me) {
     const sts = S.groups.sessions(g), next = S.groups.upcoming(g), member = S.groups.member(g), canManage = S.groups.canManage(g);
     const acts = (me && me.id !== g.owner ? `<button class="ui-btn small" id="grp-join" data-on="${member ? "0" : "1"}">${member ? t("grp.leave") : t("grp.join")}</button>` : "")
-      + (!next && (member || canManage) ? `<a class="ui-btn small prominent" href="#/study/new?group=${g.id}">👥 ${t("grp.newSession")}</a>` : "");
+      + (!next && (member || canManage) ? `<a class="ui-btn small prominent" href="#/study/new?group=${encodeURIComponent(g.id)}">👥 ${t("grp.newSession")}</a>` : "");
     return `${back()}
       <div class="page-head row-head"><div><h1>${esc(g.title)}</h1>
           <p class="sub grp-by">${UI.avatar(g.owner)} ${t("grp.by", { name: esc(name(g.owner)) })}</p></div>
         ${canManage ? `<details class="st-manage grp-manage"><summary>⋯ ${t("grp.manage")}</summary><div class="menu-pop ui-popover">
-          <a class="ui-btn text" href="#/group/${g.id}?edit=1">${t("grp.edit")}</a><hr><button class="ui-btn text destructive" id="grp-del">${t("grp.delete")}</button></div></details>` : ""}</div>
+          <a class="ui-btn text" href="#/group/${encodeURIComponent(g.id)}?edit=1">${t("grp.edit")}</a><hr><button class="ui-btn text destructive" id="grp-del">${t("grp.delete")}</button></div></details>` : ""}</div>
       ${g.desc ? `<p class="grp-desc">${esc(g.desc)}</p>` : ""}
       <div class="ui-card grp-card">
         <div class="row-between"><div><p class="grp-info">${info(g)} ${UI.avStack(g.members, 8)}</p>${!next && nextLine(g) ? `<p class="grp-info">${esc(nextLine(g))}</p>` : ""}</div>${acts ? `<div class="btn-row">${acts}</div>` : ""}</div>
         <h3>${t("grp.sessions")}</h3>
-        ${sts.length ? `<ol class="grp-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a class="ui-row" href="#/study/${st.id}${st.closed && st.notes ? "?tab=notes" : ""}">
+        ${sts.length ? `<ol class="grp-rounds">${sts.map((st, i) => `<li class="${st.closed ? "" : "next"}"><a class="ui-row" href="#/study/${encodeURIComponent(st.id)}${st.closed && st.notes ? "?tab=notes" : ""}">
             <span class="r">${t("grp.round", { n: i + 1 })}</span><span class="d">${esc(shortDate(st.date))}</span><span class="tt">${esc(st.title)}</span>
             <span class="m">${st.closed ? (st.notes ? `✓ ${t("grp.notesDone")}` : "") : `<span class="ui-pill accent">${t("grp.nextSession")}</span> ${st.presenter ? t("grp.presenter", { name: esc(name(st.presenter)) }) : ""}`}</span></a></li>`).join("")}</ol>`
           : `<p class="muted">${t("grp.noSessions")}</p>`}</div>`;

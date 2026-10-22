@@ -10,18 +10,15 @@ The diary is a flat sequence of paragraphs:
 Everything after "연구실 운영 규정" is lab policy and is dropped.
 """
 import argparse
-import html
+from datetime import date as Date
 import json
 import re
 import sys
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
-ROSTER = json.loads((ROOT / "data" / "roster.json").read_text(encoding="utf-8"))
-NAMES = [p["name"] for p in ROSTER]
-# typos / truncated name lines seen in the docx, e.g. {"name": "홍길동", "aliases": ["홍길"]} → whole-line match only
-ALIASES = {a: p["name"] for p in ROSTER for a in p.get("aliases", [])}
 
 DATE_RE = re.compile(r"^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})(?:~\d+)?일\s*(?:\((.*)\))?")
 FIELD_RE = re.compile(r"^(논문|Link|저널|저자|Rating|내용|Memo)\s*[:：]\s*(.*)$", re.I)
@@ -29,23 +26,28 @@ STOP_MARKERS = ("연구실 운영 규정",)
 
 
 def docx_paragraphs(path):
-    xml = zipfile.ZipFile(path).read("word/document.xml").decode("utf-8")
-    for p in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S):
-        p = re.sub(r"<w:(br|cr)/>", "\n", p)
-        p = re.sub(r"<w:tab/>", "\t", p)
-        parts = re.findall(r"<w:t(?: [^>]*)?>([^<]*)</w:t>|(\n|\t)", p)
-        text = html.unescape("".join(t or ws for t, ws in parts))
+    with zipfile.ZipFile(path) as doc:
+        root = ET.fromstring(doc.read("word/document.xml"))
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    for p in root.iter(ns + "p"):
+        text = "".join(e.text or "" if e.tag == ns + "t" else "\t" if e.tag == ns + "tab"
+                       else "\n" if e.tag in (ns + "br", ns + "cr") else "" for e in p.iter())
         for line in text.split("\n"):
             yield line.rstrip()
 
 
-def find_name(line):
-    """Return the last roster name appearing in a line (handles '홍길동1김철수')."""
-    hits = [(line.rfind(n), n) for n in NAMES if n in line]
-    return max(hits)[1] if hits else ALIASES.get(re.sub(r"[\d\s]+$", "", line))
+def find_name(line, names, aliases):
+    """Return the last whole roster name, preferring longer names over overlapping suffixes."""
+    pattern = "|".join(map(re.escape, sorted(names, key=len, reverse=True)))
+    hits = list(re.finditer(pattern, line)) if names else []
+    if hits and not re.sub(r"[\d\s]+", "", re.sub(pattern, "", line)):
+        return hits[-1].group()
+    return aliases.get(re.sub(r"[\d\s]+$", "", line))
 
 
-def parse(lines, term):
+def parse(lines, term, roster):
+    names = [p["name"] for p in roster]
+    aliases = {a: p["name"] for p in roster for a in p.get("aliases", [])}
     entries, cur, date, note, author = [], None, None, None, None
     field = None
     started = False
@@ -66,7 +68,8 @@ def parse(lines, term):
         if m and len(s) < 40:
             flush()
             y, mo, d, note = m.groups()
-            date = f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+            date = Date(int(y), int(mo), int(d)).isoformat()
+            author = None
             started = True
             field = None
             continue
@@ -75,12 +78,13 @@ def parse(lines, term):
         fm = FIELD_RE.match(s)
         if fm:
             key, val = fm.group(1).lower(), fm.group(2).strip()
+            if key not in ("내용", "memo"):
+                field = None
             if key == "논문":
                 flush()
                 cur = {"date": date, "dateNote": note, "author": author or "미상",
                        "title": val, "link": "", "venue": "", "authors": "",
                        "rating": 0, "content": [], "memo": [], "term": term}
-                field = None
             elif cur is None:
                 continue
             elif key == "link":
@@ -100,8 +104,8 @@ def parse(lines, term):
                 if val:
                     cur["memo"].append(val)
             continue
-        # a short line containing a roster name = start of someone's block
-        name = find_name(s) if len(s) <= 30 else None
+        # A roster name plus optional numbering starts someone's block, not a sentence mentioning them.
+        name = find_name(s, names, aliases) if len(s) <= 30 else None
         if name:
             flush()
             author = name
@@ -120,7 +124,8 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "data" / "diary.json"))
     a = ap.parse_args()
 
-    entries = parse(docx_paragraphs(a.docx), a.term)
+    roster = json.loads((ROOT / "data" / "roster.json").read_text(encoding="utf-8"))
+    entries = parse(docx_paragraphs(a.docx), a.term, roster)
     out = Path(a.out)
     # merge with existing terms so multiple semesters can live in one file
     existing = json.loads(out.read_text(encoding="utf-8")) if out.exists() else []

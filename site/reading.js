@@ -89,7 +89,7 @@
       <div class="rl-actions">
         ${pdf ? `<a class="ui-btn small" data-fid="${esc(pdf.id)}" target="_blank" rel="noopener" title="${t("rl.openPdf")}">📄 PDF</a>`
           : st !== "written" ? `<label class="ui-btn small plain" title="${t("rl.attach")}">📎<input type="file" accept="application/pdf" data-act="attach" hidden></label>` : ""}
-        ${x.link ? `<a class="ui-btn small plain" href="${esc(x.link)}" target="_blank" rel="noopener" title="${t("rl.openLink")}: ${esc(x.link)}">🔗</a>` : ""}
+        ${/^https?:\/\//i.test(x.link || "") ? `<a class="ui-btn small plain" href="${esc(x.link)}" target="_blank" rel="noopener" title="${t("rl.openLink")}: ${esc(x.link)}">🔗</a>` : ""}
         ${st === "todo" ? `<button class="ui-btn small" data-act="reading">${t("rl.start")}</button>` : ""}
         ${st === "reading" ? `<button class="ui-btn small" data-act="read">${t("rl.done")}</button>` : ""}
         ${st === "written" ? `<a class="ui-btn small" href="#/write?review=${esc(x.written)}">✎ ${t("rl.myDiary")}</a>`
@@ -164,7 +164,7 @@
   view.addEventListener("dragover", e => { if ([...e.dataTransfer.items].some(i => i.kind === "file")) { e.preventDefault(); view.classList.add("dropping"); } });
   view.addEventListener("dragleave", e => { if (e.target === view) view.classList.remove("dropping"); });
   view.addEventListener("drop", e => { e.preventDefault(); view.classList.remove("dropping"); addPdfs(e.dataTransfer.files); });
-  window.addEventListener("lab:mcp", () => { if (UI.currentView() === "reading") render(); });
+  window.addEventListener("lab:mcp", () => { if (UI.currentView() === "reading" && !view.querySelector(".rl-note-edit:not([hidden])") && !$("#rl-input", view)?.value.trim()) render(); });
 
   (window.LabPages ||= {}).reading = { render };
 })();

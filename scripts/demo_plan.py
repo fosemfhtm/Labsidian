@@ -96,7 +96,8 @@ def main():
             readers[k].append(per["id"])
         lang = "en" if per["lang"] == "en" else "ko"
         mine = {norm_title(p["title"]) for p in papers if p}
-        examples = [e for e in rng.sample(real_by_lang[lang], 12) if norm_title(e["title"]) not in mine][:4]
+        examples = [e for e in real_by_lang[lang] if norm_title(e["title"]) not in mine]
+        examples = rng.sample(examples, min(4, len(examples)))
         out = {"persona": per,
                "slots": [{"date": d.isoformat(), "paper": p} for d, p in zip(dates, papers)],
                "style_examples": [{k: e[k] for k in ("title", "rating", "content", "memo")} for e in examples]}

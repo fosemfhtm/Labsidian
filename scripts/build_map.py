@@ -1,7 +1,7 @@
 """Semantic maps: papers -> embeddings (+ their field / method tags) -> two 2D layouts + neighbours.
 
 Usage (needs the ML venv):
-    .venv/Scripts/python scripts/build_map.py [--reuse]   # --reuse: skip re-embedding if papers unchanged
+    .venv/Scripts/python scripts/build_map.py [--reuse]   # reuse only when model, titles and abstracts match
 Writes data/map.json, which build_site.py merges into site/data.js.
 
 Pipeline
@@ -17,6 +17,7 @@ Pipeline
   5. top-k cosine neighbours per paper on the text alone (for "similar papers" and local-graph edges)
 There are no map regions: the graph draws each tag's papers as a density area (docs/design/decisions.md 2026-10-22).
 """
+import hashlib
 import json
 import os
 import re
@@ -26,7 +27,6 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(Path(__file__).parent))
 from build_site import norm_title, compile_tax, score, pick  # noqa: E402
 from taxonomy import DOMAINS, METHODS  # noqa: E402
 
@@ -77,7 +77,7 @@ def tag_matrix(papers, tax, k):
     rules, keys = compile_tax(tax), list(tax)
     m = np.zeros((len(papers), len(keys)))
     for i, p in enumerate(papers):
-        s = score(rules, p["title"], " ".join(r["content"] + " " + r["memo"] for r in p["reviews"]))
+        s = score(rules, p["title"], " ".join((r.get("content") or "") + " " + (r.get("memo") or "") for r in p["reviews"]))
         for t in (pick(s, k, 3) if s else []):
             m[i, keys.index(t)] = 1
     n = np.linalg.norm(m, axis=1, keepdims=True)
@@ -85,45 +85,62 @@ def tag_matrix(papers, tax, k):
 
 
 def main():
-    import umap
-    from scipy.linalg import orthogonal_procrustes
-
     papers = load_papers()
+    fingerprint = hashlib.sha256(json.dumps([MODEL, [(p["title"], p["abstract"]) for p in papers]],
+                                            ensure_ascii=False).encode("utf-8")).hexdigest()
+    if not papers:
+        (DATA / "map.json").write_text(json.dumps({"model": MODEL, "inputs": fingerprint, "tagWeight": TAG_WEIGHT, "papers": {}}),
+                                      encoding="utf-8")
+        return
     print(f"{len(papers)} papers, {sum(1 for p in papers if p['abstract'])} with abstracts", file=sys.stderr)
 
     emb_p, keys_p = DATA / "emb_specter2.npy", DATA / "emb_keys.json"
     keys = [p["key"] for p in papers]
-    if "--reuse" in sys.argv and emb_p.exists() and keys_p.exists() and json.loads(keys_p.read_text()) == keys:
+    map_p = DATA / "map.json"
+    old_map = json.loads(map_p.read_text(encoding="utf-8")) if "--reuse" in sys.argv and map_p.exists() else {}
+    if ("--reuse" in sys.argv and emb_p.exists() and keys_p.exists()
+            and json.loads(keys_p.read_text(encoding="utf-8")) == keys and old_map.get("inputs") == fingerprint):
         emb = np.load(emb_p)
     else:
         emb = embed_specter2(papers)
         np.save(emb_p, emb)
-        keys_p.write_text(json.dumps(keys))
-    emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
+        keys_p.write_text(json.dumps(keys), encoding="utf-8")
+    lengths = np.linalg.norm(emb, axis=1, keepdims=True)
+    emb = emb / np.where(lengths > 0, lengths, 1)
     # SPECTER2 vectors all point roughly the same way; centring spreads them so a small tag weight can matter
     ec = emb - emb.mean(0)
-    ec /= np.linalg.norm(ec, axis=1, keepdims=True)
+    lengths = np.linalg.norm(ec, axis=1, keepdims=True)
+    ec /= np.where(lengths > 0, lengths, 1)
     fields, methods = tag_matrix(papers, DOMAINS, 3), tag_matrix(papers, METHODS, 2)
 
     # more papers → look at more neighbours, so the big topic structure survives (18 up to ~900 papers)
-    fit = lambda tags, init="spectral": umap.UMAP(n_components=2, n_neighbors=max(18, round(0.6 * np.sqrt(len(papers)))), min_dist=0.12,
-                                                  spread=1.2, metric="cosine", init=init, random_state=SEED).fit_transform(np.hstack([ec, TAG_WEIGHT * tags]))
-    uf = fit(fields)
-    um = fit(methods, init=uf)
-    # ~±250 canvas for up to ~900 papers, then the area grows with the count: same spacing between papers, so the
-    # graph's collision force (node radii are in these units) doesn't shove a crowded map out of shape
-    norm = lambda u: (u - u.mean(0)) / u.std(0) * 100 * np.sqrt(max(1, len(papers) / 900))
+    if len(papers) < 4:
+        uf = np.column_stack((np.arange(len(papers), dtype=float), np.zeros(len(papers))))
+        um = uf.copy()
+    else:
+        import umap
+        from scipy.linalg import orthogonal_procrustes
+
+        fit = lambda tags, init="spectral": umap.UMAP(n_components=2, n_neighbors=min(len(papers) - 1, max(18, round(0.6 * np.sqrt(len(papers))))), min_dist=0.12,
+                                                      spread=1.2, metric="cosine", init=init, random_state=SEED).fit_transform(np.hstack([ec, TAG_WEIGHT * tags]))
+        uf = fit(fields)
+        um = fit(methods, init=uf)
+    # Same density as the corpus grows; keep flat axes finite for tiny datasets.
+    def norm(u):
+        spread = u.std(0)
+        return (u - u.mean(0)) / np.where(spread > 0, spread, 1) * 100 * np.sqrt(max(1, len(papers) / 900))
     uf, um = norm(uf), norm(um)
-    rot, _ = orthogonal_procrustes(um, uf)  # turn / mirror the method map onto the field map: the flip only moves what changed
-    um = um @ rot
+    if len(papers) >= 4:
+        rot, _ = orthogonal_procrustes(um, uf)  # turn / mirror the method map onto the field map: the flip only moves what changed
+        um = um @ rot
 
     # neighbors
     sims = emb @ emb.T
-    np.fill_diagonal(sims, -1)
-    k = 6
+    np.fill_diagonal(sims, -np.inf)
+    k = min(6, len(papers) - 1)
     nb = np.argsort(-sims, axis=1)[:, :k]
 
-    out = {"model": MODEL, "tagWeight": TAG_WEIGHT, "papers": {}}
+    out = {"model": MODEL, "inputs": fingerprint, "tagWeight": TAG_WEIGHT, "papers": {}}
     for i, p in enumerate(papers):
         out["papers"][p["key"]] = {
             "x": round(float(uf[i, 0]), 2), "y": round(float(uf[i, 1]), 2),

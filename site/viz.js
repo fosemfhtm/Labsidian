@@ -49,6 +49,7 @@
 
   // ---- axes: every tag of the axis, in the lab's tag order (created tags at the end)
   let axisCache = null;
+  window.addEventListener("lab:data", () => { axisCache = null; });
   function axesOf(kind) {
     if (axisCache?.d !== D()) axisCache = { d: D() };
     return (axisCache[kind] ||= D().topics.filter(x => x.axis === kind).map(x => ({ id: x.id, name: UI.tl(x), full: UI.tl(x), color: x.color || OTHER })));

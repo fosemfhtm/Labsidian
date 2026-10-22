@@ -6,15 +6,14 @@ data/demo/parts/<id>.json  →  data/demo/diary.json + roster.json + s2_cache.js
 Then:  LABSIDIAN_DATA=data/demo  enrich_s2.py → build_map.py → build_site.py   (→ site/data.demo.js)
 
 Leak check (fails with exit 1): real member names anywhere, or any 8-word run copied from a real review.
+Validation and cache loading finish before existing demo outputs are replaced.
 """
 import json
 import random
 import re
-import sys
 from collections import Counter
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
 from build_site import norm_title, compile_tax, score, pick, cosine  # noqa: E402
 from taxonomy import DOMAINS, METHODS  # noqa: E402
 
@@ -33,16 +32,17 @@ def profiles(entries):
     for e in entries:
         body = (e["content"] or "") + " " + (e["memo"] or "")
         v = out.setdefault(e["author"], Counter())
-        for t in pick(score(dom, e["title"], body), 3, 3) if score(dom, e["title"], body) else []:
+        ds, ms = score(dom, e["title"], body), score(met, e["title"], body)
+        for t in pick(ds, 3, 3) if ds else []:
             v[f"d:{t}"] += 1
-        for t in pick(score(met, e["title"], body), 2, 3) if score(met, e["title"], body) else []:
+        for t in pick(ms, 2, 3) if ms else []:
             v[f"m:{t}"] += 1
     return out
 
 
-def grams(text, n=NGRAM):
+def grams(text):
     w = re.findall(r"\w+", (text or "").lower())
-    return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+    return {" ".join(w[i:i + NGRAM]) for i in range(len(w) - NGRAM + 1)}
 
 
 def main():
@@ -73,6 +73,8 @@ def main():
             entries.append({f: e.get(f) for f in FIELDS} | {"dateNote": None, "term": "2026H1",
                                                               "memo": e.get("memo") or "", "link": e.get("link") or "",
                                                               "venue": e.get("venue") or "", "authors": e.get("authors") or ""})
+    if problems:
+        raise SystemExit("\n".join(problems))
     # A 2026 paper can't be read before it came out; for reused ones the lab's real first read is the proxy.
     # Reshuffle each member's own dates so those constraints hold, keeping everyone else near their slot.
     first_read = {}
@@ -96,14 +98,14 @@ def main():
     entries.sort(key=lambda e: (e["date"], e["author"]))
 
     # ---- leak check ----
-    names = [p["name"] for p in real_roster]
+    names = {n for p in real_roster for n in [p["name"], *p.get("aliases", [])] if n}
     real_grams = set()
     for r in real:
         real_grams |= grams(r["content"]) | grams(r["memo"])
     real_titles = {norm_title(r["title"]) for r in real}
     leaks = []
     for e in entries:
-        text = " ".join(str(e[f] or "") for f in ("content", "memo", "author"))
+        text = " ".join(str(e[f] or "") for f in FIELDS)
         for n in names:
             if n in text:
                 leaks.append(f"{e['author']} {e['date']}: real name {n}")
@@ -119,7 +121,8 @@ def main():
     print("ratings", dict(sorted(Counter(e["rating"] for e in entries).items())),
           "| korean", sum(bool(re.search("[가-힣]", e["content"])) for e in entries),
           "| empty memo", sum(not e["memo"] for e in entries))
-    social_p = DEMO / "social.json"  # example studies / comments: same name + copy check on every text field
+    sources = []
+    social_p = DEMO / "social.json"  # example studies / comments: check every text field
     if social_p.exists():
         def texts(x):
             if isinstance(x, str):
@@ -130,31 +133,28 @@ def main():
             elif isinstance(x, list):
                 for v in x:
                     yield from texts(v)
-        for t in texts(json.loads(social_p.read_text(encoding="utf-8"))):
-            leaks += [f"social.json: real name {n}" for n in names if n in t]
-            if grams(t) & real_grams:
-                leaks.append(f"social.json: copied run “{next(iter(grams(t) & real_grams))}”")
-    # the demo film's sources (recording script, terminal scene, overlays) must not carry a real name or review either
+        sources.extend(("social.json", t) for t in texts(json.loads(social_p.read_text(encoding="utf-8"))))
+    # Include the demo film's recording script, terminal scene and overlays.
     for src in [*(ROOT / "video").glob("*.py"), *(ROOT / "video").glob("*.html"), *(ROOT / "video" / "remotion" / "src").glob("*")]:
-        txt = src.read_text(encoding="utf-8", errors="ignore")
-        leaks += [f"video/{src.name}: real name {n}" for n in names if n in txt]
-        if grams(txt) & real_grams:
-            leaks.append(f"video/{src.name}: copied run “{next(iter(grams(txt) & real_grams))}”")
+        if src.is_file():
+            sources.append((f"video/{src.name}", src.read_text(encoding="utf-8", errors="ignore")))
+    for label, text in sources:
+        leaks += [f"{label}: real name {n}" for n in names if n in text]
+        hit = grams(text) & real_grams
+        if hit:
+            leaks.append(f"{label}: copied run “{next(iter(hit))}”")
     real_prof, demo_prof = profiles(real), profiles(entries)
     print("closest real member (topic cosine):")
     for name, v in demo_prof.items():
-        sim = max(cosine(v, r) for r in real_prof.values())
+        sim = max((cosine(v, r) for r in real_prof.values()), default=0)
         print(f"  {name:<14} {sim:.2f}{'  ← too close' if sim >= MIRROR else ''}")
         if sim >= MIRROR:
             leaks.append(f"{name}: topic profile mirrors a real member ({sim:.2f})")
-    for p in problems:
-        print("  ! " + p)
     for l in leaks:
         print("  LEAK " + l)
+    if leaks:
+        raise SystemExit(1)
 
-    DEMO.joinpath("diary.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
-    DEMO.joinpath("roster.json").write_text(json.dumps([{"id": p["id"], "name": p["name"]} for p in personas],
-                                                       ensure_ascii=False), encoding="utf-8")
     # S2 metadata for the reused (public) papers; new ones get matched by enrich_s2.py
     c = json.loads((ROOT / "data" / "s2_cache.json").read_text(encoding="utf-8"))
     mk = {re.sub(r"[^0-9a-z]+", "", k) for k in keys}
@@ -163,9 +163,11 @@ def main():
     match = {k: v for k, v in c["match"].items() if k in mk}
     demo_c["match"].update(match)
     demo_c["detail"].update({v: c["detail"][v] for v in match.values() if v and v in c["detail"]})
+    DEMO.joinpath("diary.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
+    DEMO.joinpath("roster.json").write_text(json.dumps([{"id": p["id"], "name": p["name"]} for p in personas],
+                                                       ensure_ascii=False), encoding="utf-8")
     cache_p.write_text(json.dumps(demo_c, ensure_ascii=False), encoding="utf-8")
     print(f"wrote data/demo/diary.json, roster.json, s2_cache.json ({len(demo_c['detail'])} S2 records)")
-    sys.exit(1 if leaks or problems else 0)
 
 
 if __name__ == "__main__":

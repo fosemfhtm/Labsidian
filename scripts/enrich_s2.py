@@ -21,6 +21,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+
+from build_site import norm_title
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / os.environ.get("LABSIDIAN_DATA", "data")  # data/demo = the fake demo lab
@@ -30,60 +34,47 @@ KEY = os.environ.get("S2_API_KEY")
 DETAIL_FIELDS = "title,year,venue,publicationVenue,abstract,citationCount,externalIds,references.paperId,tldr"
 
 
-def req(url, body=None, tries=6):  # Semantic Scholar
+def req(url, body=None, tries=6):  # S2 and Crossref share transient-error handling.
     headers = {"User-Agent": "labsidian/0.1"}
-    if KEY:
+    if KEY and url.startswith(API + "/"):
         headers["x-api-key"] = KEY
     data = None
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
     wait = 3
-    for _ in range(tries):
+    for attempt in range(tries):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers), timeout=40) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 return None
-            if e.code in (429, 500, 502, 503, 504):
-                time.sleep(wait)
-                wait = min(wait * 2, 60)
-                continue
-            raise
+            if e.code not in (429, 500, 502, 503, 504):
+                raise
+            retry_after = e.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    delay = float(retry_after) if retry_after.isdecimal() else (
+                        parsedate_to_datetime(retry_after) - datetime.now(timezone.utc)).total_seconds()
+                    wait = max(wait, delay)
+                except (TypeError, ValueError, OverflowError):
+                    pass
         except (urllib.error.URLError, TimeoutError):
+            pass
+        if attempt + 1 < tries:
             time.sleep(wait)
-            wait = min(wait * 2, 60)
+        wait = min(wait * 2, 60)
     return "retry"
 
 
 def norm(t):
-    t = t.lower().replace("ﬁ", "fi").replace("ﬂ", "fl").replace("ﬃ", "ffi")
-    return re.sub(r"[^0-9a-z]+", "", t)
+    return re.sub(r"[^0-9a-z]+", "", norm_title(t.replace("ﬃ", "ffi")))
 
 
 def same_title(a, b, cut=0.9):
     a, b = norm(a), norm(b)
     return bool(a and b) and (a == b or difflib.SequenceMatcher(None, a, b).ratio() >= cut)
-
-
-def crossref(url, tries=6):
-    """Crossref's public pool (no key, nothing identifying sent); slow down and back off on 429"""
-    wait = 5
-    for _ in range(tries):
-        try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "labsidian/0.1"}), timeout=40) as r:
-                return json.load(r)["message"]
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                return None
-            if e.code not in (429, 500, 502, 503, 504):
-                raise
-        except (urllib.error.URLError, TimeoutError):
-            pass
-        time.sleep(wait)
-        wait = min(wait * 2, 120)
-    return "retry"
 
 
 def ext_id(title, link):
@@ -94,19 +85,19 @@ def ext_id(title, link):
     m = re.search(r"10\.\d{4,9}/[^\s\"<>?#]+", link or "")
     if m and "arxiv" not in m.group(0).lower():
         return "DOI:" + m.group(0).rstrip(".,;)").removesuffix("/full").removesuffix("/abstract")
+    q = urllib.parse.urlencode({"query.bibliographic": title[:250], "rows": 2, "select": "DOI,title"})
+    urls = [f"https://api.crossref.org/works?{q}"]
     m = re.search(r"pii/(S?[0-9X]{15,17})", link or "", re.I)
     if m:
-        r = crossref(f"https://api.crossref.org/works?filter=alternative-id:{m.group(1)}&rows=1&select=DOI,title")
+        urls.insert(0, f"https://api.crossref.org/works?filter=alternative-id:{m.group(1)}&rows=1&select=DOI,title")
+    for url in urls:
+        r = req(url)
         if r == "retry":
             return r
-        if r and r["items"]:
-            return "DOI:" + r["items"][0]["DOI"]
-    q = urllib.parse.urlencode({"query.bibliographic": title[:250], "rows": 2, "select": "DOI,title"})
-    r = crossref(f"https://api.crossref.org/works?{q}")
-    if r == "retry":
-        return r
-    hit = next((x for x in (r or {}).get("items", []) if same_title(title, (x.get("title") or [""])[0])), None)
-    return "DOI:" + hit["DOI"] if hit else ""
+        for hit in (r or {}).get("message", {}).get("items", []):
+            if same_title(title, (hit.get("title") or [""])[0]):
+                return "DOI:" + hit["DOI"]
+    return ""
 
 
 def main():
@@ -117,7 +108,10 @@ def main():
         links[e["title"].strip()] = links.get(e["title"].strip()) or (e.get("link") or "").strip()
     cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {"match": {}, "detail": {}}
     cache.setdefault("ext", {})
-    save = lambda: CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    def save():
+        tmp = CACHE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(CACHE)
     english = lambda t: re.search(r"[A-Za-z]{4}", t)
 
     todo = [t for t in titles if not cache["match"].get(norm(t)) and norm(t) not in cache["ext"] and english(t)]
@@ -142,7 +136,7 @@ def main():
         r = req(f"{API}/paper/batch?fields=paperId,{DETAIL_FIELDS}", body={"ids": chunk}, tries=12)
         if r in (None, "retry"):
             print("  batch failed (rate limit); rerun later", file=sys.stderr)
-            break
+            return
         for x, d in zip(chunk, r):
             if d and same_title(want[x], d.get("title") or "", 0.8):  # a diary link can point at another paper
                 d["references"] = [y["paperId"] for y in d.get("references") or [] if y.get("paperId")]
@@ -157,17 +151,18 @@ def main():
         r = req(f"{API}/paper/search/match?query={urllib.parse.quote(t[:300])}&fields=title")
         if r == "retry":
             print("  giving up for now (rate limit); rerun later", file=sys.stderr)
-            break
-        hit = (r or {}).get("data", [None])[0] if r else None
-        ok = bool(hit) and (norm(hit["title"])[:40] == norm(t)[:40] or norm(t)[:40] in norm(hit["title"]))
+            save()
+            return
+        hit = next(iter((r or {}).get("data") or []), None)
+        ok = bool(hit) and same_title(t, hit.get("title") or "")
         cache["match"][norm(t)] = hit["paperId"] if ok else None
         if i % 20 == 0:
             save()
             print(f"  {i}/{len(todo)}", file=sys.stderr)
-        time.sleep(0.4 if KEY else 1.6)
+        time.sleep(1.1 if KEY else 1.6)
     save()
 
-    ids = [v for v in cache["match"].values() if v and v not in cache["detail"]]
+    ids = list(dict.fromkeys(v for v in cache["match"].values() if v and v not in cache["detail"]))
     print(f"phase 3: {len(ids)} ids to fetch", file=sys.stderr)
     for i in range(0, len(ids), 500):
         chunk = ids[i:i + 500]

@@ -192,14 +192,13 @@
   };
 
   // ---------------------------------------------------------------- create
-  let newFiles = [];
   function newPage(params) {
     const me = S.auth.current();
     const g = S.groups.get(params.get("group"));
     const pre = params.get("paper") ? UI.PA[params.get("paper")] : null;
     const preTitle = pre?.title || params.get("title") || "", preLink = pre?.link || params.get("link") || "";
     const presenter = g ? S.groups.nextPresenter(g) : me.id, invited = new Set(g ? g.members : []);
-    newFiles = [];
+    let newFiles = [];
     const others = Object.values(UI.P).filter(p => p.id !== me.id);
     view.innerHTML = `${back}
       <div class="page-head"><h1>${g ? t("st.seriesNew", { g: esc(g.title), n: S.groups.sessions(g).length + 1 }) : t("st.new")}</h1><p class="sub">${t("st.countsHint")}</p></div>
@@ -238,9 +237,9 @@
     const picker = $("#st-file", view);
     $("#st-pick", view).onclick = () => picker.click();
     picker.onchange = async () => {
-      const f = picker.files[0]; picker.value = ""; if (!f) return;
-      try { newFiles = [await S.files.put(f, f.name)]; $("#st-files", view).innerHTML = `<span class="att pdf">📄 ${esc(f.name)} <span class="m">${UI.kb(f.size)}</span></span>`; }
-      catch (e) { $("#st-err", view).textContent = e.message === "file.size" ? t("w.fileSize", { name: f.name }) : t("w.fileType"); }
+      const f = picker.files[0], out = $("#st-files", view), err = $("#st-err", view); picker.value = ""; if (!f) return;
+      const meta = await uploadInto(f, err); if (!meta) return;
+      newFiles = [meta]; out.innerHTML = `<span class="att pdf">📄 ${esc(f.name)} <span class="m">${UI.kb(f.size)}</span></span>`;
     };
     $("#st-form", view).onsubmit = async e => {
       e.preventDefault();
@@ -258,7 +257,7 @@
   // ---------------------------------------------------------------- detail
   // One study = three phases, one tab each (+ brought papers when that option is on):
   //   준비 (my to-dos, question board, who is ready) → 다이어리 (entries side by side) → 소개 순서 → 정리 (notes)
-  let editPick = false, pickFiles = null, editNotes = false;
+  let editPick = false, editNotes = false;
   const longDate = st => {
     if (!st.date) return t("st.noDate");
     const d = new Date(st.date + "T00:00:00").toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US", { month: "short", day: "numeric", weekday: "short" });
@@ -410,13 +409,13 @@
     if (pf) {
       const me = S.auth.current(), box = paperSearch($("#pk-title", view), $("#pk-pop", view), $("#pk-link", view));
       box.id = st.picks?.[me.id]?.paperId || null;
-      pickFiles = [...(st.picks?.[me.id]?.files || [])];
+      const pickFiles = [...(st.picks?.[me.id]?.files || [])];
       const picker = $("#pk-file", view);
       $("#pk-pickfile", view).onclick = () => picker.click();
       picker.onchange = async () => {
-        const f = picker.files[0]; picker.value = ""; if (!f) return;
+        const f = picker.files[0], out = $("#pk-files", view); picker.value = ""; if (!f) return;
         const meta = await uploadInto(f, $("#pk-err", view)); if (!meta) return;
-        pickFiles.push(meta); $("#pk-files", view).insertAdjacentHTML("beforeend", `<span class="att pdf">📎 ${esc(f.name)}</span>`);
+        pickFiles.push(meta); out.insertAdjacentHTML("beforeend", `<span class="att pdf">📎 ${esc(f.name)}</span>`);
       };
       pf.onsubmit = async e => {
         e.preventDefault();
@@ -494,14 +493,14 @@
     if (!S.auth.current()) return;
     S.studies.remind(); window.LabUpdateBell?.();
     if (arg === "new") newPage(params);
-    else if (arg) { if (arg !== lastId) { editPick = false; editNotes = false; lastId = arg; } detailPage(decodeURIComponent(arg), params); }
+    else if (arg) { if (arg !== lastId) { editPick = false; editNotes = false; lastId = arg; } detailPage(arg, params); }
     else listPage(params);
   }
 
   // a question / notes draft from someone's AI (MCP) just arrived → show it without a reload
   let last = null;
   window.addEventListener("lab:mcp", () => {
-    if (UI.currentView() !== "study" || !last) return;
+    if (UI.currentView() !== "study" || !last || last[1] === "new") return;
     const typing = editNotes || editPick || [...view.querySelectorAll("textarea, input:not([type=hidden]):not([type=checkbox]):not([type=file])")].some(el => el.value.trim() && !el.readOnly && el.id !== "st-title");
     if (!typing) render(...last);
   });

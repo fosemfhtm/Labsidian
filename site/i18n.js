@@ -4,7 +4,6 @@
     ko: {
       "rating.label": "별점", "rating.value": "{n}점", "rating.unrated": "미평가",
       "nav.home": "홈", "nav.study": "스터디", "nav.graph": "그래프", "nav.people": "사람", "nav.papers": "논문", "nav.shared": "함께 읽은 논문",
-      "search.ph": "논문·저자·키워드 검색  ( / )",
       // graph panel
       "g.find": "그래프에서 찾기", "g.find.ph": "제목·저자…", "g.colorBy": "색상 기준",
       "g.color.person": "읽은 사람", "g.color.tag": "태그",
@@ -18,7 +17,6 @@
       "g.total": "논문 {n}편", "g.venueSearch": "저널·학회 검색", "g.color.first": "처음 읽은 사람", "g.fit": "전체 보기", "g.settings": "표시 설정", "g.view.graph": "그래프", "g.view.map": "의미 지도",
       "g.l.readLinks": "사람–논문 연결선", "g.l.tags": "태그 노드", "g.l.timeline": "타임랩스",
       "g.physics": "물리", "g.ph.repel": "반발력", "g.ph.link": "링크 힘", "g.ph.distance": "링크 거리", "g.ph.anchor": "의미 위치 고정",
-      "g.hint.graph": "노드를 끌어서 움직여보세요 · hover → 연결 강조 · 클릭 → 상세. 연결선 = 비슷한 논문(SPECTER2) · 읽은 사람 · 인용", "g.play": "재생", "g.pause": "정지",
       "g.matched": "{n} / {total}편", "g.more": "더보기", "g.less": "접기",
       "g.focus": "선택", "g.depth": "깊이", "g.clear": "해제", "g.legend": "범례",
       "g.hint": "스크롤 줌 · 드래그 이동 · 클릭 선택 · 태그 이름 클릭 → 확대",
@@ -51,7 +49,6 @@
     en: {
       "rating.label": "Rating", "rating.value": "{n} stars", "rating.unrated": "Unrated",
       "nav.home": "Home", "nav.study": "Study", "nav.graph": "Graph", "nav.people": "People", "nav.papers": "Papers", "nav.shared": "Read together",
-      "search.ph": "Search papers, authors, keywords  ( / )",
       "g.find": "Find in graph", "g.find.ph": "Title, author…", "g.colorBy": "Color by",
       "g.color.person": "Reader", "g.color.tag": "Tag",
       "g.color.venue": "Venue", "g.color.year": "Year",
@@ -64,7 +61,6 @@
       "g.total": "{n} papers", "g.venueSearch": "Search venues", "g.color.first": "First reader", "g.fit": "Fit", "g.settings": "Display settings", "g.view.graph": "Graph", "g.view.map": "Semantic map",
       "g.l.readLinks": "Reader links", "g.l.tags": "Tag nodes", "g.l.timeline": "Time-lapse",
       "g.physics": "Physics", "g.ph.repel": "Repel", "g.ph.link": "Link force", "g.ph.distance": "Link distance", "g.ph.anchor": "Semantic anchor",
-      "g.hint.graph": "Drag nodes around · hover to highlight links · click for details. Links = similar papers (SPECTER2) · readers · citations", "g.play": "Play", "g.pause": "Pause",
       "g.matched": "{n} / {total} papers", "g.more": "More", "g.less": "Less",
       "g.focus": "Selected", "g.depth": "Depth", "g.clear": "Clear", "g.legend": "Legend",
       "g.hint": "Scroll to zoom · drag to pan · click to select · click a tag name to zoom",

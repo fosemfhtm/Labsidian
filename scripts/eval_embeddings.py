@@ -9,16 +9,11 @@ Each is reported as observed rate / random baseline ("lift"). Lift 1.0 = no effe
 
 Usage: .venv/Scripts/python scripts/eval_embeddings.py
 """
-import json
 import re
-import sys
-from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(Path(__file__).parent))
-from build_map import load_papers  # noqa: E402
+from build_map import load_papers, embed_specter2
 from build_site import compile_tax, score, pick, norm_venue  # noqa: E402
 from taxonomy import DOMAINS  # noqa: E402
 
@@ -32,8 +27,8 @@ def lang_of(p):
 def evaluate(name, emb, papers, k=10):
     emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
     sims = emb @ emb.T
-    np.fill_diagonal(sims, -9)
-    nb = np.argsort(-sims, axis=1)[:, :k]
+    np.fill_diagonal(sims, -np.inf)
+    nb = np.argsort(-sims, axis=1)[:, :min(k, len(papers) - 1)]
     feats = {
         "same_lang": [p["_lang"] for p in papers],
         "same_reader": [p["_reader"] for p in papers],
@@ -44,10 +39,12 @@ def evaluate(name, emb, papers, k=10):
     for f, vals in feats.items():
         vals = np.array(vals, dtype=object)
         valid = np.array([v is not None for v in vals])
-        obs = np.mean([np.mean(vals[nb[i]] == vals[i]) for i in range(len(papers)) if valid[i]])
+        observed = sum(np.count_nonzero(vals[nb[i]] == vals[i]) for i in range(len(papers)) if valid[i])
+        comparisons = valid.sum() * nb.shape[1]
         _, counts = np.unique(vals[valid].astype(str), return_counts=True)
-        base = np.sum((counts / counts.sum()) ** 2)
-        row[f] = obs / base
+        # Match the observed candidates: all other papers, including ones with a missing feature.
+        base = np.sum(counts * (counts - 1)) / (valid.sum() * (len(papers) - 1)) if valid.any() else 0
+        row[f] = observed / comparisons / base if comparisons and base else float("nan")
     print(f"{name:<34}" + "".join(f"{row[f]:>12.2f}" for f in feats))
     return row
 
@@ -55,6 +52,8 @@ def evaluate(name, emb, papers, k=10):
 def main():
     from sentence_transformers import SentenceTransformer
     papers = load_papers()
+    if len(papers) < 2:
+        raise SystemExit("At least two papers are needed to evaluate neighbours.")
     dom = compile_tax(DOMAINS)
     for p in papers:
         p["_lang"] = lang_of(p)
@@ -68,29 +67,15 @@ def main():
     print(f"{'embedding (lift vs random)':<34}{'same_lang':>12}{'same_reader':>12}{'same_tag':>12}{'same_venue':>12}")
     print(f"{'':<34}{'(bias ↓)':>12}{'(bias ↓)':>12}{'(topic ↑)':>12}{'(topic ↑)':>12}")
 
-    cur = np.load(ROOT / "data" / "emb_e5.npy")
-    evaluate("A. e5 · title+review (current)", cur, papers)
-
     e5 = SentenceTransformer("intfloat/multilingual-e5-base", device="cpu")
+    cur = e5.encode([f"passage: {p['title']}. " + " ".join((r.get("content") or "") + " " + (r.get("memo") or "")
+                                                          for r in p["reviews"]) for p in papers],
+                    batch_size=32, normalize_embeddings=True)
+    evaluate("A. e5 · title+review baseline", cur, papers)
     t = e5.encode([f"passage: {p['title']}. {p['abstract']}" for p in papers], batch_size=32, normalize_embeddings=True)
     evaluate("B. e5 · title+abstract only", t, papers)
 
-    from transformers import AutoTokenizer
-    from adapters import AutoAdapterModel
-    import torch
-    tok = AutoTokenizer.from_pretrained("allenai/specter2_base")
-    model = AutoAdapterModel.from_pretrained("allenai/specter2_base")
-    model.load_adapter("allenai/specter2", source="hf", set_active=True)  # "[PRX]" proximity adapter
-    model.eval()
-    texts = [p["title"] + tok.sep_token + (p["abstract"] or "") for p in papers]
-    out = []
-    with torch.no_grad():
-        for i in range(0, len(texts), 32):
-            batch = tok(texts[i:i + 32], padding=True, truncation=True, max_length=512, return_tensors="pt")
-            out.append(model(**batch).last_hidden_state[:, 0, :].numpy())
-    spec = np.concatenate(out)
-    np.save(ROOT / "data" / "emb_specter2.npy", spec)
-    evaluate("C. SPECTER2 · title+abstract", spec, papers)
+    evaluate("C. SPECTER2 · title+abstract", embed_specter2(papers), papers)
 
 
 if __name__ == "__main__":

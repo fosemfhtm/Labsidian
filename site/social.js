@@ -103,11 +103,16 @@
       ta.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) f.requestSubmit(); });
       f.onsubmit = async e => {
         e.preventDefault();
-        if (!ta.value.trim()) return;
-        const cm = await S.comments.add({ reviewId: rid, parent: f.dataset.parent || null, kind: f.dataset.parent ? "comment" : kind, body: ta.value });
-        const box = f.closest(".thread");
-        await renderThread(rid, box, cm.id);
-        updateCount(rid);
+        const btn = f.querySelector('button[type="submit"], button.ui-btn.prominent');
+        if (!ta.value.trim() || btn.disabled) return;
+        btn.disabled = true; ta.readOnly = true;
+        try {
+          const cm = await S.comments.add({ reviewId: rid, parent: f.dataset.parent || null, kind: f.dataset.parent ? "comment" : kind, body: ta.value });
+          const box = f.closest(".thread");
+          await renderThread(rid, box, cm.id);
+          updateCount(rid);
+        } catch (error) { console.warn(error); LabToast(t("pm.failed")); }
+        finally { btn.disabled = false; ta.readOnly = false; }
       };
     });
   }

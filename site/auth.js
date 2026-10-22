@@ -79,7 +79,7 @@
       <div class="acts"><button class="ui-btn" data-v="0">${esc(opts.cancel || t("c.cancel"))}</button>
       <button class="ui-btn ${opts.destructive ? "destructive" : "prominent"}" data-v="1">${esc(opts.ok || t("c.ok"))}</button></div></div>`;
     const done = v => { m.remove(); document.removeEventListener("keydown", key); resolve(v); };
-    const key = e => { if (e.key === "Escape") done(false); if (e.key === "Enter") done(true); };
+    const key = e => { if (e.key === "Escape") { e.preventDefault(); done(false); } };
     m.onclick = e => { const b = e.target.closest("[data-v]"); if (b) done(b.dataset.v === "1"); else if (e.target === m) done(false); };
     document.addEventListener("keydown", key);
     document.body.appendChild(m); m.querySelector('[data-v="1"]').focus();
@@ -269,6 +269,7 @@
     if (!typing) window.LabUI.refreshDrawer?.();
     if (!applied) return;
     if (needsReload) {
+      document.querySelector(".mcp-banner")?.remove();
       const b = document.createElement("div");
       b.className = "mcp-banner";
       b.innerHTML = `🤖 ${t("mcp.applied", { n: applied })} <button class="ui-btn small prominent">${t("mcp.reload")}</button>`;

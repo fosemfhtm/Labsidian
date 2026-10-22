@@ -4,7 +4,6 @@
 (() => {
   const { t } = window.I18N, UI = window.LabUI, V = window.LabViz;
   const { esc } = UI;
-  const $ = (s, r = document) => r.querySelector(s);
 
   const view = document.createElement("section");
   view.id = "view-compare"; view.className = "view page";

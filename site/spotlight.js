@@ -24,7 +24,7 @@
   const recent = () => { try { return JSON.parse(localStorage.getItem(RECENT) || "[]").filter(id => UI.PA[id]); } catch (e) { return []; } };
   window.addEventListener("hashchange", () => {
     const m = location.hash.match(/^#\/paper\/([^?]+)/); if (!m) return;
-    try { localStorage.setItem(RECENT, JSON.stringify([decodeURIComponent(m[1]), ...recent().filter(x => x !== m[1])].slice(0, 6))); } catch (e) {}
+    try { const id = decodeURIComponent(m[1]); localStorage.setItem(RECENT, JSON.stringify([id, ...recent().filter(x => x !== id)].slice(0, 6))); } catch (e) {}
   });
 
   function search(q) {
@@ -109,5 +109,4 @@
     if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); box ? close() : open(); }
     else if (e.key === "/" && !typing && !box) { e.preventDefault(); open(); }
   });
-  window.LabSpotlight = { open, close };
 })();

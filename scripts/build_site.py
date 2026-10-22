@@ -100,16 +100,10 @@ def pick(scores, k, min_score):
 
 
 def cosine(a, b):
-    keys = set(a) | set(b)
-    dot = sum(a.get(k, 0) * b.get(k, 0) for k in keys)
+    dot = sum(v * b.get(k, 0) for k, v in a.items())
     na = math.sqrt(sum(v * v for v in a.values()))
     nb = math.sqrt(sum(v * v for v in b.values()))
     return dot / (na * nb) if na and nb else 0.0
-
-
-def slug(s, n=60):
-    s = re.sub(r'[\\/:*?"<>|#^\[\]]', "", s).strip()
-    return s[:n].rstrip()
 
 
 def main():
@@ -132,14 +126,13 @@ def main():
             papers.append({"id": f"p{len(papers)}", "title": e["title"].strip(), "venue": "", "link": "",
                            "authors": "", "reviews": [], "_abstract": "", "_year": None})
         p = papers[by_key[key]]
-        for f_src, f_dst in (("venue", "venue"), ("link", "link"), ("authors", "authors")):
-            if not p[f_dst] and e[f_src].strip():
-                p[f_dst] = e[f_src].strip()
+        for field in ("venue", "link", "authors"):
+            p[field] = p[field] or (e.get(field) or "").strip()
         p["_abstract"] = p["_abstract"] or e.get("abstract") or ""  # demo entries carry their own abstract/year
         p["_year"] = p["_year"] or e.get("year")
         rid = f"r{i}"
         reviews.append({"id": rid, "paper": p["id"], "person": name2id.get(e["author"], "unknown"),
-                        "date": e["date"], "rating": e["rating"], "content": e["content"], "memo": e["memo"],
+                        "date": e["date"], "rating": e["rating"], "content": e.get("content") or "", "memo": e.get("memo") or "",
                         "term": e.get("term", "")})
         p["reviews"].append(rid)
 
@@ -278,11 +271,13 @@ def write_vault(data):
     tlabel = {t["id"]: t["label"] for t in data["topics"]}
     rev = {r["id"]: r for r in data["reviews"]}
     pnote = {}
+    used_names = set()
     for p in data["papers"]:
-        base = slug(p["title"])
+        base = re.sub(r'[\\/:*?"<>|#^\[\]]', "", p["title"]).strip()[:60].rstrip() or p["id"]
         name, n = base, 2
-        while name.lower() in {x.lower() for x in pnote.values()}:
+        while name.lower() in used_names:
             name, n = f"{base} ({n})", n + 1
+        used_names.add(name.lower())
         pnote[p["id"]] = name
 
     for p in data["papers"]:

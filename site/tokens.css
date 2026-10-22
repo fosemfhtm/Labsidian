@@ -71,11 +71,11 @@
   --fs-av-xs: .625rem; --fs-av-s: .6875rem; --fs-av-m: .8125rem; --fs-av-l: 1.25rem;
   --ink-on-light: #1c1c1e;               /* text on a light data colour (yellow, mint avatars) */
   --on-color: #fff;                      /* text/icons on a coloured fill (badge, tile, avatar) — accent fills use --on-accent */
-  --on-color-2: var(--on-color-2);   /* secondary text on a coloured fill */
-  --on-color-fill: var(--on-color-fill);
+  --on-color-2: rgb(255 255 255 / .8);   /* secondary text on a coloured fill */
+  --on-color-fill: rgb(255 255 255 / .2);
   --text-shadow-on-color: 0 1px 1px rgb(0 0 0 / .2);
   --scrim: rgb(0 0 0 / .32); --scrim-light: rgb(0 0 0 / .22); --scrim-strong: rgb(0 0 0 / .78);   /* behind alerts · spotlight · lightbox */
-  --shadow-seg: var(--shadow-seg);   /* selected segment */
+  --shadow-seg: 0 1px 3px rgb(0 0 0 / .12);   /* selected segment */
   --knob: #fff; --shadow-knob: 0 3px 8px rgb(0 0 0 / .15), 0 1px 1px rgb(0 0 0 / .16);   /* switch thumb */
 
   /* ---------- materials: Liquid Glass (controls & navigation layer only) ----------
@@ -319,6 +319,8 @@
 
 /* ---------- cards & inset-grouped lists (content layer: no glass, no border) ---------- */
 :where([data-ui]) .ui-card { background: var(--bg-grouped-2); border-radius: var(--r-card); padding: var(--s-4); box-shadow: var(--shadow-1); }
+:where([data-ui]) :is(a, [data-open]).ui-card { cursor: pointer; }
+:where([data-ui]) :is(a, [data-open]).ui-card:hover { background: color-mix(in srgb, var(--bg-grouped-2) 94%, var(--label) 6%); }
 :where([data-ui]) .ui-list { background: var(--bg-grouped-2); border-radius: var(--r-card); overflow: hidden; box-shadow: var(--shadow-1); }
 :where([data-ui]) .ui-list-h { font: var(--t-subhead); color: var(--label-2); text-transform: none; margin: 0 0 6px 16px; }
 :where([data-ui]) .ui-list-f { font: var(--t-callout); color: var(--label-2); margin: 6px 16px 0; }
