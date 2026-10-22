@@ -412,7 +412,6 @@ labelLayer.onclick = e => {
   const button = e.target.closest("[data-id]"); if (!button || flipping) return;
   const area = areas.find(a => a.id === button.dataset.id);
   setArea(area.id);
-  zoomTo(area.x, area.y, 0.32);
   UI.openDrawer("topic", area.id, { fromGraph: true });
 };
 
@@ -498,10 +497,6 @@ function fitNodes(duration = 600) {
   const ratio = r * Math.max((x1 - x0) / Math.max(100, fw - 40), (y1 - y0) / Math.max(100, fh - 40));
   const c = renderer.viewportToFramedGraph({ x: (x0 + x1) / 2, y: (y0 + y1) / 2 });
   centerFramed(c.x, c.y, ratio, duration);
-}
-function zoomTo(x, y, ratio) {
-  const fg = renderer.viewportToFramedGraph(renderer.graphToViewport({ x, y }));
-  centerFramed(fg.x, fg.y, ratio);
 }
 
 // ---------------- selection ----------------
