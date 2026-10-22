@@ -11,11 +11,14 @@ import json
 import os
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
+from unittest.mock import patch
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+import labsidian_mcp
 
 SERVER = Path(__file__).with_name("labsidian_mcp.py")
 ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -37,6 +40,16 @@ async def main(tmpdir):
     target = urlparse(URL)
     if WRITES and (target.scheme != "http" or target.hostname not in ("localhost", "127.0.0.1", "::1") or target.port != 8766 or target.path not in ("", "/") or target.query or target.fragment):
         sys.exit("--writes only runs against the demo lab (LABSIDIAN_URL=http://localhost:8766)")
+    # A quiet lab still needs fresh computed next dates after midnight, without repeated same-day snapshots.
+    backend = labsidian_mcp.ServerBackend()
+    with patch.object(backend, "call") as request, patch.object(labsidian_mcp, "date") as clock, patch.object(labsidian_mcp, "TOKEN", ""):
+        request.side_effect = lambda path: {"version": 1, "snapshot": {k: [] for k in ("people", "papers", "reviews", "topics", "users")}}
+        clock.today.side_effect = [date(2030, 1, 1), date(2030, 1, 1), date(2030, 1, 2)]
+        first = backend.data()
+        if backend.data() is not first or backend.data() is first:
+            failed.append("snapshot refreshes only on a new day")
+        if sum(args.args == ("/api/snapshot",) for args in request.call_args_list) != 2:
+            failed.append("snapshot same-day cache")
     # tests talk to the demo lab's server unless LABSIDIAN_URL says otherwise, so they never write into real data
     env = {**os.environ, "LABSIDIAN_URL": URL, "LABSIDIAN_USER": ARGS[0] if ARGS else "한서윤",
            "LABSIDIAN_DOWNLOADS": os.path.join(tmpdir, "downloads"), "PYTHONIOENCODING": "utf-8"}
@@ -82,7 +95,12 @@ async def main(tmpdir):
                 if "rating" in diary and recent["rating"] != diary["rating"]:
                     failed.append("profile preserves member rating")
             await call("lab_progress")
-            await call("my_inbox", limit=3)
+            inbox = await call("my_inbox", limit=100)
+            for notification in inbox if isinstance(inbox, list) else []:
+                if notification.get("type") in ("groupSession", "groupJoin"):
+                    group_id = notification.get("group_id")
+                    if not group_id or notification.get("open") != f"{URL.rstrip('/')}/#/group/{group_id}":
+                        failed.append("regular-study notification target")
             await call("my_drafts")
             await call("list_guides")
             await call("list_regular_studies")

@@ -3,6 +3,10 @@
  * reviewed before it is applied to the real pages. Uses only tokens.css ([data-ui] scope) + Lucide icons.
  */
 (() => {
+  I18N.extend({
+    ko: { "design.diaryCard": "다이어리 카드 (콘텐츠 층, 유리 없음)" },
+    en: { "design.diaryCard": "Diary card (content layer, no glass)" },
+  });
   const view = document.createElement("section");
   view.id = "view-design"; view.className = "view page wide";
   document.querySelector("main").appendChild(view);
@@ -102,7 +106,7 @@
         `<button class="ui-row sp-todo ${d ? "done" : ""}" data-demo="todo"><span class="ui-done ${d ? "checked" : ""}">${d ? "✓" : ""}</span><span class="grow">${x}</span>${d ? "" : I("chevron-right", "chev")}</button>`).join("")}</div>
     </section>
 
-    <section><h2 class="t-title2">리뷰 카드 (콘텐츠 층, 유리 없음)</h2>
+    <section><h2 class="t-title2">${I18N.t("design.diaryCard")}</h2>
       <article class="ui-card sp-review">
         <div class="sp-rv-head">${av("예시", "red", 36)}<div class="grow"><div class="t-headline">예시 멤버</div><div class="t-footnote c-2">${window.LabUI.stars(4.5)} · 2026-09-25 · <span class="ui-pill warn">7일 늦게 등록</span></div></div>
           <button class="ui-btn plain icon" aria-label="더 보기">${I("ellipsis")}</button></div>

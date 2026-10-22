@@ -104,11 +104,11 @@ def auth_headers():
 
 
 class ServerBackend:
-    """the Labsidian server (scripts/serve.py) — on this machine or the lab's"""
+    """The Labsidian server; refresh date-dependent snapshot fields each local day as well as on writes."""
     _http = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never route localhost through a system proxy
 
     def __init__(self):
-        self.version, self.d = None, None
+        self.version, self.day, self.d = None, None, None
 
     def request(self, path, data=None, headers=None, method=None):
         return urllib.request.Request(API + path, data=data, headers={**auth_headers(), **(headers or {})}, method=method)
@@ -136,12 +136,12 @@ class ServerBackend:
         global ME
         if TOKEN and not ME:
             ME = (self.call("/api/whoami").get("user") or {}).get("id", "")
-        v = self.call("/api/version")["version"]
-        if v != self.version or self.d is None:
+        v, day = self.call("/api/version")["version"], date.today()
+        if v != self.version or day != self.day or self.d is None:
             r = self.call("/api/snapshot")
             if "snapshot" not in r:
                 raise ToolError(f"Labsidian server: {r.get('error')}")
-            self.version, d = r["version"], r["snapshot"]
+            self.version, self.day, d = r["version"], day, r["snapshot"]
             d["P"] = {p["id"]: p for p in d["people"]}
             d["PA"] = {p["id"]: p for p in d["papers"]}
             d["R"] = {r["id"]: r for r in d["reviews"]}
@@ -446,15 +446,16 @@ def list_tags() -> list[dict]:
 def my_inbox(limit: int = 20, unread_only: bool = False, mark_read: bool = False) -> list[dict]:
     """My notifications: questions/comments/ideas on my diaries, replies, @mentions, 👍, study invites and reminders.
     Each has the ids to act on it — answer a question with add_comment(review_id, …, reply_to=comment_id),
-    open a study with get_study(study_id). mark_read marks the returned ones as read on the site."""
+    open a study with get_study(study_id), or find a regular study by group_id in list_regular_studies.
+    mark_read marks the returned ones as read on the site."""
     d = DB.data()
     u = me()
     ns = [n for n in (d.get("notifications") or {}).get(u["id"], []) if not unread_only or not n.get("read")][:max(1, min(limit, 100))]
     if mark_read and ns:
         DB.apply({"op": "inbox.read", "actor": u["id"], "ids": [n["id"] for n in ns], "summary": f"{len(ns)} read"})
     link = lambda n: (f"{SITE}/#/paper/{n['paperId']}" if n.get("paperId") else f"{SITE}/#/study/{n['studyId']}" if n.get("studyId")
-                      else f"{SITE}/#/guide/{n['guideId']}" if n.get("guideId") else None)
-    keys = (("review_id", "reviewId"), ("comment_id", "commentId"), ("study_id", "studyId"), ("guide_id", "guideId"))
+                      else f"{SITE}/#/group/{n['groupId']}" if n.get("groupId") else f"{SITE}/#/guide/{n['guideId']}" if n.get("guideId") else None)
+    keys = (("review_id", "reviewId"), ("comment_id", "commentId"), ("study_id", "studyId"), ("group_id", "groupId"), ("guide_id", "guideId"))
     return [{"id": n["id"], "type": n["type"], "from": _name(n.get("actor"), d), "at": n["at"], "read": bool(n.get("read")),
              "paper": d["PA"].get(n.get("paperId"), {}).get("title"), "excerpt": n.get("excerpt"),
              **{k: n[v] for k, v in keys if n.get(v)}, "open": link(n)} for n in ns]
@@ -698,8 +699,7 @@ def _hidden_for(r, viewer_id, d):
     return not any(x["paper"] == r["paper"] and x["person"] == viewer_id for x in d["reviews"])
 
 
-def _name(uid, d=None):
-    d = d if d is not None else DB.data()
+def _name(uid, d):
     return d["P"].get(uid, {}).get("name") or d["U"].get(uid, {}).get("name") or uid
 
 
@@ -790,10 +790,11 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: s
                on_date: str = "", at_time: str = "", place: str = "", presenter: str = "", invite: list[str] | None = None,
                about: str = "", write_first: bool = True, everyone_brings_a_paper: bool = False) -> dict:
     """Open a paper study as me (I host it; invited members get a notification). The paper: a lab paper (paper_ref),
-    or any paper by title / link. on_date YYYY-MM-DD, at_time HH:MM. write_first = members must post their own diary
+    or any paper by title and optional link. on_date YYYY-MM-DD, at_time HH:MM. write_first = members must post their own diary
     before they see others' (the usual). For a regular study's next session give group_id (see list_regular_studies):
     date, time, place, members and whose turn it is to present are filled in like the site's "next session" form —
-    anything you pass overrides them. Explain what you'll open to the user before calling."""
+    nonempty date, time, place and presenter override defaults; invite adds members to the group's members.
+    Explain what you'll open to the user before calling."""
     u = me()
     if on_date:
         try:
@@ -812,9 +813,10 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: s
                    "desc": about, "blind": bool(write_first), "bring": bool(everyone_brings_a_paper), "summary": (p["title"] if p else title)[:60]})
     sid = op["result"].get("studyId")
     st = _study(sid) if sid else None
+    d = DB.data()
     return _done(op, {"title": st and st["title"], "date": st and (st.get("date") or None), "time": st and (st.get("time") or None),
-                      "place": st and (st.get("place") or None), "presenter": st and _name(st["presenter"]),
-                      "members": st and [_name(x) for x in st["members"]], "open": sid and f"{SITE}/#/study/{sid}"})
+                      "place": st and (st.get("place") or None), "presenter": st and _name(st["presenter"], d),
+                      "members": st and [_name(x, d) for x in st["members"]], "open": sid and f"{SITE}/#/study/{sid}"})
 
 
 @mcp.tool()
@@ -1167,7 +1169,7 @@ def next_regular_study_session(study: str = "") -> str:
     """Set up a regular study's (정기 스터디) next session: date, presenter, paper."""
     return ("Help me set up the next session of a Labsidian regular study" + (f" ({study})" if study else " — find mine with list_regular_studies") + ". "
             "Show the past sessions (titles, who presented), the next date and whose turn it is. Ask me which paper we'll read "
-            "(search_papers for lab papers; otherwise a title or link). When I've picked, call open_study with group_id — "
+            "(search_papers for lab papers; otherwise a title and optional link). When I've picked, call open_study with group_id — "
             "the date, place, members and presenter are filled in — and give me the link.")
 
 

@@ -36,6 +36,22 @@
   view.id = "view-group"; view.className = "view page";
   document.querySelector("main").appendChild(view);
 
+  let dirty = false, saving = false, leaving = false;
+  function leave() {
+    if (saving) return false;
+    if (!dirty) return;
+    if (!leaving) {
+      const next = location.hash; leaving = true;
+      LabConfirm(t("w.leave"), { message: t("w.leaveMsg"), ok: t("w.leaveOk"), destructive: true }).then(ok => {
+        leaving = false;
+        if (ok) { dirty = false; location.hash = next; }
+      });
+    }
+    return false;
+  }
+  window.addEventListener("beforeunload", e => {
+    if (dirty || saving) { e.preventDefault(); e.returnValue = ""; }
+  });
   const name = id => UI.P[id]?.name || id;
   const wdName = i => t("grp.wd").split(",")[i] || "";
   const rhythm = g => { const c = g.cadence; return c ? t("grp.rhythm", { every: t("grp.every" + (c.every || 1)), wd: wdName(c.weekday), time: c.time || "" }).trim() : ""; };
@@ -78,15 +94,22 @@
 
   function wireForm(g) {
     const f = $("#grp-form", view);
-    $("#grp-members", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c && !c.disabled) c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); };
+    f.oninput = f.onchange = () => { dirty = true; };
+    $("#grp-members", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c && !c.disabled) { c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); dirty = true; } };
     f.onsubmit = async e => {
       e.preventDefault();
+      if (saving) return;
       if (!f.title.value.trim()) { $("#grp-err", view).textContent = t("grp.needName"); return; }
       const data = { title: f.title.value, desc: f.desc.value, place: f.place.value,
         members: [...view.querySelectorAll('#grp-members .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u),
         cadence: { weekday: f.weekday.value, time: f.time.value, every: f.every.value } };
-      const id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data);
-      location.hash = "#/group/" + encodeURIComponent(id);
+      saving = true;
+      const button = f.querySelector('button:not([type="button"])'); button.disabled = true;
+      try {
+        const id = g ? (await S.groups.update(g.id, data), g.id) : await S.groups.create(data);
+        dirty = false; location.hash = "#/group/" + encodeURIComponent(id);
+      } catch (error) { $("#grp-err", view).textContent = error.message; }
+      finally { saving = false; button.disabled = false; }
     };
   }
 
@@ -110,6 +133,7 @@
   }
 
   function render(params, arg) {
+    dirty = false;
     const me = S.auth.current(); if (!me) return;
     const rerender = () => render(new URLSearchParams(location.hash.split("?")[1] || ""), arg);
     if (arg === "new") {
@@ -130,6 +154,6 @@
     });
   }
 
-  window.LabGroups = { tile, rhythm };
-  (window.LabPages ||= {}).group = { render };
+  window.LabGroups = { tile };
+  (window.LabPages ||= {}).group = { render, leave };
 })();

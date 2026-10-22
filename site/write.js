@@ -320,6 +320,7 @@
 
     // tag autocomplete
     const q = $("#w-tag-q", view), pop = $("#w-tag-pop", view);
+    let creatingTag = false;
     q.oninput = () => {
       const s = q.value.trim().toLowerCase();
       if (!s) { pop.hidden = true; return; }
@@ -329,11 +330,21 @@
         ["method", "domain", "free"].map(ax => `<div data-new="${ax}">＋ “${esc(q.value.trim())}” <span class="muted">${t({ method: "w.newMethod", domain: "w.newDomain", free: "w.newKeyword" }[ax])}</span></div>`).join("");
     };
     pop.onclick = async e => {
-      const d = e.target.closest("[data-id],[data-new]"); if (!d) return;
+      const d = e.target.closest("[data-id],[data-new]"); if (!d || creatingTag) return;
       const label = q.value.trim();
       if (d.dataset.id) addTag(d.dataset.id);
       else if (d.dataset.new === "free") { const k = label.toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); if (k) addTag("f:" + k); }
-      else if (label) { const had = new Set(Object.keys(UI.T)), id = await S.tags.create({ axis: d.dataset.new, label }); addTag(id); if (!had.has(id)) LabToast(t("w.tagMade")); }
+      else if (label) {
+        const sourceForm = form, had = new Set(Object.keys(UI.T)); creatingTag = true;
+        try {
+          const id = await S.tags.create({ axis: d.dataset.new, label });
+          if (form !== sourceForm) return;
+          addTag(id); if (!had.has(id)) LabToast(t("w.tagMade"));
+        } catch (error) {
+          if (form === sourceForm) $("#w-err", view).textContent = error.message;
+          return;
+        } finally { creatingTag = false; }
+      }
       q.value = ""; pop.hidden = true; q.focus();
     };
     q.onkeydown = e => {

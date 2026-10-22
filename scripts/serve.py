@@ -619,7 +619,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(STORE.changes(int((q.get("since") or ["0"])[0])))
         elif u.path == "/api/snapshot":
             seed()
-            v, key = STORE.version(), (STORE.version(), SEED_JS.stat().st_mtime)
+            v, key = STORE.version(), (STORE.version(), SEED_JS.stat().st_mtime, date.today().isoformat())
             if STORE.snap[0] != key:
                 r = WORKER.call({"cmd": "snapshot", "db": STORE.db()})
                 if not r.get("ok"):

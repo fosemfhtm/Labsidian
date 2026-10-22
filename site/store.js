@@ -434,7 +434,7 @@
     if (sel.length) {
       reviews = allReviews.filter(r => sel.includes(r.term));
       view = makePapers(reviews);
-      view.live.forEach(p => { const f = full.byId[p.id]; if (f) Object.assign(p, { x: f.x, y: f.y, c: f.c, f: f.f, nb: f.nb }); });
+      view.live.forEach(p => { const f = full.byId[p.id]; if (f) Object.assign(p, { x: f.x, y: f.y, mx: f.mx, my: f.my, nb: f.nb }); });
     }
     const live = view.live, byId = view.byId;
 
@@ -875,6 +875,12 @@
       canManage(st) { const me = current(); return !!me && (st.host === me.id || st.presenter === me.id || me.role === "admin"); },
       async create(data) {
         const me = requireUser();
+        const g = data.groupId ? db.groups[data.groupId] : null;
+        if (data.groupId && !g) throw new Error("group.missing");
+        if (g) {
+          if (!Store.groups.member(g) && !Store.groups.canManage(g)) throw new Error("forbidden");
+          if (Store.groups.upcoming(g)) throw new Error("group.upcoming");
+        }
         const title = (data.title || "").trim(); if (!title) throw new Error("study.title");
         const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(title));
         const id = uid("s_");
@@ -883,7 +889,7 @@
           id, title: known?.title || title, paperId: known?.id || null, paperKey: known?.key || normTitle(title), link: data.link || known?.link || "",
           host: me.id, presenter: data.presenter || me.id, date: isDate(data.date) ? data.date : "", time: (data.time || "").slice(0, 5), place: (data.place || "").slice(0, 80),
           desc: (data.desc || "").slice(0, 2000), files: cleanFiles(data.files), members, closed: false, notes: null, notesDraft: null, reminded: {}, createdAt: now(),
-          blind: data.blind !== false, bring: !!data.bring, picks: {}, groupId: data.groupId && db.groups[data.groupId] ? data.groupId : null,
+          blind: data.blind !== false, bring: !!data.bring, picks: {}, groupId: g?.id || null,
         };
         members.filter(u => u !== me.id).forEach(u => notify(u, { type: "studyInvite", studyId: id, paperId: known?.id, excerpt: db.studies[id].title }));
         if (known) Store.reading._add(known.id);
@@ -918,6 +924,8 @@
       async close(id, closed = true) {
         const me = requireUser(), st = db.studies[id]; if (!st) return;
         if (!Store.studies.canManage(st)) throw new Error("forbidden");
+        const g = st.groupId && db.groups[st.groupId];
+        if (!closed && g && Store.groups.sessions(g).some(other => other !== st && !other.closed)) throw new Error("group.upcoming");
         st.closed = closed; st.closedAt = closed ? now() : null;
         if (closed) st.members.filter(u => u !== me.id).forEach(u => notify(u, { type: "studyClosed", studyId: id, excerpt: st.title }));
         log("study.close", `${st.title} ${closed}`); save();
@@ -1045,7 +1053,7 @@
           (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: null, type: "groupSession", groupId: g.id, excerpt: g.title });
           changed = true;
         });
-        // admins: once a month, a nudge to tidy tags and map region names (by hand, or by asking their own AI)
+        // admins: once a month, a nudge to tidy tags (by hand, or by asking their own AI)
         const month = d0.slice(0, 7), u = db.users[me.id];
         if (me.role === "admin" && u && u.curationReminded !== month) {
           u.curationReminded = month;
@@ -1103,8 +1111,9 @@
         const c = g.cadence; if (!c) return "";
         const d0 = today(), step = 7 * (c.every || 1), last = Store.groups.sessions(g).map(st => st.date).filter(Boolean).sort().pop();
         let d = last ? addDays(last, step) : d0;
+        d = addDays(d, (c.weekday - new Date(d + "T00:00:00Z").getUTCDay() + 7) % 7);
         while (d < d0) d = addDays(d, step);
-        return addDays(d, (c.weekday - new Date(d + "T00:00:00Z").getUTCDay() + 7) % 7);
+        return d;
       },
       // presenters take turns in the members' order
       nextPresenter(g) {
@@ -1113,11 +1122,12 @@
         return ms[((last ? ms.indexOf(last.presenter) : -1) + 1) % ms.length];
       },
       _fields(g, data) {
-        const c = data.cadence, wd = c && c.weekday !== "" && c.weekday != null ? Math.max(0, Math.min(6, +c.weekday)) : null;
+        const c = data.cadence, wd = c && c.weekday !== "" && c.weekday != null ? +c.weekday : null;
+        if (wd != null && (!Number.isInteger(wd) || wd < 0 || wd > 6)) throw new Error("group.cadence");
         g.title = String(data.title || "").trim().slice(0, 120) || g.title; if (!g.title) throw new Error("group.title");
         g.desc = String(data.desc || "").slice(0, 1000);
         g.members = [...new Set([g.owner, ...(data.members || g.members || [])])].filter(u => db.users[u]);
-        g.cadence = wd == null ? null : { weekday: wd, time: /^\d{2}:\d{2}$/.test(c.time || "") ? c.time : "", every: +c.every === 2 ? 2 : 1 };
+        g.cadence = wd == null ? null : { weekday: wd, time: /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(c.time || "") ? c.time : "", every: +c.every === 2 ? 2 : 1 };
         g.place = String(data.place || "").slice(0, 80); g.updatedAt = now();
       },
       async create(data) {
@@ -1356,7 +1366,8 @@
         if (!label) throw new Error("tag.label");
         const same = SEED.topics.find(t => t.axis === axis && [t.label, t.labelEn].some(x => x && [label, labelEn].some(y => y && x.toLowerCase() === y.toLowerCase())));
         if (same) return same.id;
-        const id = `${axis[0]}:${slug(labelEn || label) || uid("t")}`;
+        let id = cleanTag(`${axis[0]}:${slug(labelEn || label) || uid("t")}`);
+        if (SEED.topics.some(t => t.id === id) || db.tagOps.some(op => op.op === "create" && op.id === id)) id = cleanTag(`${axis[0]}:${uid("t")}`);
         color = color || SYS_NAMES[SEED.topics.filter(t => t.axis === axis).length % SYS_NAMES.length];
         db.tagOps.push({ op: "create", id, axis, label, labelEn: labelEn || label, color: safeColor(color), at: now() }); log("tag.create", label); save();
         buildDataset();
@@ -1557,10 +1568,6 @@
         // a regular study's next session gets the same defaults as the site's "next session" form
         const g = op.groupId ? db.groups[op.groupId] : null;
         if (op.groupId && !g) throw new Error("group.missing");
-        if (g) {
-          if (Store.groups.upcoming(g)) throw new Error("group.upcoming");
-          if (!Store.groups.member(g) && !Store.groups.canManage(g)) throw new Error("forbidden");
-        }
         const p = op.paperId ? SEED.allPapers.find(x => x.id === op.paperId) : null;
         res = { studyId: (await Store.studies.create({
           title: p?.title || op.title || "", paperId: p?.id || null, link: op.link || p?.link || "",

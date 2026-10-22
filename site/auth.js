@@ -211,7 +211,7 @@
   function notifMenu() {
     const list = S.notifications.list().slice(0, 30);
     return `<div class="menu-h"><b>${t("n.title")}</b>${list.some(n => !n.read) ? `<button class="ui-btn text" data-act="all">${t("n.readAll")}</button>` : ""}</div>` +
-      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${n.id}" data-paper="${n.paperId || ""}" data-review="${n.reviewId || ""}" data-comment="${n.commentId || ""}" data-study="${n.studyId || ""}" data-guide="${n.guideId || ""}" data-group="${n.groupId || ""}" data-type="${n.type}">
+      (list.map(n => `<div class="ui-row two notif ${n.read ? "" : "unread"}" data-id="${esc(n.id)}" data-paper="${esc(n.paperId || "")}" data-review="${esc(n.reviewId || "")}" data-comment="${esc(n.commentId || "")}" data-study="${esc(n.studyId || "")}" data-guide="${esc(n.guideId || "")}" data-group="${esc(n.groupId || "")}" data-type="${esc(n.type)}">
         ${n.type === "curation" ? `<span class="avatar admin"><i data-lucide="sparkles" class="ic"></i></span>` : UI.avatar(n.actor)}<div><div>${esc(LabNotifText(n))}</div>
         ${n.paperId && UI.PA[n.paperId] ? `<div class="muted ellip">${esc(UI.PA[n.paperId].title)}</div>` : ""}
         ${n.excerpt ? `<div class="excerpt">“${esc(n.excerpt)}”</div>` : ""}<div class="muted">${ago(n.at)}</div></div></div>`).join("") || `<div class="ui-empty">${t("n.empty")}</div>`);
@@ -226,11 +226,11 @@
   // where a notification leads (used by the bell and the my-page inbox)
   function openNotif(d) {
     if (d.type === "curation") { location.hash = "#/admin?tab=tags"; return; }
-    if (d.group) { location.hash = d.type === "groupSession" ? "#/study/new?group=" + d.group : "#/group/" + d.group; return; }
-    if (d.guide) { location.hash = "#/guide/" + d.guide; return; }
+    if (d.group) { location.hash = d.type === "groupSession" ? "#/study/new?group=" + encodeURIComponent(d.group) : "#/group/" + encodeURIComponent(d.group); return; }
+    if (d.guide) { location.hash = "#/guide/" + encodeURIComponent(d.guide); return; }
     if (d.study) {
       const tab = { studyClosed: "notes", studyNotesDraft: "notes", studyQuestion: "prep" }[d.type];
-      location.hash = "#/study/" + d.study + (tab ? "?tab=" + tab : ""); return;
+      location.hash = "#/study/" + encodeURIComponent(d.study) + (tab ? "?tab=" + tab : ""); return;
     }
     window.LabOpenReview?.(d.paper, d.review, d.comment);
   }

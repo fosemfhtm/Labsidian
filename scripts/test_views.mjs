@@ -4,17 +4,19 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const listeners = new Map();
-const paper = { id: "p1", x: 0, y: 0, reviews: [], domains: ["field"], methods: ["one"] };
+const paper = { id: "p1", title: "Paper", x: 0, y: 0, mx: 20, my: 30, reviews: [], readers: [], domains: ["field"], methods: ["one"] };
 const lab = { papers: [paper], reviews: [], people: [], topics: [
   { id: "d:field", axis: "domain", label: "Old" }, { id: "m:one", axis: "method", label: "One" },
 ] };
 const elements = new Map();
 const element = selector => {
-  if (!elements.has(selector)) elements.set(selector, { textContent: "", innerHTML: "" });
+  if (!elements.has(selector)) elements.set(selector, { textContent: "", innerHTML: "", value: "", children: [], style: {},
+    querySelector: element, querySelectorAll: () => [], classList: { toggle() {} }, setAttribute() {} });
   return elements.get(selector);
 };
 let pendingShow;
 let clearedTimer;
+let pendingFrame, cancelledFrame, restarts = 0;
 const window = {
   LAB: lab,
   I18N: { t: key => key, extend() {} },
@@ -25,7 +27,10 @@ const window = {
 const context = vm.createContext({
   window, I18N: window.I18N,
   document: { documentElement: {}, querySelector: element, addEventListener() {} },
-  localStorage: { getItem: () => null }, matchMedia: () => ({ matches: false }),
+  localStorage: { getItem() { throw new Error("Storage blocked"); }, setItem() { throw new Error("Storage blocked"); } },
+  matchMedia: () => ({ matches: false }), performance: { now: () => 0 },
+  requestAnimationFrame: callback => { pendingFrame = callback; return 99; },
+  cancelAnimationFrame: id => { cancelledFrame = id; },
   getComputedStyle: () => ({ getPropertyValue: () => "0 0 0" }),
   setTimeout: callback => { pendingShow = callback; },
   clearInterval: timer => { clearedTimer = timer; },
@@ -50,6 +55,61 @@ vm.runInContext("timeTimer = 42", context);
 window.LabGraph.hide();
 assert.equal(clearedTimer, 42);
 assert.equal(element("#t-play").textContent, "▶");
+// Polled datasets replace paper objects and can add/remove graph nodes without replacing UI listeners.
+class ViewGraph {
+  nodes = new Map();
+  clear() { this.nodes.clear(); }
+  addNode(id, attributes) { this.nodes.set(id, attributes); }
+  hasNode(id) { return this.nodes.has(id); }
+  getNodeAttributes(id) { return this.nodes.get(id); }
+  forEachNode(fn) { this.nodes.forEach((a, id) => fn(id, a)); }
+  updateEachNodeAttributes(fn) { this.nodes.forEach((a, id) => this.nodes.set(id, fn(id, a))); }
+}
+context.Graph = ViewGraph;
+context.restart = () => { restarts++; };
+vm.runInContext(`
+  graph = new Graph(); buildGraph();
+  graph.getNodeAttributes("p1").x = 7;
+  renderer = { refresh() {}, setCustomBBox() {}, getCamera: () => ({ ratio: 1 }), graphToViewport: p => p };
+  buildSim = () => {
+    const nodes = [];
+    graph.forEachNode((id, a) => nodes.push({ id, ...a }));
+    sim = { stop() {}, nodes: () => nodes, force: () => ({ x() {}, y() {} }), alpha() { return this; }, restart };
+  };
+`, context);
+lab.papers = [{ ...paper, title: "Updated" }, { ...paper, id: "p2" }];
+Object.assign(window.LabUI.T, Object.fromEntries(lab.topics.map(t => [t.id, t])));
+const dataListeners = listeners.get("lab:data").length;
+for (const callback of listeners.get("lab:data")) callback();
+assert.equal(vm.runInContext('PA.p1.title', context), "Updated");
+assert.equal(vm.runInContext('graph.hasNode("p2")', context), true);
+assert.equal(vm.runInContext('graph.getNodeAttributes("p1").x', context), 7, "polling preserves the user's layout");
+vm.runInContext('state.selected = "p1"', context);
+lab.papers = [lab.papers[1]];
+for (const callback of listeners.get("lab:data")) callback();
+assert.equal(vm.runInContext('graph.hasNode("p1")', context), false);
+assert.equal(vm.runInContext("state.selected", context), null);
+assert.equal(listeners.get("lab:data").length, dataListeners);
+// Leaving during the flip cancels its frame and must not restart hidden physics.
+vm.runInContext('visible = true; flipAxis("method")', context);
+assert.equal(typeof pendingFrame, "function");
+window.LabGraph.hide();
+assert.equal(cancelledFrame, 99);
+assert.equal(vm.runInContext("flipping", context), false);
+assert.equal(vm.runInContext('graph.getNodeAttributes("p2").x', context), 20);
+assert.equal(restarts, 0);
+// Read all label sizes before placing any label: no forced layout per tag during camera animation.
+const layout = [];
+element("#tag-labels").children = [0, 1].map(i => ({
+  style: { set transform(value) { layout.push(`place${i}`); } }, classList: { toggle() {} },
+  get offsetWidth() { layout.push(`width${i}`); return 20; },
+  get offsetHeight() { layout.push(`height${i}`); return 10; },
+}));
+Object.assign(element("#graph"), { clientWidth: 300, clientHeight: 200 });
+element("#regions").getContext = () => ({ setTransform() {}, clearRect() {} });
+vm.runInContext('visible = true; state.layers.regions = false; areas = [{ x: 60, y: 60 }, { x: 160, y: 60 }]; drawOverlay()', context);
+assert.ok(layout.indexOf("height1") < layout.indexOf("place0"), "all reads precede the first placement write");
+window.LabGraph.hide();
 // Enter on Cancel must be handled by the focused button, never converted to confirmation.
 const keyListeners = new Set();
 let alert;
@@ -140,9 +200,88 @@ const lookupDone = writeNode("#w-fetch").handlers.click();
 writePage.leave(); resolveLookup({ title: "Late lookup" }); await lookupDone;
 assert.equal(writeNode("#w-title").value, "Draft", "lookup completion cannot rewrite a diary after navigation");
 // Regular-study cards retain safe routes when IDs contain percent signs or quotes.
-const groupWindow = { I18N: window.I18N, LabUI: { esc: String, avStack: () => "" },
+const groupWindow = { I18N: window.I18N, LabUI: { esc: String, avStack: () => "" }, addEventListener() {},
   Store: { groups: { sessions: () => [], upcoming: () => null, nextDate: () => null } } };
 vm.runInNewContext(load("groups.js"), { window: groupWindow, I18N: window.I18N,
   document: { createElement: () => ({}), querySelector: () => ({ appendChild() {} }) } });
 assert.ok(groupWindow.LabGroups.tile({ id: 'g%"/', title: "Study", members: [] }).includes('href="#/group/g%25%22%2F"'));
+// Group edits survive cancelled navigation; saves are single-flight and failures keep the input.
+const groupNodes = new Map(), groupEvents = {};
+const groupNode = selector => {
+  if (!groupNodes.has(selector)) groupNodes.set(selector, { value: "", disabled: false, textContent: "",
+    querySelector: groupNode, querySelectorAll: () => [], appendChild() {} });
+  return groupNodes.get(selector);
+};
+const groupView = groupNode("view"), groupForm = groupNode("#grp-form");
+for (const field of ["title", "desc", "place", "weekday", "time", "every"]) groupForm[field] = { value: field === "title" ? "Study" : "" };
+let groupConfirm, resolveGroup, rejectGroup, groupCreates = 0;
+const groupLocation = { hash: "#/group/new" };
+const formWindow = { I18N: window.I18N, LabUI: { esc: String, P: {} },
+  Store: { auth: { current: () => ({ id: "u" }) }, groups: { create: () => {
+    groupCreates++; return new Promise((resolve, reject) => { resolveGroup = resolve; rejectGroup = reject; });
+  } } }, addEventListener(type, callback) { groupEvents[type] = callback; } };
+vm.runInNewContext(load("groups.js"), { window: formWindow, I18N: window.I18N, location: groupLocation,
+  LabConfirm: () => new Promise(resolve => { groupConfirm = resolve; }),
+  document: { createElement: () => groupView, querySelector: groupNode } });
+const groupPage = formWindow.LabPages.group;
+groupPage.render(new URLSearchParams(), "new");
+groupForm.oninput();
+let groupUnloadBlocked = false;
+groupEvents.beforeunload({ preventDefault() { groupUnloadBlocked = true; } });
+assert.equal(groupUnloadBlocked, true);
+groupLocation.hash = "#/study"; assert.equal(groupPage.leave(), false);
+groupLocation.hash = "#/group/new"; groupConfirm(false); await Promise.resolve();
+assert.equal(groupLocation.hash, "#/group/new");
+assert.equal(groupForm.title.value, "Study");
+const submitGroup = () => groupForm.onsubmit({ preventDefault() {} });
+const failedGroup = submitGroup(); await submitGroup();
+assert.equal(groupCreates, 1, "rapid submit must create only one group");
+assert.equal(groupPage.leave(), false, "navigation cannot race a pending save");
+rejectGroup(new Error("forbidden")); await failedGroup;
+assert.equal(groupNode("#grp-err").textContent, "forbidden");
+assert.equal(groupForm.title.value, "Study");
+const savedGroup = submitGroup(); resolveGroup('g%"/'); await savedGroup;
+assert.equal(groupLocation.hash, "#/group/g%25%22%2F");
+assert.notEqual(groupPage.leave(), false, "successful saves must not ask to discard");
+// Async tag creation must not tag another diary opened while the request was pending.
+let resolveTag, tagCreates = 0;
+writeStore.tags = { create: () => { tagCreates++; return new Promise(resolve => { resolveTag = resolve; }); } };
+writePage.render(new URLSearchParams());
+writeNode("#w-tag-q").value = "New field";
+const tagClick = { target: { closest: () => ({ dataset: { new: "domain" } }) } };
+const createTag = writeNode("#w-tag-pop").onclick(tagClick);
+await writeNode("#w-tag-pop").onclick(tagClick);
+assert.equal(tagCreates, 1);
+writePage.render(new URLSearchParams());
+resolveTag("d:new"); await createTag;
+assert.equal(writeNode("#w-tags").innerHTML, "", "late tag completion must not modify a different form");
+// Browser study creation reports group conflicts without leaving the form or double-submitting.
+let studyCreates = 0, rejectStudy;
+const newStudy = load("study.js").split("  function newPage(params) {")[1].split("  // ---------------------------------------------------------------- detail")[0];
+const studyFormContext = vm.createContext({ view: groupView, $: groupNode, back: "", t: key => key, esc: String,
+  UI: { P: {}, PA: {} }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
+    findPaper: () => null, studies: { create: () => { studyCreates++; return new Promise((_, reject) => { rejectStudy = reject; }); } } },
+  paperSearch: () => ({ id: null }), location: {}, LabToast() {}, URLSearchParams });
+vm.runInContext("function newPage(params) {" + newStudy + "\nnewPage(new URLSearchParams());", studyFormContext);
+groupNode("#st-title").value = "Paper";
+const studyForm = groupNode("#st-form");
+const submitStudy = () => studyForm.onsubmit({ preventDefault() {}, currentTarget: studyForm });
+const pendingStudy = submitStudy(); await submitStudy();
+assert.equal(studyCreates, 1);
+rejectStudy(new Error("group.upcoming")); await pendingStudy;
+assert.equal(groupNode("#st-err").textContent, "group.upcoming");
+assert.equal(groupNode("#st-title").value, "Paper");
+// Notification payload IDs stay inside attributes and route as literal IDs.
+const notifLocation = {}, notifId = 'g%"/?x=1&next=bad';
+const notifContext = vm.createContext({ window: {}, location: notifLocation,
+  esc: value => String(value).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])),
+  t: key => key, UI: { avatar: () => "", PA: {} }, LabNotifText: () => "", ago: () => "",
+  S: { notifications: { list: () => [{ id: "n", type: "groupJoin", groupId: notifId }] } } });
+const notifSource = load("auth.js");
+vm.runInContext("function notifMenu() {" + notifSource.split("  function notifMenu() {")[1].split("  function wireNotif")[0], notifContext);
+assert.ok(vm.runInContext("notifMenu()", notifContext).includes('data-group="g%&quot;/?x=1&amp;next=bad"'));
+vm.runInContext("function openNotif(d) {" + notifSource.split("  function openNotif(d) {")[1].split("  window.LabOpenNotif")[0], notifContext);
+notifContext.payload = { group: notifId, type: "groupSession" };
+vm.runInContext("openNotif(payload)", notifContext);
+assert.equal(notifLocation.hash, "#/study/new?group=" + encodeURIComponent(notifId));
 console.log("Frontend cache and lifecycle regressions passed.");

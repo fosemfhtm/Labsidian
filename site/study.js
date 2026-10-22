@@ -165,7 +165,7 @@
     const groups = new Map(), solo = [];
     list.forEach(st => { const g = S.groups.get(st.groupId); g ? (groups.get(g) || groups.set(g, []).get(g)).push(st) : solo.push(st); });
     if (!groups.size) return `<div class="st-grid">${solo.map(card).join("")}</div>`;
-    return [...groups].map(([g, sts]) => `<section class="st-group"><h4><span class="ui-pill accent">${t("grp.title")}</span><a href="#/group/${g.id}">${esc(g.title)}</a></h4>
+    return [...groups].map(([g, sts]) => `<section class="st-group"><h4><span class="ui-pill accent">${t("grp.title")}</span><a href="#/group/${encodeURIComponent(g.id)}">${esc(g.title)}</a></h4>
         <div class="st-grid">${sts.map(card).join("")}</div></section>`).join("")
       + (solo.length ? `<section class="st-group"><h4>${t("st.solo")}</h4><div class="st-grid">${solo.map(card).join("")}</div></section>` : "");
   }
@@ -241,16 +241,23 @@
       const meta = await uploadInto(f, err); if (!meta) return;
       newFiles = [meta]; out.innerHTML = `<span class="att pdf">📄 ${esc(f.name)} <span class="m">${UI.kb(f.size)}</span></span>`;
     };
+    let saving = false;
     $("#st-form", view).onsubmit = async e => {
       e.preventDefault();
+      if (saving) return;
       if (!title.value.trim()) return ($("#st-err", view).textContent = t("st.need.title"));
+      saving = true;
+      const button = e.currentTarget.querySelector('button:not([type="button"])'); button.disabled = true;
+      try {
       const { id } = await S.studies.create({
         title: title.value, paperId: box.id, link: $("#st-link", view).value.trim(), date: $("#st-date", view).value, time: $("#st-time", view).value,
         place: $("#st-place", view).value.trim(), presenter: $("#st-presenter", view).value, desc: $("#st-desc", view).value.trim(),
         invite: [...view.querySelectorAll('#st-invite .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u), files: newFiles,
         blind: $("#st-blind", view).checked, bring: $("#st-bring", view).checked, groupId: g?.id,
       });
-      LabToast(t("st.created")); location.hash = "#/study/" + id;
+        LabToast(t("st.created")); location.hash = "#/study/" + encodeURIComponent(id);
+      } catch (error) { $("#st-err", view).textContent = error.message; }
+      finally { saving = false; button.disabled = false; }
     };
   }
 
@@ -268,7 +275,7 @@
   function series(st) {
     const g = S.groups.get(st.groupId); if (!g) return "";
     const sts = S.groups.sessions(g), i = sts.indexOf(st), prev = sts[i - 1], next = sts[i + 1];
-    return `<div class="st-series"><a href="#/group/${g.id}">👥 ${t("st.series", { g: esc(g.title), n: i + 1 })}</a>
+    return `<div class="st-series"><a href="#/group/${encodeURIComponent(g.id)}">👥 ${t("st.series", { g: esc(g.title), n: i + 1 })}</a>
       ${prev ? `<a class="ui-btn text" href="#/study/${prev.id}">${t("st.prevRound", { n: i })}</a>` : ""}${next ? `<a class="ui-btn text" href="#/study/${next.id}">${t("st.nextRound", { n: i + 2 })}</a>` : ""}</div>`;
   }
 

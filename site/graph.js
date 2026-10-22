@@ -12,36 +12,41 @@ const D = window.LAB, UI = window.LabUI, { t } = window.I18N;
 const { P, T, R, esc } = UI;
 const $ = s => document.querySelector(s);
 
-const papers = D.papers.filter(p => p.x != null);
-const PA = Object.fromEntries(papers.map(p => [p.id, p]));
-papers.forEach(p => {
-  const first = [...p.reviews].map(r => R[r]).sort((a, b) => a.date.localeCompare(b.date))[0];
-  p._first = first?.person;
-});
-const reviewDates = [...new Set(D.reviews.map(r => r.date))].sort();
-const years = papers.map(p => window.Store.paperYear(p)).filter(Boolean);
-const YMIN = Math.min(...years, 2000), YMAX = Math.max(...years, 2026);
-
-const venueCount = {};
-papers.forEach(p => p.venueNorm && (venueCount[p.venueNorm] = (venueCount[p.venueNorm] || 0) + 1));
-const venuesSorted = Object.entries(venueCount).sort((a, b) => b[1] - a[1]);
+let papers, PA, reviewDates, YMIN, YMAX, venuesSorted, venueName, PAPER_SCALE;
 // top venues get system colours in this order; the rest are "other" (gray) — docs/design/data-viz.md §2
 const VENUE_NAMES = ["blue", "red", "green", "orange", "purple", "cyan", "yellow", "teal", "pink", "indigo"];
-const venueName = Object.fromEntries(venuesSorted.slice(0, VENUE_NAMES.length).map(([v], i) => [v, VENUE_NAMES[i]]));
+function readData() {
+  papers = D.papers.filter(p => p.x != null);
+  PA = Object.fromEntries(papers.map(p => [p.id, p]));
+  papers.forEach(p => {
+    const first = p.reviews.map(r => R[r]).sort((a, b) => a.date.localeCompare(b.date))[0];
+    p._first = first?.person;
+  });
+  reviewDates = [...new Set(D.reviews.map(r => r.date))].sort();
+  const years = papers.map(p => window.Store.paperYear(p)).filter(Boolean);
+  YMIN = Math.min(...years, 2000); YMAX = Math.max(...years, 2026);
+  const venueCount = {};
+  papers.forEach(p => p.venueNorm && (venueCount[p.venueNorm] = (venueCount[p.venueNorm] || 0) + 1));
+  venuesSorted = Object.entries(venueCount).sort((a, b) => b[1] - a[1]);
+  venueName = Object.fromEntries(venuesSorted.slice(0, VENUE_NAMES.length).map(([v], i) => [v, VENUE_NAMES[i]]));
+  PAPER_SCALE = Math.min(1, Math.pow(900 / Math.max(1, papers.length), 0.25));
+}
+readData();
 
 const DEFAULT_PHYSICS = { repel: 8, link: 0.5, anchor: 0.18 };
 const state = {
-  axis: localStorage.getItem("lab.mapAxis") === "method" ? "method" : "domain",
+  axis: "domain",
   colorBy: "person", people: new Set(), tags: new Set(), methods: new Set(), venues: new Set(), vtypes: new Set(),
   yearMin: YMIN, yearMax: YMAX, yearUnknown: true, minRating: 0, sharedOnly: false, mode: "dim",
   layers: { links: true, regions: true, labels: true, timeline: false },
   physics: { ...DEFAULT_PHYSICS },
   timeIdx: reviewDates.length - 1, selected: null, depth: 1, hovered: null, find: null,
 };
+try { state.axis = localStorage.getItem("lab.mapAxis") === "method" ? "method" : "domain"; } catch (e) {}
 let focusSet = null, hoverSet = null, matchCache = new Map();
 let graph, renderer, sim, simById = {}, started = false, visible = false, timeTimer = null;
 
-let flipping = false;
+let flipping = false, axisFrame = 0, finishFlip = null;
 const anchorX = p => state.axis === "method" ? (p.mx ?? p.x) : p.x;
 const anchorY = p => state.axis === "method" ? (p.my ?? p.y) : p.y;
 const axisTags = p => state.axis === "method" ? p.methods : p.domains;
@@ -126,9 +131,8 @@ function nodeOn(n, a = graph.getNodeAttributes(n)) {
 // ---------------- graph ----------------
 // a big lab draws its nodes a little smaller (1 up to ~900 papers, 0.8 at ~2300) so the overview doesn't turn into a carpet;
 // people shrink by the same factor — their size grows with their diary count, which grows with every term shown
-const PAPER_SCALE = Math.min(1, Math.pow(900 / Math.max(1, papers.length), 0.25));
 function buildGraph() {
-  graph = new Graph();
+  if (graph) graph.clear(); else graph = new Graph();
   papers.forEach(p => graph.addNode(p.id, {
     kind: "paper", type: "border", x: anchorX(p), y: anchorY(p), ax: anchorX(p), ay: anchorY(p),
     size: PAPER_SCALE * Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),
@@ -179,6 +183,7 @@ function buildSim() {
       a.x = s.x; a.y = s.y;
       return a;
     }, { attributes: ["x", "y"] }));
+  sim.on("end", () => { computeTagAreas(); renderer.refresh(); });
 }
 function applyPhysics() {
   const ph = state.physics;
@@ -261,7 +266,7 @@ function drawHover(ctx, data) {
 
 // ---------------- tag density areas + labels ----------------
 const regionCanvas = $("#regions"), labelLayer = $("#tag-labels");
-const areaCache = { domain: [], method: [] };
+let areas = [];
 const inside = (point, ring) => {
   let yes = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -278,7 +283,7 @@ function computeTagAreas() {
     const a = graph.getNodeAttributes(p.id);
     axisTags(p).forEach(key => { if (T[tagId(key)]) (groups[tagId(key)] ||= []).push([a.x, a.y]); });
   });
-  const areas = [];
+  areas = [];
   // smoothing grows with the map (build_map spreads ~100 · √(n/900) units per std), so a big lab isn't cut into crumbs
   const BW = 12 * Math.sqrt(Math.max(1, papers.length / 900)), PAD = BW * 3;
   Object.entries(groups).forEach(([id, points]) => {
@@ -315,7 +320,7 @@ function computeTagAreas() {
     blobs.splice(blobs[1] && blobs[1].count >= blobs[0].count * 0.35 ? 2 : 1);
     if (blobs.length) areas.push({ id, blobs, ...blobs[0] });
   });
-  areaCache[state.axis] = areas.sort((a, b) => b.count - a.count);
+  areas = areas.sort((a, b) => b.count - a.count);
   buildLabels();
 }
 function drawOverlay() {
@@ -333,7 +338,7 @@ function drawOverlay() {
   const zr = renderer.getCamera().ratio;
   if (state.layers.regions) {
     ctx.globalAlpha = Math.max(0.7, Math.min(1, zr / 0.55));   // zoomed in, the region you're in stays visible
-    areaCache[state.axis].forEach(({ id, blobs }) => blobs.forEach(({ rings }) => {
+    areas.forEach(({ id, blobs }) => blobs.forEach(({ rings }) => {
       ctx.beginPath();
       rings.forEach(ring => {
         ring.forEach(([x, y], i) => {
@@ -358,13 +363,14 @@ function drawOverlay() {
     const v = renderer.graphToViewport(a);
     placed.push({ x: v.x - 34, y: v.y - 14, w: 68, h: 46 });
   });
-  const areas = areaCache[state.axis];
-  [...labelLayer.children].forEach(div => {
-    const pos = areas.find(a => a.id === div.dataset.id);
-    if (!state.layers.labels || !pos) { div.style.display = "none"; return; }
-    const v = renderer.graphToViewport(pos);
-    div.style.display = "block";
-    const bw = div.offsetWidth, bh = div.offsetHeight, x = v.x - bw / 2;
+  const labels = [...labelLayer.children];
+  labels.forEach(div => { div.style.display = state.layers.labels ? "block" : "none"; });
+  if (!state.layers.labels) return;
+  // Batch layout reads before placement writes; alternating them forces layout once per tag, every frame.
+  const sizes = labels.map(div => [div.offsetWidth, div.offsetHeight]);
+  labels.forEach((div, i) => {
+    const pos = areas[i], [bw, bh] = sizes[i];
+    const v = renderer.graphToViewport(pos), x = v.x - bw / 2;
     const y = [0, -1, 1, -2, 2].map(k => v.y - bh / 2 + k * (bh + 6)).find(yy => fits(x, yy, bw, bh));
     if (y == null) { div.style.display = "none"; return; }
     div.style.transform = `translate(${x}px, ${y}px)`;
@@ -372,11 +378,11 @@ function drawOverlay() {
   });
 }
 function buildLabels() {
-  labelLayer.innerHTML = areaCache[state.axis].map(a =>
+  labelLayer.innerHTML = areas.map(a =>
     `<button type="button" class="ui-btn plain tag-area-label" data-id="${esc(a.id)}" style="--c:${hex(T[a.id].color)}">${esc(UI.tl(T[a.id]))}</button>`).join("");
   labelLayer.onclick = e => {
     const button = e.target.closest("[data-id]"); if (!button || flipping) return;
-    const area = areaCache[state.axis].find(a => a.id === button.dataset.id);
+    const area = areas.find(a => a.id === button.dataset.id);
     zoomTo(area.x, area.y, 0.32);
     UI.openDrawer("topic", area.id, { fromGraph: true });
   };
@@ -391,7 +397,7 @@ function flipAxis(axis) {
   nodes.forEach((n, i) => { const a = graph.getNodeAttributes(n.id); sx[i] = a.x; sy[i] = a.y; cy += a.y; });
   cy /= count;
   state.axis = axis;
-  localStorage.setItem("lab.mapAxis", axis);
+  try { localStorage.setItem("lab.mapAxis", axis); } catch (e) {}
   nodes.forEach((n, i) => {
     if (n.kind === "paper") { tx[i] = anchorX(PA[n.id]); ty[i] = anchorY(PA[n.id]); }
     else {
@@ -419,7 +425,8 @@ function flipAxis(axis) {
     index = 0;
     graph.updateEachNodeAttributes(writePosition, positionHints);
   };
-  const finish = () => {
+  const finish = finishFlip = () => {
+    cancelAnimationFrame(axisFrame); axisFrame = 0; finishFlip = null;
     paint(1);
     nodes.forEach((n, i) => { n.x = tx[i]; n.y = ty[i]; });
     sim.force("ax").x(n => n.kind === "paper" ? anchorX(PA[n.id]) : n.ax);
@@ -427,16 +434,16 @@ function flipAxis(axis) {
     flipping = false; labelLayer.hidden = false;
     $("#g-axis").querySelectorAll("button").forEach(b => { b.disabled = false; });
     computeTagAreas(); renderer.refresh();
-    sim.alpha(0.12).restart();
+    if (visible) sim.alpha(0.12).restart();
   };
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) { finish(); sim.stop(); return; }
   const start = performance.now();
   const frame = now => {
     const progress = Math.min(1, (now - start) / 900);
     if (progress === 1) { finish(); return; }
-    paint(progress); requestAnimationFrame(frame);
+    paint(progress); axisFrame = requestAnimationFrame(frame);
   };
-  requestAnimationFrame(frame);
+  axisFrame = requestAnimationFrame(frame);
 }
 
 // ---------------- camera ----------------
@@ -711,7 +718,7 @@ function initDrag() {
   });
   const mc = renderer.getMouseCaptor();
   mc.on("mousemovebody", e => {
-    if (!drag) return;
+    if (!drag || !simById[drag]) return;
     moved = true;
     const pos = renderer.viewportToGraph(e), sn = simById[drag];
     sn.fx = pos.x; sn.fy = pos.y;
@@ -719,7 +726,7 @@ function initDrag() {
   });
   const up = () => {
     if (!drag) return;
-    const sn = simById[drag]; sn.fx = null; sn.fy = null;
+    const sn = simById[drag]; if (sn) sn.fx = sn.fy = null;
     sim.alphaTarget(0);
     drag = null;
   };
@@ -755,6 +762,39 @@ function initWheelZoom() {
 }
 
 // ---------------- boot ----------------
+function refreshData() {
+  finishFlip?.();
+  sim?.stop(); stopTimeline();
+  const min = YMIN, max = YMAX;
+  readData(); readTheme();
+  if (state.yearMin === min) state.yearMin = YMIN;
+  if (state.yearMax === max) state.yearMax = YMAX;
+  state.timeIdx = reviewDates.length - 1;
+  matchCache.clear(); state.hovered = null; hoverSet = null;
+  if (!renderer) {
+    started = false;
+    if (visible) start();
+    return;
+  }
+  const positions = new Map();
+  graph.forEachNode((id, a) => positions.set(id, { x: a.x, y: a.y }));
+  buildGraph();
+  graph.updateEachNodeAttributes((id, a) => Object.assign(a, positions.get(id)), { attributes: ["x", "y"] });
+  buildSim(); sim.stop();
+  if (papers.length) setBounds();
+  $("#f-year-min").min = $("#f-year-max").min = YMIN;
+  $("#f-year-min").max = $("#f-year-max").max = YMAX;
+  $("#f-year-min").value = state.yearMin; $("#f-year-max").value = state.yearMax;
+  $("#f-year-v").textContent = `${state.yearMin} – ${state.yearMax}`;
+  $("#t-range").max = reviewDates.length - 1; $("#t-range").value = state.timeIdx;
+  $("#t-label").textContent = reviewDates[state.timeIdx] || "";
+  renderPopovers(); computeTagAreas(); select(state.selected); changed();
+}
+window.addEventListener("lab:data", refreshData);
+function setBounds() {
+  const xs = papers.flatMap(p => [p.x, p.mx ?? p.x]), ys = papers.flatMap(p => [p.y, p.my ?? p.y]), m = 1.25;
+  renderer.setCustomBBox({ x: [Math.min(...xs) * m, Math.max(...xs) * m], y: [Math.min(...ys) * m, Math.max(...ys) * m] });
+}
 function start() {
   if (started) return;
   started = true;
@@ -763,6 +803,7 @@ function start() {
     window.LabGraph._r = null;
     return;
   }
+  $("#graph").innerHTML = "";
   buildGraph();
   renderer = new Sigma(graph, $("#graph"), {
     nodeProgramClasses: { border: NodeBorderProgram },
@@ -772,11 +813,10 @@ function start() {
     minCameraRatio: 0.03, maxCameraRatio: 3, stagePadding: 30,
     allowInvalidContainer: true, // routes can hide the container before Sigma's next frame
   });
-  const xs = papers.flatMap(p => [p.x, p.mx ?? p.x]), ys = papers.flatMap(p => [p.y, p.my ?? p.y]), m = 1.25;
-  renderer.setCustomBBox({ x: [Math.min(...xs) * m, Math.max(...xs) * m], y: [Math.min(...ys) * m, Math.max(...ys) * m] });
+  setBounds();
   renderer.on("afterRender", drawOverlay);
   // the theme changed (menu or OS setting): re-read the colours and repaint — no reload
-  const retheme = () => { readTheme(); computeTagAreas(); renderer.refresh(); };
+  const retheme = () => { readTheme(); buildLabels(); renderer.refresh(); };
   window.addEventListener("lab:theme", retheme);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => document.documentElement.dataset.theme === "auto" && retheme());
   renderer.on("enterNode", ({ node }) => {
@@ -797,7 +837,6 @@ function start() {
   const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()));
   for (let i = 0; i < ticks; i++) sim.tick();
   graph.updateEachNodeAttributes((n, a) => { const s = simById[n]; a.x = s.x; a.y = s.y; return a; }, { attributes: ["x", "y"] });
-  sim.on("end", () => { computeTagAreas(); renderer.refresh(); });
   computeTagAreas();
   updateToolbar();
   renderPeopleLegend();
@@ -815,7 +854,7 @@ const demo = {
   fit: (ms = 900) => fitNodes(ms),
   flipAxis,
   zoomTag(id, ratio, ms = 1600) {
-    const pos = areaCache[state.axis].find(a => a.id === id); if (!pos) return;
+    const pos = areas.find(a => a.id === id); if (!pos) return;
     const fg = renderer.viewportToFramedGraph(renderer.graphToViewport(pos));
     centerFramed(fg.x, fg.y, ratio, ms);
   },
@@ -829,7 +868,7 @@ const demo = {
 window.LabGraph = {
   demo,
   show() { visible = true; setTimeout(() => { if (!visible) return; start(); renderer?.resize(); renderer?.refresh(); }, 0); },
-  hide() { visible = false; stopTimeline(); sim?.stop(); },
+  hide() { visible = false; stopTimeline(); finishFlip?.(); sim?.stop(); },
   select(id, opts) { start(); if (renderer) select(id, opts); },
 };
 if (UI.currentView() === "graph") window.LabGraph.show();

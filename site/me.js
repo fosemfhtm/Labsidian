@@ -263,7 +263,7 @@
   let inboxN = 5;
   function inbox() {
     const all = S.notifications.list(), list = all.slice(0, inboxN);
-    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="ui-row two notif ${nf.read ? "" : "unread"}" data-nid="${nf.id}" data-paper="${nf.paperId || ""}" data-review="${nf.reviewId || ""}" data-comment="${nf.commentId || ""}" data-draft="${nf.draftId || ""}" data-study="${nf.studyId || ""}" data-guide="${nf.guideId || ""}" data-group="${nf.groupId || ""}" data-type="${nf.type}">
+    $("#me-inbox", view).innerHTML = list.map(nf => `<div class="ui-row two notif ${nf.read ? "" : "unread"}" data-nid="${esc(nf.id)}" data-paper="${esc(nf.paperId || "")}" data-review="${esc(nf.reviewId || "")}" data-comment="${esc(nf.commentId || "")}" data-draft="${esc(nf.draftId || "")}" data-study="${esc(nf.studyId || "")}" data-guide="${esc(nf.guideId || "")}" data-group="${esc(nf.groupId || "")}" data-type="${esc(nf.type)}">
       ${UI.avatar(nf.actor)}<div><div>${esc(LabNotifText(nf))}</div>${nf.excerpt ? `<div class="excerpt">“${esc(nf.excerpt)}”</div>` : ""}<div class="muted">${LabAgo(nf.at)}</div></div></div>`).join("")
       || `<div class="muted">${t("me.noInbox")}</div>`;
     if (all.length > inboxN) $("#me-inbox", view).insertAdjacentHTML("beforeend", `<button class="ui-btn text" id="me-inbox-more">${t("me.more")} (${all.length - inboxN})</button>`);
