@@ -245,13 +245,14 @@ class ServerBackend:
 DB = ServerBackend()
 
 
-def person(name_or_id):
+def person(name_or_id, include_disabled=False):
     d = DB.data()
     q = (name_or_id or "").strip().lower()
-    for u in d["users"]:
+    users = [u for u in d["users"] if include_disabled or not u.get("disabled")]   # disabled members are hidden, like on the site
+    for u in users:
         if u["id"].lower() == q or u["name"].lower() == q:
             return u
-    hits = [u for u in d["users"] if q and q in u["name"].lower()]
+    hits = [u for u in users if q and q in u["name"].lower()]
     if len(hits) == 1:
         return hits[0]
     raise ToolError(f"no member named {name_or_id!r}" + (f" (did you mean: {', '.join(u['name'] for u in hits)}?)" if hits else ""))
@@ -1108,7 +1109,7 @@ def admin_set_member_quota(name: str, exempt: bool | None = None, start_date: st
     """[admin] Set a member's diary duty: exempt (e.g. postdocs), start_date (e.g. a new student starting in
     September), end_date (graduated / left the lab — no duty after it), YYYY-MM-DD, targets are prorated to that
     period; or a fixed target for one term (term id, default current). Pass "none" as a date to clear it."""
-    u, m = require_admin(), person(name)
+    u, m = require_admin(), person(name, include_disabled=True)
     q = {}
     if exempt is not None:
         q["exempt"] = bool(exempt)
@@ -1141,7 +1142,7 @@ def admin_list_members(term: str = "") -> list[dict]:
 def admin_update_member(name: str, role: str = "", disabled: bool | None = None) -> dict:
     """[admin] Change a member's role ("member" / "admin") or disable / re-enable their account (disabled
     accounts can't sign in and drop out of progress). Not for yourself. Creating accounts and passwords stay in the site."""
-    u, m = require_admin(), person(name)
+    u, m = require_admin(), person(name, include_disabled=True)
     if m["id"] == u["id"]:
         raise ToolError("can't change your own role or account from here")
     if role and role not in ("member", "admin"):
