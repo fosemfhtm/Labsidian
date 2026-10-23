@@ -1496,8 +1496,9 @@
       // try sources in order; any network/CORS/rate-limit error just moves on to the next one
       const attempts = [];
       if (arxiv) attempts.push(async () => fromDatacite((await get(`https://api.datacite.org/dois/10.48550/arxiv.${arxiv}`)).data.attributes));
-      if (doi) attempts.push(
+      if (doi) attempts.push(  // OpenAlex before Crossref: it usually has the abstract (IEEE and many others), Crossref often doesn't
         async () => fromS2(await get(`https://api.semanticscholar.org/graph/v1/paper/DOI:${encodeURIComponent(doi)}?fields=${F}`)),
+        async () => fromOpenAlex(await get(`https://api.openalex.org/works/doi:${encodeURIComponent(doi)}`)),
         async () => fromCrossref((await get(`https://api.crossref.org/works/${encodeURIComponent(doi)}`)).message),
         async () => fromDatacite((await get(`https://api.datacite.org/dois/${encodeURIComponent(doi)}`)).data.attributes));
       if (pii) attempts.push(async () => fromCrossref((await get(`https://api.crossref.org/works?filter=alternative-id:${pii}&rows=1`)).message.items?.[0]));
