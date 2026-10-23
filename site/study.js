@@ -326,7 +326,7 @@
       { done: qs.some(q => q.author === me.id), optional: true, label: t("st.todo.q"), go: qs.some(q => q.author === me.id) ? "" : `<a class="ui-btn text" href="${link("prep")}&focus=q">${t("st.todo.go")}</a>` },
     ];
     const allDone = todo.every(x => x.done || x.optional);
-    const todoHtml = st.closed || tab === "notes" ? "" : joined && allDone
+    const todoHtml = st.closed ? "" : joined && allDone   // same on every tab so switching tabs doesn't move them
       ? `<div class="st-todo-done">✓ ${t("st.todo.allDone")}</div>`
       : !joined
       ? `<div class="ui-card st-todo join"><span>${t("st.todo.joinFirst")}</span><button class="ui-btn prominent" data-act="join">${t("st.join")}</button></div>`
