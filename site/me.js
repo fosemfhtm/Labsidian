@@ -16,7 +16,7 @@
       "me.toProfile": "내 프로필 보기", "me.studies": "다가오는 스터디", "me.noStudies": "예정된 스터디가 없어요", "me.studiesAll": "스터디 전체", "me.presenting": "발표", "me.noDate": "날짜 미정",
       "me.reading": "읽을 목록", "me.noReading": "링크나 PDF로 읽을 논문을 모아 보세요", "me.readingAll": "읽을 목록 전체", "me.calWrite": "이 날짜로 다이어리 쓰기", "me.calNone": "작성 없음", "me.dow": "일월화수목금토", "me.inbox": "받은 댓글·멘션", "me.noInbox": "아직 없어요",
       "me.export": "docx로 내보내기", "me.exporting": "만드는 중…", "me.write": "다이어리 쓰기",
-      "me.diaryTitle": "{term} Paper Diary · {name}", "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
+      "me.color": "내 색", "me.exempt": "편 작성 · 이번 학기 작성 의무 없음",
       "me.notYet": "편 · {d}부터 작성 시작", "me.fromDate": "{d}부터 작성 (목표는 그 날짜 기준으로 계산)", "me.customTarget": "관리자가 정한 목표예요",
       "me.adminNote": "관리자 계정은 다이어리를 쓰지 않아요. 멤버 계정으로 로그인해 보세요.",
       "me.more": "더보기",
@@ -48,7 +48,7 @@
       "me.toProfile": "My profile", "me.studies": "Studies coming up", "me.noStudies": "No study coming up", "me.studiesAll": "All studies", "me.presenting": "Presenting", "me.noDate": "Date to be set",
       "me.reading": "Reading list", "me.noReading": "Collect papers to read by link or PDF", "me.readingAll": "Whole reading list", "me.calWrite": "Write a diary for this day", "me.calNone": "Nothing written", "me.dow": "SMTWTFS", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
       "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary",
-      "me.diaryTitle": "{term} Paper Diary · {name}", "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
+      "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
       "me.color": "My colour", "me.exempt": "written · no diary duty this term",
       "me.notYet": " · starts on {d}", "me.fromDate": "Writing from {d} (target prorated from that date)", "me.customTarget": "Target set by an admin",
       "me.more": "More",
@@ -341,28 +341,35 @@
       + `<a class="ui-btn text rl-all" href="#/reading">${t("me.readingAll")} →</a>`;
   }
 
-  // same layout as the lab's Word diary: date header, then 논문/Link/저널/저자/Rating/내용/Memo
+  // the lab's Word diary, entry for entry, so entries paste straight into the shared file: newest day first
+  // (Heading 1), the name (Heading 2), blue 논문/Link, grey 저널/저자, red Rating, then 내용 and Memo
   async function exportDocx(me, term, mine) {
     const btn = $("#me-export", view); btn.textContent = t("me.exporting"); btn.disabled = true;
     try {
       const docx = await import("https://cdn.jsdelivr.net/npm/docx@9.8.1/+esm");
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
-      const kv = (k, v) => new Paragraph({ children: [new TextRun({ text: k + ": ", bold: true }), new TextRun(v || "")] });
-      const multi = (k, v) => {
-        const lines = (v || "").split("\n");
-        return [new Paragraph({ children: [new TextRun({ text: k + ": ", bold: true }), new TextRun(lines[0] || "")] }),
-          ...lines.slice(1).map(l => new Paragraph({ children: [new TextRun(l)] }))];
-      };
-      const byDate = [...mine].sort((a, b) => a.date.localeCompare(b.date));
-      const children = [new Paragraph({ text: t("me.diaryTitle", { term: term.label, name: me.name }), heading: HeadingLevel.TITLE })];
-      byDate.forEach(r => {
-        const p = UI.PA[r.paper], [y, m, d] = r.date.split("-").map(Number);
-        children.push(new Paragraph({ text: `${y}년 ${m}월 ${d}일`, heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun({ text: me.name, bold: true })] }),
-          kv("논문", p.title), kv("Link", p.link), kv("저널", S.paperCitation(p)), kv("저자", p.authors),
-          kv("Rating", r.rating ? `${"✯".repeat(Math.floor(r.rating))}${r.rating % 1 ? "½" : ""} (${UI.ratingText(r.rating)})` : "0"), ...multi("내용", r.content), ...multi("Memo", r.memo), new Paragraph(""));
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = docx;
+      const FONT = "Arial Unicode MS", BLUE = "0000FF", GRAY = "2E2E2E", RED = "FF0000";
+      const line = (...runs) => new Paragraph({ spacing: { line: 240 }, children: runs.map(([text, o]) => new TextRun({ text, font: FONT, ...o })) });
+      const block = (k, v) => { const [first = "", ...rest] = (v || "").split("\n"); return [line([k, { bold: true }], [": " + first]), ...rest.map(l => line([l]))]; };
+      const stars = n => "✯".repeat(Math.floor(n || 0)) + (n % 1 ? "½" : "");
+      const title = (text, size) => new Paragraph({ heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER, children: [new TextRun({ text, size })] });
+      const children = [title(term.label, 60), title("Paper DIARY", 48)];
+      [...new Set(mine.map(r => r.date))].sort().reverse().forEach(day => {
+        const [y, m, d] = day.split("-").map(Number);
+        children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: `${y}년 ${m}월 ${d}일` }));
+        mine.filter(r => r.date === day).forEach(r => {
+          const p = UI.PA[r.paper];
+          children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: me.name }),
+            line(["논문: " + p.title, { bold: true, color: BLUE }]), line(["Link: " + (p.link || ""), { bold: true, color: BLUE }]),
+            line(["저널: " + S.paperCitation(p), { color: GRAY }]), line(["저자: " + (p.authors || ""), { color: GRAY }]),
+            line(["Rating: " + stars(r.rating), { bold: true, color: RED }]),
+            ...block("내용", r.content), line([""]), ...block("Memo", r.memo), new Paragraph(""));
+        });
       });
-      const blob = await Packer.toBlob(new Document({ sections: [{ children }] }));
+      const styles = { default: { heading1: { run: { font: "Calibri", size: 34, color: "000000" }, paragraph: { spacing: { before: 360 } } },
+        heading2: { run: { font: "Nanum Gothic", size: 28, color: "000000" } } } };
+      const page = { size: { width: 11909, height: 16834 }, margin: { top: 567, bottom: 567, left: 1134, right: 1134 } };   // A4, the lab file's margins
+      const blob = await Packer.toBlob(new Document({ styles, sections: [{ properties: { page }, children }] }));
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob); a.download = `${term.label} Paper Diary - ${me.name}.docx`;
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
