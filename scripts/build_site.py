@@ -278,6 +278,8 @@ def main():
     taxonomy = {**{f"d:{k}": pats for k, (_, pats) in DOMAINS.items()}, **{f"m:{k}": pats for k, (_, pats) in METHODS.items()}}
     data = {"dataset": DATASET, "relativeDates": bool(DATASET), "people": people, "topics": topics, "papers": papers, "reviews": reviews,
             "terms": sorted({r["term"] for r in reviews}), "taxonomy": taxonomy}
+    if mp:  # papers first written on the site (build_map.py reads them from the DB): the browser finds them by key
+        data["mapExtra"] = {k: v for k, v in mp["papers"].items() if k not in by_key}
     if (DATA / "social.json").exists():  # demo only: example studies/comments the browser store seeds once
         data["social"] = resolve_social(read_json(DATA / "social.json"), papers, reviews)
     out = ROOT / "site" / (f"data.{DATASET}.js" if DATASET else "data.js")

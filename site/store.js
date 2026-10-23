@@ -427,10 +427,10 @@
         p.rating = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 100) / 100 : 0;
         p.firstDate = rs.map(r => r.date).sort()[0];
       });
-      return { live: papers.filter(p => p.reviews.length), byId, fresh };
+      return { live: papers.filter(p => p.reviews.length), byId, byKey, fresh };
     }
     const full = makePapers(allReviews);
-    place(full.fresh, full.live.filter(p => !p.fresh));
+    place(full.fresh, full.live.filter(p => !p.fresh), full.byKey);
 
     // term view: graph/lists show only the selected terms; detail pages & "my page" keep everything
     const known = new Set([...db.terms.map(t => t.id), ...allReviews.map(r => r.term)]);
@@ -512,10 +512,17 @@
     return L.vecs.map((v, i) => { let s = 0; for (const w in q) if (v[w]) s += v[w] * q[w] / n; return [L.papers[i], s]; })
       .filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).slice(0, k);
   }
-  // papers written on the site aren't in the map build: place them at the weighted mean of lexically similar papers,
-  // on each map favouring the neighbours that share its fields (field map) or methods (method map), like the build does
-  function place(fresh, base) {
+  // a paper first written on the site: the nightly map run (build_map.py --add) gives it a real spot (SEED.mapExtra,
+  // by key); until then it sits among the papers whose title/abstract words it shares, on each map favouring the
+  // neighbours that share its fields (field map) or methods (method map), like the build does
+  function place(fresh, base, byKey) {
     fresh.forEach((p, i) => {
+      const m = SEED.mapExtra?.[p.key];
+      if (m) {
+        Object.assign(p, { x: m.x, y: m.y, mx: m.mx, my: m.my,
+          nb: m.nb.map(([k, s]) => [byKey[k], s]).filter(([q]) => q?.reviews.length).map(([q, s]) => [q.id, s]) });
+        return;
+      }
       const nb = lexSimilar(p.title + " " + (p.abstract || ""), base, 12).filter(([q]) => q.x != null);
       p.nb = nb.slice(0, 6).map(([q, s]) => [q.id, Math.round(s * 1000) / 1000]);
       if (!nb.length) { p.x = p.mx = (i % 7) * 6; p.y = p.my = -260 - Math.floor(i / 7) * 6; return; }

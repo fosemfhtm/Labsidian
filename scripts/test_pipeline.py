@@ -187,7 +187,7 @@ class MapTests(unittest.TestCase):
             with self.subTest(n=n), tempfile.TemporaryDirectory() as tmp, patch.object(build_map, "DATA", Path(tmp)), \
                     patch.object(build_map, "load_papers", return_value=papers), \
                     patch.object(build_map, "embed_specter2", return_value=np.eye(n)) as embed, \
-                    patch.object(sys, "argv", ["build_map.py", "--reuse"]), redirect_stdout(io.StringIO()):
+                    patch.object(sys, "argv", ["build_map.py"]), redirect_stdout(io.StringIO()):
                 build_map.main()
                 out = json.loads((Path(tmp) / "map.json").read_text(encoding="utf-8"))
                 self.assertTrue(all(math.isfinite(p[axis]) for p in out["papers"].values() for axis in ("x", "y", "mx", "my")))
@@ -207,9 +207,31 @@ class MapTests(unittest.TestCase):
     def test_tag_matrix_allows_missing_review_text(self):
         import build_map
         papers = [{"title": "Deep learning", "reviews": [{"content": None}, {"memo": None}]}]
-        tags = build_map.tag_matrix(papers, build_map.METHODS, 2)
+        tags = build_map.tag_matrix(papers, build_map.METHODS, 2, "m")
         self.assertEqual(tags.shape, (1, len(build_map.METHODS)))
         self.assertTrue((tags >= 0).all())
+
+    def test_site_papers_are_grouped_like_the_browser_and_use_chosen_tags(self):
+        import sqlite3
+        import build_map
+        with tempfile.TemporaryDirectory() as tmp, patch.object(build_map, "DATA", Path(tmp)):
+            con = sqlite3.connect(Path(tmp) / "labsidian.db")
+            con.execute("CREATE TABLE records (coll TEXT, id TEXT, value TEXT, version INTEGER)")
+            rows = [("reviews", "a", {"paper": "np_x", "paperKey": "newpaper", "meta": {"title": "New paper", "abstract": "old"},
+                                      "tags": ["m:gnn"], "createdAt": "1"}),
+                    ("reviews", "b", {"paper": "np_x", "paperKey": "newpaper", "tags": ["d:forecast", "m:rl"], "createdAt": "2"}),
+                    ("reviews", "c", {"paper": "p3", "paperKey": "importedtitle"}),  # a review of a diary paper
+                    ("reviews", "d", {"paper": "np_y", "meta": {"title": "Known Paper"}, "tags": ["m:gnn"]}),  # same title as the diary
+                    ("paperMeta", "np_x", {"abstract": "corrected"})]
+            con.executemany("INSERT INTO records VALUES (?,?,?,1)", [(c, i, json.dumps(v)) for c, i, v in rows])
+            con.commit()
+            con.close()
+            papers = build_map.site_papers({"knownpaper": {}})
+        self.assertEqual([(p["key"], p["title"], p["abstract"], len(p["reviews"])) for p in papers], [("newpaper", "New paper", "corrected", 2)])
+        fields = build_map.tag_matrix(papers, build_map.DOMAINS, 3, "d")
+        methods = build_map.tag_matrix(papers, build_map.METHODS, 2, "m")
+        self.assertEqual({k for k, v in zip(build_map.DOMAINS, fields[0]) if v}, {"forecast"})
+        self.assertEqual({k for k, v in zip(build_map.METHODS, methods[0]) if v}, {"gnn", "rl"})
 
     def test_lift_uses_other_papers_and_handles_missing_features(self):
         import numpy as np

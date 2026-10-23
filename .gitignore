@@ -28,3 +28,4 @@ video/remotion/public/raw.mp4
 __pycache__/
 .venv/
 .claude/settings.local.json
+.venv-*/
