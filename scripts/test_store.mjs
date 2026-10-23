@@ -303,8 +303,11 @@ assert.deepEqual([viewMapPaper.x, viewMapPaper.y, viewMapPaper.mx, viewMapPaper.
 const hiding = boot({}, "bob");
 await hiding.store.comments.add({ reviewId: "r1", body: "bob on alice's diary" });
 const hidingAdmin = boot(hiding.db(), "admin");
+const hidingGuide = await hidingAdmin.store.guides.create({ title: "Guide" });
+await hidingAdmin.store.guides.addItem(hidingGuide, { paperId: "p2" });
 await hidingAdmin.store.users.setDisabled("bob", true);
 const hidden = hidingAdmin.snapshot();
+assert.equal(hidden.guides[0].items[0].title, "Second paper", "a guide keeps the title of a paper only a disabled member read");
 assert.ok(!hidden.people.some(p => p.id === "bob"));
 assert.ok(!hidden.reviews.some(r => r.person === "bob"));
 assert.ok(!hidden.papers.some(p => p.id === "p2"), "a paper only the disabled member read is hidden too");

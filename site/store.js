@@ -1231,7 +1231,8 @@
       get(id) { return db.guides[id] || null; },
       canManage: canManageOwned,
       paperOf(it) { return paperIndex.get(it.paperId) || paperKeyIndex.get(it.key) || null; },
-      titleOf(it) { return Store.guides.paperOf(it)?.title || it.meta?.title || "(untitled)"; },
+      // a paper only disabled members read is hidden, but the guide still names it
+      titleOf(it) { return Store.guides.paperOf(it)?.title || it.meta?.title || ORIG.papers.find(p => p.id === it.paperId)?.title || "(untitled)"; },
       wroteBy(it, uid) { const p = Store.guides.paperOf(it); return !!p && p.readers.includes(uid); },
       progress(g, uid) { const u = uid || current()?.id; return { done: g.items.filter(it => Store.guides.wroteBy(it, u)).length, total: g.items.length }; },
       studiesFor(it) {  // as the common paper or one a member brought
