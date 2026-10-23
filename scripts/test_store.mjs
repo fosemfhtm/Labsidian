@@ -207,7 +207,7 @@ for (const user of ["alice", "bob", "carol", "admin", null]) {
 
 const attachments = boot({
   reading: { alice: [{ id: "reading", files: [{ id: "shared", kind: "pdf" }] }] },
-  studies: { st: { id: "st", host: "alice", presenter: "bob", members: ["alice", "bob"], files: [{ id: "shared", kind: "pdf" }, { id: "study-only", kind: "pdf" }], picks: {} } },
+  studies: { st: { id: "st", host: "alice", presenter: "bob", members: ["alice", "bob"], files: [{ id: "shared", kind: "pdf" }, { id: "study-only", kind: "pdf" }], picks: {}, bring: true } },
 }, "alice");
 const deletedFiles = [];
 attachments.store.files.remove = async id => { deletedFiles.push(id); throw new Error("already gone"); };
@@ -243,6 +243,20 @@ await replacer.store.studies.update(multiId, { presenters: ["bob"], place: "Room
 assert.equal(replacer.store.studies.get(multiId).presenters.join(","), "bob");
 await assert.rejects(multi.store.studies.create({ title: "Invalid presenters", presenters: "bob" }), /study.presenters/);
 await assert.rejects(multi.store.studies.update(multiId, { presenters: [] }), /study.presenters/);
+// "presenters only": only a presenter brings a related paper; switching to everyone opens it to all members
+const host = boot({}, "alice");
+const { id: bringId } = await host.store.studies.create({ title: "Bring", presenters: ["bob"], invite: ["carol"], bring: "presenters" });
+const presenter = boot(host.db(), "bob");
+await presenter.store.studies.setPick(bringId, { title: "Bob's pick" });
+await assert.rejects(boot(presenter.db(), "carol").store.studies.setPick(bringId, { title: "Carol's pick" }), /forbidden/);
+const opener = boot(presenter.db(), "alice");
+await opener.store.studies.update(bringId, { bring: true });
+const listener = boot(opener.db(), "carol");
+await listener.store.studies.setPick(bringId, { title: "Carol's pick" });
+assert.equal(listener.store.studies.picks(listener.store.studies.get(bringId)).map(pk => pk.uid).join(","), "bob,carol");
+const closer = boot(listener.db(), "alice");
+await closer.store.studies.update(bringId, { bring: false });
+await assert.rejects(boot(closer.db(), "bob").store.studies.setPick(bringId, { title: "Again" }), /forbidden/);
 const mats = boot(multi.db(), "bob"), materialFiles = [];
 mats.store.files.remove = async id => { materialFiles.push(id); };
 const mat = await mats.store.studies.addMaterial(multiId, { kind: "file", title: "Slides", file: { id: "slides", kind: "pdf" } });

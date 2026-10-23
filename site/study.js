@@ -51,10 +51,11 @@
       "st.n.conclusion.ph": "오늘 이야기로 정리된 결론, 새로 알게 된 점", "st.n.open.ph": "결론이 안 난 질문, 더 알아볼 것", "st.n.next.ph": "다음에 읽을 논문, 우리 연구에 해볼 것",
       "st.blindMsg": "먼저 쓰고 보기: 내 다이어리를 올리면 보여요.", "st.writeMine": "내 다이어리 쓰기",
       "st.opt.blind": "먼저 쓰고 보기", "st.opt.blindHint": "내 다이어리를 올리기 전에는 다른 참가자의 다이어리를 가려요 (스터디가 끝나면 모두 보여요)",
-      "st.opt.bring": "각자 관련 논문 1편씩 가져와서 소개", "st.opt.bringHint": "같이 읽는 논문과 관련된 논문을 하나씩 골라 오고, 모임에서 돌아가며 소개해요",
+      "st.opt.bring": "관련 논문 가져오기", "st.opt.bringHint": "같이 읽는 논문과 관련된 논문을 한 편씩 골라 와서 모임에서 돌아가며 소개해요",
+      "st.bring.off": "없음", "st.bring.all": "모두", "st.bring.presenters": "발표자만",
       "st.blindOn": "🙈 먼저 쓰고 보기 중이에요. 내 다이어리를 올리면 다른 참가자의 다이어리가 보여요.",
       "st.prep": "모임 준비", "st.prepDiary": "다이어리", "st.prepPick": "가져온 논문",
-      "st.common": "같이 읽는 논문", "st.picks": "각자 가져온 논문 · 소개 순서", "st.picksHint": "같이 읽는 논문과 관련된 논문을 하나씩 가져와서 모임에서 소개해요. 가져온 논문의 다이어리도 평소처럼 써요.",
+      "st.common": "같이 읽는 논문", "st.picks": "가져온 논문 · 소개 순서", "st.picksHint": "같이 읽는 논문과 관련된 논문을 한 편씩 가져와서 모임에서 소개해요. 가져온 논문의 다이어리도 평소처럼 써요.",
       "st.myPick": "내가 가져올 논문", "st.pick.ph": "연구실 논문 검색 · 없으면 제목을 그대로 입력", "st.pick.why": "같이 읽는 논문과 어떻게 이어지나요?",
       "st.pick.why.ph": "예: 같은 문제를 강화학습 대신 최적화로 풂", "st.pick.slides": "📎 소개 자료 (PDF·이미지)", "st.pick.save": "올리기", "st.pick.edit": "바꾸기",
       "st.pick.remove": "빼기", "st.pick.write": "✎ 이 논문 다이어리 쓰기", "st.pick.none": "아직 아무도 안 가져왔어요", "st.pick.saved": "가져올 논문을 올렸어요",
@@ -98,10 +99,11 @@
       "st.n.conclusion.ph": "What we concluded, what we learned", "st.n.open.ph": "Unresolved questions, things to look up", "st.n.next.ph": "Papers to read next, things to try in our research",
       "st.blindMsg": "Write first, then read: post your entry to see this.", "st.writeMine": "Write my entry",
       "st.opt.blind": "Write first, then read", "st.opt.blindHint": "Other members' entries stay hidden until you post yours (all visible once the study ends)",
-      "st.opt.bring": "Everyone brings one related paper", "st.opt.bringHint": "Each member picks a paper related to the common one and introduces it at the meeting",
+      "st.opt.bring": "Related papers", "st.opt.bringHint": "People pick a paper related to the common one and introduce it at the meeting",
+      "st.bring.off": "None", "st.bring.all": "Everyone", "st.bring.presenters": "Presenters",
       "st.blindOn": "🙈 Write first, then read. Post your entry to see the others'.",
       "st.prep": "Preparation", "st.prepDiary": "diary", "st.prepPick": "brought paper",
-      "st.common": "Read together", "st.picks": "Papers people bring · order", "st.picksHint": "Each member brings a paper related to the common one and introduces it. Write its diary entry as usual.",
+      "st.common": "Read together", "st.picks": "Brought papers · order", "st.picksHint": "Related papers people bring and introduce at the meeting. Write their diary entries as usual.",
       "st.myPick": "The paper I'll bring", "st.pick.ph": "Search lab papers · or type a new title", "st.pick.why": "How does it connect to the common paper?",
       "st.pick.why.ph": "e.g. same problem, solved with optimisation instead of RL", "st.pick.slides": "📎 Slides (PDF · image)", "st.pick.save": "Post", "st.pick.edit": "Change",
       "st.pick.remove": "Remove", "st.pick.write": "✎ Write its diary entry", "st.pick.none": "Nobody has brought one yet", "st.pick.saved": "Posted the paper you'll bring",
@@ -196,6 +198,11 @@
     };
     return { get id() { return paperId; }, set id(v) { paperId = v; } };
   }
+  // who brings a related paper: the store keeps false · true (everyone) · "presenters"
+  const BRING = { off: false, all: true, presenters: "presenters" };
+  const bringSeg = (v, id) => `<div class="ui-seg small" id="${id}" role="group" aria-label="${t("st.opt.bring")}">${Object.entries(BRING).map(([k, x]) =>
+    `<button type="button" data-bring="${k}" aria-pressed="${x === (v === "presenters" ? v : !!v)}">${t("st.bring." + k)}</button>`).join("")}</div>`;
+  const paintSeg = b => b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
   const uploadInto = async (file, err) => {
     try { return await S.files.put(file, file.name); }
     catch (e) { err.textContent = e.message === "file.size" ? t("w.fileSize", { name: file.name }) : t("w.fileType"); return null; }
@@ -227,7 +234,7 @@
         <label class="fld"><span>${t("st.desc")}</span><textarea id="st-desc" rows="4" placeholder="${t("st.desc.ph")}"></textarea></label>
         <div class="st-opts">
           <label class="ui-check"><input type="checkbox" id="st-blind" checked><span><b>${t("st.opt.blind")}</b><em class="hint">${t("st.opt.blindHint")}</em></span></label>
-          <label class="ui-check"><input type="checkbox" id="st-bring"><span><b>${t("st.opt.bring")}</b><em class="hint">${t("st.opt.bringHint")}</em></span></label>
+          <div class="fld"><span>${t("st.opt.bring")}</span>${bringSeg(false, "st-bring")}<em class="hint">${t("st.opt.bringHint")}</em></div>
         </div>
         <div class="fld"><span>${t("st.invite")}</span><div class="chips" id="st-invite">
           ${others.map(p => `<button type="button" class="ui-chip" aria-pressed="${invited.has(p.id)}" data-u="${p.id}"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`).join("")}</div></div>
@@ -244,6 +251,8 @@
     const box = paperSearch(title, $("#st-pop", view), $("#st-link", view), hint);
     box.id = pre?.id || null; hint();
     $("#st-invite", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (c) c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true"); };
+    let bring = false;
+    $("#st-bring", view).onclick = e => { const b = e.target.closest("[data-bring]"); if (!b) return; bring = BRING[b.dataset.bring]; paintSeg(b); };
     const presenters = new Set([presenter].filter(u => UI.P[u]));   // a disabled member has no chip, so can't stay selected
     $("#st-presenters", view).onclick = e => { const c = e.target.closest(".ui-chip"); if (!c) return; if (presenters.has(c.dataset.u)) presenters.delete(c.dataset.u); else presenters.add(c.dataset.u); c.setAttribute("aria-pressed", presenters.has(c.dataset.u)); };
     const picker = $("#st-file", view);
@@ -260,7 +269,7 @@
         title: title.value, paperId: box.id, link: $("#st-link", view).value.trim(), date: $("#st-date", view).value, time: $("#st-time", view).value,
         place: $("#st-place", view).value.trim(), presenters: [...presenters], desc: $("#st-desc", view).value.trim(),
         invite: [...view.querySelectorAll('#st-invite .ui-chip[aria-pressed="true"]')].map(c => c.dataset.u), files: newFiles,
-        blind: $("#st-blind", view).checked, bring: $("#st-bring", view).checked, groupId: g?.id,
+        blind: $("#st-blind", view).checked, bring, groupId: g?.id,
       });
       LabToast(t("st.created")); location.hash = "#/study/" + encodeURIComponent(id);
     }, $("#st-err", view));
@@ -312,8 +321,8 @@
     // ---- my to-dos (only for members of an open study)
     const todo = [
       { done: !!mine, label: t("st.todo.diary"), go: mine ? `<button class="ui-btn text" data-open="paper:${mine.paper}">${t("st.todo.view")}</button>` : `<a class="ui-btn small prominent" href="#/write?study=${st.id}">${t("st.todo.go")}</a>` },
-      ...(st.bring ? [{ done: !!myPick, label: t("st.todo.pick"), go: myPick ? `<a class="ui-btn text" href="${link("picks")}">${t("st.todo.view")}</a>` : `<a class="ui-btn small" href="${link("picks")}">${t("st.todo.go")}</a>` }] : []),
-      ...(st.bring && myPick ? [{ done: !!pickDiary(myPick), label: t("st.todo.pickDiary"), go: pickDiary(myPick) ? "" : `<a class="ui-btn small" href="#/write?study=${st.id}&pick=1">${t("st.todo.go")}</a>` }] : []),
+      ...(S.studies.brings(st, me.id) ? [{ done: !!myPick, label: t("st.todo.pick"), go: myPick ? `<a class="ui-btn text" href="${link("picks")}">${t("st.todo.view")}</a>` : `<a class="ui-btn small" href="${link("picks")}">${t("st.todo.go")}</a>` }] : []),
+      ...(myPick ? [{ done: !!pickDiary(myPick), label: t("st.todo.pickDiary"), go: pickDiary(myPick) ? "" : `<a class="ui-btn small" href="#/write?study=${st.id}&pick=1">${t("st.todo.go")}</a>` }] : []),
       { done: qs.some(q => q.author === me.id), optional: true, label: t("st.todo.q"), go: qs.some(q => q.author === me.id) ? "" : `<a class="ui-btn text" href="${link("prep")}&focus=q">${t("st.todo.go")}</a>` },
     ];
     const allDone = todo.every(x => x.done || x.optional);
@@ -340,7 +349,7 @@
           <div class="ui-card st-prep"><h3>${t("st.prepStatus")}</h3>
             ${st.members.map(u => `<div class="ui-row prep-row" data-open="person:${u}">${UI.avatar(u)}<span class="nm">${name(u)}${st.presenters.includes(u) ? ` <span class="ui-pill accent">${t("st.presenter")}</span>` : ""}</span>
               <span class="ck ${byPerson[u] ? "on" : ""}">${byPerson[u] ? "✓" : "·"} ${t("st.prepDiary")}</span>
-              ${st.bring ? `<span class="ck ${st.picks?.[u] ? "on" : ""}">${st.picks?.[u] ? "✓" : "·"} ${t("st.prepPick")}</span>` : ""}</div>`).join("")}</div>
+              ${S.studies.brings(st, u) ? `<span class="ck ${st.picks?.[u] ? "on" : ""}">${st.picks?.[u] ? "✓" : "·"} ${t("st.prepPick")}</span>` : ""}</div>`).join("")}</div>
           ${p?.abstract ? `<details class="ui-card st-abs"><summary><h3>${t("st.abstract")}</h3></summary><p class="abstract-full">${esc(p.abstract)}</p></details>` : ""}
         </div></div>`;
     // shared materials (slides, links): any member adds a file or a link; the adder, host or an admin removes it
@@ -361,7 +370,7 @@
       ${st.blind && !st.closed && !mine ? `<p class="ui-notice warn">${t("st.blindOn")}</p>` : ""}
       ${shownRevs.length > 1 ? `<div class="st-rates">${t("st.ratings")} ${shownRevs.map(r => `<span class="st-rate" title="${name(r.person)}">${UI.avatar(r.person)}${r.rating}</span>`).join("")}</div>` : ""}
       <div class="rev-cols st-cols">${people.map(reviewCard).join("")}</div>`;
-    const pickForm = st.closed || (myPick && !editPick) || !joined ? "" : `<form class="ui-card st-pick-form" id="st-pick-form" autocomplete="off">
+    const pickForm = st.closed || (myPick && !editPick) || !joined || !S.studies.brings(st, me.id) ? "" : `<form class="ui-card st-pick-form" id="st-pick-form" autocomplete="off">
         <b>${t("st.myPick")}</b>
         <div class="tag-input"><input id="pk-title" placeholder="${t("st.pick.ph")}" value="${esc(myPick?.title || "")}"><div class="tag-pop ui-popover list" id="pk-pop" hidden></div></div>
         <input id="pk-link" type="hidden" value="${esc(myPick?.link || "")}">
@@ -409,7 +418,7 @@
         <div class="st-top">${dday(st)}<span>${longDate(st)}</span>${st.presenters.length ? `<span class="m">${t("st.presenter")} <b>${st.presenters.map(name).join(", ")}</b></span>` : ""}
           ${canManage ? `<details class="st-manage"><summary>⋯ ${t("st.manage")}</summary><div class="menu-pop ui-popover">
             ${st.closed ? "" : `<label class="ui-check"><input type="checkbox" data-opt="blind" ${st.blind ? "checked" : ""}><span>${t("st.opt.blind")}</span></label>
-            <label class="ui-check"><input type="checkbox" data-opt="bring" ${st.bring ? "checked" : ""}><span>${t("st.opt.bring")}</span></label><hr>`}
+            <span class="ui-label">${t("st.opt.bring")}</span>${bringSeg(st.bring, "st-bring-edit")}<hr>`}
             <button class="ui-btn text" data-act="editinfo">${t("st.editInfo")}</button>
             <button class="ui-btn text" data-act="close">${st.closed ? t("st.reopen") : t("st.close")}</button>
             <button class="ui-btn text destructive" data-act="delete">${t("st.delete")}</button></div></details>` : ""}</div>
@@ -446,6 +455,8 @@
       }, err);
     }
     view.querySelectorAll("[data-opt]").forEach(el => (el.onchange = async () => { await S.studies.update(st.id, { [el.dataset.opt]: el.checked }); rerender(); }));
+    const bringEdit = $("#st-bring-edit", view);
+    if (bringEdit) bringEdit.onclick = async e => { const b = e.target.closest("[data-bring]"); if (b) { await S.studies.update(st.id, { bring: BRING[b.dataset.bring] }); rerender(); } };
     const pf = $("#st-pick-form", view);
     if (pf) {
       const me = S.auth.current(), box = paperSearch($("#pk-title", view), $("#pk-pop", view), $("#pk-link", view));

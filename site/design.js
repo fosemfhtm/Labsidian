@@ -83,7 +83,7 @@
         <div><label class="ui-label">검색</label><div class="ui-search">${I("search")}<input class="ui-field" placeholder="논문·저자·리뷰 검색"></div></div>
         <div class="span2"><label class="ui-label">Memo (critic)</label><textarea class="ui-field" rows="3" placeholder="한계, 가정, 내 연구와의 연결…"></textarea></div>
       </div>
-      <div class="sp-row"><label class="ui-check"><input type="checkbox" checked>먼저 쓰고 보기</label><label class="ui-check"><input type="checkbox">각자 관련 논문 1편씩</label></div>
+      <div class="sp-row"><label class="ui-check"><input type="checkbox" checked>먼저 쓰고 보기</label><div class="ui-seg small" data-demo="seg"><button aria-pressed="false">없음</button><button aria-pressed="false">모두</button><button aria-pressed="true">발표자만</button></div></div>
       <div class="sp-row">${window.LabUI.stars(3.5)}
         ${window.LabUI.ratingInput("sp-rating-" + theme, 3.5)}</div>
     </section>

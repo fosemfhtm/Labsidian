@@ -313,7 +313,7 @@ const newStudy = load("study.js").split("  function newPage(params) {")[1].split
 const studyFormContext = vm.createContext({ view: groupView, $: groupNode, back: "", t: key => key, esc: String,
   UI: { P: { u: { id: "u", name: "User" } }, PA: {}, avatar: () => "", submitOnce: formWindow.LabUI.submitOnce }, S: { auth: { current: () => ({ id: "u", name: "User" }) }, groups: { get: () => null },
     findPaper: () => null, studies: { create: () => { studyCreates++; return new Promise((_, reject) => { rejectStudy = reject; }); } } },
-  paperSearch: () => ({ id: null }), location: {}, LabToast() {}, URLSearchParams });
+  paperSearch: () => ({ id: null }), bringSeg: () => "", BRING: {}, paintSeg() {}, location: {}, LabToast() {}, URLSearchParams });
 vm.runInContext("function newPage(params) {" + newStudy + "\nnewPage(new URLSearchParams());", studyFormContext);
 groupNode("#st-title").value = "Paper";
 const studyForm = groupNode("#st-form");

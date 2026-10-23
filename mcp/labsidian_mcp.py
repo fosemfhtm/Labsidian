@@ -50,6 +50,7 @@ import urllib.parse
 import uuid
 from collections import Counter
 from datetime import date
+from typing import Literal
 
 try:  # mcp >= 2 renamed FastMCP → MCPServer
     from mcp.server.mcpserver import MCPServer as FastMCP
@@ -841,7 +842,7 @@ def get_study(study_id: str) -> dict:
                      "summary": r.get("content", ""), "memo": r.get("memo", ""), "for_this_study": r.get("studyId") == st["id"]} for r in revs],
         "not_reviewed_yet": [_name(u, d) for u in st["members"] if u not in {r["person"] for r in revs} | {r["person"] for r in hidden}],
         "hidden_until_you_write": [_name(r["person"], d) for r in hidden],
-        "write_first": bool(st.get("blind")), "everyone_brings_a_paper": bool(st.get("bring")),
+        "write_first": bool(st.get("blind")), "related_papers": BRING_NAME[st.get("bring") or False],
         "brought_papers": [{"order": i + 1, "by": _name(pk["uid"], d), "title": pk["title"], "why": pk.get("why", ""),
                             "paper": brief(d["PA"][pk["paperId"]], d) if pk.get("paperId") in d["PA"] else {"title": pk["title"], "link": pk.get("link", "")}}
                            for i, pk in enumerate(picks)],
@@ -904,16 +905,21 @@ def join_study(study_id: str) -> dict:
     return _done(DB.apply({"op": "study.join", "actor": u["id"], "studyId": st["id"], "summary": st["title"][:60]}), {"open": f"{SITE}/#/study/{st['id']}"})
 
 
+BRING_MODE = {"none": False, "everyone": True, "presenters": "presenters"}   # study.bring as the site stores it
+BRING_NAME = {v: k for k, v in BRING_MODE.items()}
+
+
 @mcp.tool()
 def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: str = "",
                on_date: str = "", at_time: str = "", place: str = "", presenters: list[str] | None = None, invite: list[str] | None = None,
-               about: str = "", write_first: bool = True, everyone_brings_a_paper: bool = False) -> dict:
+               about: str = "", write_first: bool = True, related_papers: Literal["none", "everyone", "presenters"] = "none") -> dict:
     """Open a paper study as me (I host it; invited members get a notification). The paper: a lab paper (paper_ref),
     or any paper by title and optional link. on_date YYYY-MM-DD, at_time HH:MM. write_first = members must post their own diary
-    before they see others' (the usual). For a regular study's next session give group_id (see list_regular_studies):
-    date, time, place, members and whose turn it is to present are filled in like the site's "next session" form —
-    nonempty date, time, place and presenters (names or ids, in order) override defaults; invite adds members to the group's members.
-    Explain what you'll open to the user before calling."""
+    before they see others' (the usual). related_papers = who brings a paper related to the common one and introduces it:
+    "none", "everyone" (each member) or "presenters" (only the presenters). For a regular study's next session give group_id
+    (see list_regular_studies): date, time, place, members and whose turn it is to present are filled in like the site's
+    "next session" form — nonempty date, time, place and presenters (names or ids, in order) override defaults; invite adds
+    members to the group's members. Explain what you'll open to the user before calling."""
     u = me()
     if on_date:
         _validate_dates("on_date must be YYYY-MM-DD", on_date)
@@ -926,7 +932,7 @@ def open_study(paper_ref: str = "", title: str = "", link: str = "", group_id: s
     op = DB.apply({"op": "study.create", "actor": u["id"], "paperId": p["id"] if p else None, "title": title.strip(), "link": link.strip(),
                    "groupId": g["id"] if g else None, "date": on_date, "time": at_time, "place": place,
                    "presenters": [person(x)["id"] for x in presenters] if presenters is not None else None, "invite": [person(x)["id"] for x in invite or []],
-                   "desc": about, "blind": bool(write_first), "bring": bool(everyone_brings_a_paper), "summary": (p["title"] if p else title)[:60]})
+                   "desc": about, "blind": bool(write_first), "bring": BRING_MODE[related_papers], "summary": (p["title"] if p else title)[:60]})
     sid = op["result"].get("studyId")
     st = _study(sid) if sid else None
     d = DB.data()

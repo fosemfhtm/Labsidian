@@ -144,6 +144,7 @@
   const safeColor = c => (PALETTE.includes(c) || c === "gray2" || /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "gray2");
   const cleanTag = id => { const m = /^([dmf]):(.+)$/.exec(String(id || "")); return m ? `${m[1]}:${m[2].toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)}` : null; };
   const isDate = d => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d;
+  const bringMode = v => v === "presenters" ? v : !!v;   // study.bring: false · true (everyone) · "presenters"
 
   // ---------------------------------------------------------------- helpers
   const normTitle = t => (t || "").toLowerCase().replace(/ﬁ/g, "fi").replace(/ﬂ/g, "fl").replace(/[^0-9a-z가-힣]+/g, "");
@@ -919,7 +920,7 @@
           id, title: known?.title || title, paperId: known?.id || null, paperKey: known?.key || normTitle(title), link: data.link || known?.link || "",
           host: me.id, presenters, date: isDate(data.date) ? data.date : "", time: (data.time || "").slice(0, 5), place: (data.place || "").slice(0, 80),
           desc: (data.desc || "").slice(0, 2000), files: cleanFiles(data.files), members, closed: false, notes: null, notesDraft: null, reminded: {}, createdAt: now(),
-          blind: data.blind !== false, bring: !!data.bring, picks: {}, materials: [], groupId: g?.id || null,
+          blind: data.blind !== false, bring: bringMode(data.bring), picks: {}, materials: [], groupId: g?.id || null,
         };
         members.filter(u => u !== me.id).forEach(u => notify(u, { type: "studyInvite", studyId: id, paperId: known?.id, excerpt: db.studies[id].title }));
         if (known) Store.reading._add(known.id);
@@ -934,7 +935,8 @@
           st.presenters = [...new Set(patch.presenters)];
         }
         ["date", "time", "place", "desc", "link"].forEach(k => { if (k in patch) st[k] = k === "date" ? (isDate(patch.date) ? patch.date : "") : String(patch[k] || ""); });
-        ["blind", "bring"].forEach(k => { if (k in patch) st[k] = !!patch[k]; });
+        if ("blind" in patch) st.blind = !!patch.blind;
+        if ("bring" in patch) st.bring = bringMode(patch.bring);
         if ("files" in patch) st.files = await replaceFiles(st, patch.files);
         st.presenters.forEach(u => { if (!st.members.includes(u)) st.members.push(u); });
         log("study.update", st.title); save();
@@ -1003,11 +1005,13 @@
         return Object.values(db.studies).some(st => !st.closed && st.blind && st.members.includes(r.person) && r.studyId === st.id
           && Store.studies.paperOf(st)?.id === r.paper && !Store.studies.wrote(st, me.id));
       },
-      // "everyone brings a related paper": one pick per member, shown in presentation order
+      // related papers: bring = true (every member brings one) or "presenters" (only the presenters do); shown in presentation order
+      brings(st, uid) { return st.bring === "presenters" ? st.presenters.includes(uid) : !!st.bring; },
       pickPaper(pick) { return pick && (paperIndex.get(pick.paperId) || paperKeyIndex.get(pick.paperKey)) || null; },
       picks(st) { return Object.values(st.picks || {}).sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9) || a.at.localeCompare(b.at)); },
       async setPick(id, data) {
         const me = requireUser(), st = db.studies[id]; if (!st || st.closed) throw new Error("study.missing");
+        if (!Store.studies.brings(st, me.id)) throw new Error("forbidden");
         const title = (data.title || "").trim(); if (!title) throw new Error("study.title");
         const known = data.paperId ? SEED.allPapers.find(p => p.id === data.paperId) : SEED.allPapers.find(p => p.key === normTitle(title));
         const prev = (st.picks ||= {})[me.id];
@@ -1096,7 +1100,7 @@
           const tag = (st.date === d0 ? "d0:" : "d1:") + st.date;
           if (st.closed || !st.members.includes(me.id) || (st.date !== d0 && st.date !== d1) || st.reminded?.[me.id] === tag) return;
           (st.reminded ||= {})[me.id] = tag;
-          const todo = !Store.studies.wrote(st, me.id) || (st.bring && !st.picks?.[me.id]);
+          const todo = !Store.studies.wrote(st, me.id) || (Store.studies.brings(st, me.id) && !st.picks?.[me.id]);
           (db.notifications[me.id] ||= []).unshift({ id: uid("n"), at: now(), read: false, actor: st.presenters[0],
             type: (st.date === d0 ? "studyToday" : "studyTomorrow") + (todo ? "Todo" : ""), studyId: st.id, excerpt: st.title });
           changed = true;
@@ -1638,7 +1642,7 @@
           date: op.date || (g ? Store.groups.nextDate(g) : ""), time: op.time || g?.cadence?.time || "", place: op.place || g?.place || "",
           presenters: op.presenters || [g ? Store.groups.nextPresenter(g) : op.actor],
           desc: op.desc || "", invite: [...new Set([...(op.invite || []), ...(g ? g.members : [])])].filter(u => db.users[u]),
-          blind: op.blind !== false, bring: !!op.bring, groupId: g ? g.id : null,
+          blind: op.blind !== false, bring: op.bring, groupId: g ? g.id : null,
         })).id };
       }
       if (op.op === "study.notesDraft") {
