@@ -34,7 +34,7 @@
     en: {
       "ad.title": "Admin", "ad.only": "Admins only",
       "ad.tab.members": "Members", "ad.tab.tags": "Tags", "ad.tab.terms": "Terms", "ad.tab.data": "Data", "ad.tab.log": "Change log",
-      "ad.name": "Name", "ad.role": "Role", "ad.reviews": "Reviews", "ad.status": "Status", "ad.pending": "Not signed in yet", "ad.active": "Active", "ad.disabled": "Disabled",
+      "ad.name": "Name", "ad.role": "Role", "ad.reviews": "Diaries", "ad.status": "Status", "ad.pending": "Not signed in yet", "ad.active": "Active", "ad.disabled": "Disabled",
       "ad.reset": "Reset password", "ad.disable": "Disable", "ad.enable": "Enable", "ad.add": "Add member",
       "ad.tempTitle": "Temporary password", "ad.tempSub": "Give this to {name}. They'll change it on first sign-in. It won't be shown again.",
       "ad.copy": "Copy", "ad.close": "Close", "ad.exists": "That name already exists",
@@ -49,7 +49,7 @@
       "ad.autoHolidays": "Automatic public holidays {y}", "ad.noOff": "None yet. Add shutdowns or conference weeks",
       "ad.kind": "Kind", "ad.kind.holiday": "Public holiday", "ad.kind.shutdown": "Shutdown", "ad.kind.event": "Conference / event", "ad.offLabel": "Name", "ad.addOff": "Add day off", "ad.remove": "Remove",
       "ad.export": "Export all changes as JSON", "ad.import": "Import JSON", "ad.resetAll": "Reset this browser's data",
-      "ad.resetConfirm": "Delete all accounts, reviews and comments stored in this browser? (The imported diary stays)",
+      "ad.resetConfirm": "Delete all accounts, diaries and comments stored in this browser? (The imported diary stays)",
       "ad.dataNote": "Demo mode keeps data in this browser only. When the DB is connected, this JSON is migrated as-is.",
       "ad.done": "Applied", "ad.when": "When", "ad.who": "Who", "ad.what": "What",
       "ad.duty": "Diary duty", "ad.dutyOn": "Yes", "ad.dutyOff": "Exempt", "ad.rate": "Rate", "ad.term": "Term",
@@ -82,7 +82,7 @@
     const written = id => Object.values(UI.R).filter(r => r.person === id && r.date >= term.start && r.date <= term.end).length;
     el.innerHTML = `<div class="ui-card">
       <div class="row-between"><p class="hint">${t("ad.dutyHint")}</p>
-        <label class="muted">${t("ad.term")} <select id="ad-mterm">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select></label></div>
+        <label class="muted">${t("ad.term")} <select id="ad-mterm">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(UI.tl(x))}</option>`).join("")}</select></label></div>
       <div class="ui-table-wrap"><table class="ui-table"><thead><tr><th>${t("ad.name")}</th><th>${t("ad.role")}</th><th>${t("ad.duty")}</th><th>${t("ad.start")}</th><th>${t("ad.end")}</th><th>${t("ad.target")}</th><th>${t("ad.rate")}</th><th>${t("ad.status")}</th><th></th></tr></thead><tbody>
       ${users.map(u => {
         const member = !!UI.P[u.id], full = S.users.get(u.id), q = member ? S.quota(u.id, term) : null, n = member ? written(u.id) : 0;

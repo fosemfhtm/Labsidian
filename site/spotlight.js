@@ -15,7 +15,7 @@
     en: {
       "sp.btn": "Search ( / )", "sp.ph": "Search papers, people, studies, fields", "sp.papers": "Papers", "sp.people": "People", "sp.studies": "Studies", "sp.topics": "Fields & methods",
       "sp.all": "See all results for “{q}” in Papers", "sp.empty": "No results for “{q}”", "sp.hint": "↑↓ move · Enter open · Esc close",
-      "sp.recent": "Recently viewed", "sp.reviews": "{n} reviews", "sp.papersOf": "{n} papers", "sp.inReview": "found in a review",
+      "sp.recent": "Recently viewed", "sp.reviews": "{n} diaries", "sp.papersOf": "{n} papers", "sp.inReview": "found in a diary",
     },
   });
 

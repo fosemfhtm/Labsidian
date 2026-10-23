@@ -48,7 +48,7 @@
       "me.toProfile": "My profile", "me.studies": "Studies coming up", "me.noStudies": "No study coming up", "me.studiesAll": "All studies", "me.presenting": "Presenting", "me.noDate": "Date to be set",
       "me.reading": "Reading list", "me.noReading": "Collect papers to read by link or PDF", "me.readingAll": "Whole reading list", "me.calWrite": "Write a diary for this day", "me.calNone": "Nothing written", "me.dow": "SMTWTFS", "me.inbox": "Comments & mentions", "me.noInbox": "Nothing yet",
       "me.export": "Export .docx", "me.exporting": "Building…", "me.write": "Write diary",
-      "me.adminNote": "The admin account doesn't write reviews. Sign in with a member account.",
+      "me.adminNote": "The admin account doesn't write diaries. Sign in with a member account.",
       "me.color": "My colour", "me.exempt": "written · no diary duty this term",
       "me.notYet": " · starts on {d}", "me.fromDate": "Writing from {d} (target prorated from that date)", "me.customTarget": "Target set by an admin",
       "me.more": "More",
@@ -111,7 +111,7 @@
         <div class="pc-head">${person ? UI.avatar(me.id, true) : `<span class="avatar big admin">A</span>`}
           <div><h1>${esc(me.name)}</h1><p class="sub">${me.role === "admin" ? "admin · " : ""}${t("me.title")}${person ? ` · <a href="#/person/${me.id}">${t("me.toProfile")} →</a>` : ""}</p></div></div>
         <div class="btn-row">
-          <select id="me-term" aria-label="${t("me.term")}">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(x.label)}</option>`).join("")}</select>
+          <select id="me-term" aria-label="${t("me.term")}">${terms.map(x => `<option value="${x.id}" ${x.id === term.id ? "selected" : ""}>${esc(UI.tl(x))}</option>`).join("")}</select>
           <a class="ui-btn prominent" href="#/write">✎ ${t("me.write")}</a>
           ${person ? `<details class="color-pick"><summary class="ui-btn"><span class="swatch" style="background:${person.color}"></span>${t("me.color")}</summary>
             <div class="ui-popover ui-swatches" role="radiogroup" aria-label="${t("me.color")}">${S.palette.map(c => { const v = `rgb(var(--${c}))`, who = Object.values(UI.P).find(p => p.id !== me.id && p.color === v);

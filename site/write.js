@@ -30,7 +30,7 @@
       "w.leave": "저장하지 않은 변경 사항을 버릴까요?", "w.leaveMsg": "이 화면을 나가면 입력한 변경 사항이 사라져요.", "w.leaveOk": "버리기",
     },
     en: {
-      "w.new": "Write diary", "w.edit": "Edit review", "w.sub": "{term} · review #{n} this term",
+      "w.new": "Write diary", "w.edit": "Edit diary", "w.sub": "{term} · diary {n} this term",
       "w.lookup.ph": "Find by DOI · paper link (arXiv, doi.org) · title", "w.fetch": "Fetch details", "w.fetching": "Searching…",
       "w.fetched": "Loaded from {src}", "w.notFound": "Not found. Please fill in manually",
       "w.title": "Paper title", "w.venue": "Venue", "w.year": "Year", "w.link": "Link", "w.authors": "Authors", "w.abstract": "Abstract (improves map position & tag suggestions)",
@@ -43,9 +43,9 @@
       "w.publish": "Publish", "w.saveEdit": "Save changes", "w.delete": "Delete", "w.discard": "Start over", "w.saved": "Draft saved {time}",
       "w.restored": "Restored your saved draft", "w.fromReading": "From your reading list. The paper and its PDF are filled in",
       "w.already": "You already wrote a diary on this paper ({date}).", "w.editMine": "Edit that one", "w.need.title": "Please enter the paper title", "w.need.rating": "Please pick a rating",
-      "w.need.body": "Please write a summary or a memo", "w.done": "Published ✓", "w.updated": "Saved ✓", "w.deleted": "Deleted", "w.confirmDelete": "Delete this review?",
-      "w.dup": "Someone in the lab already read this paper", "w.dupBy": "Read by {names}", "w.dupOpen": "See reviews",
-      "w.suggest": "Suggested tags", "w.suggestHint": "From similar papers' tags + keyword rules (click to add)", "w.similar": "Similar papers", "w.forbidden": "You can only edit your own reviews",
+      "w.need.body": "Please write a summary or a memo", "w.done": "Published ✓", "w.updated": "Saved ✓", "w.deleted": "Deleted", "w.confirmDelete": "Delete this diary?",
+      "w.dup": "Someone in the lab already read this paper", "w.dupBy": "Read by {names}", "w.dupOpen": "See diaries",
+      "w.suggest": "Suggested tags", "w.suggestHint": "From similar papers' tags + keyword rules (click to add)", "w.similar": "Similar papers", "w.forbidden": "You can only edit your own diaries",
       "w.signin": "Please sign in", "w.forStudy": "📚 Diary entry on the paper read together in the \"{title}\" study. It's a regular entry.", "w.forPick": "📚 Diary entry on the paper you bring to the \"{title}\" study. It's a regular entry.", "w.fromMcp": "Drafted by your AI (MCP). Read the paper, check and edit before publishing.",
       "w.leave": "Discard unsaved changes?", "w.leaveMsg": "Leaving this page will lose your changes.", "w.leaveOk": "Discard",
     },
@@ -100,7 +100,7 @@
 
     view.innerHTML = `
       <div class="page-head"><h1>${editing ? t("w.edit") : t("w.new")}</h1>
-        <p class="sub">${editing ? esc(prePaper?.title || "") : t("w.sub", { term: esc(term.label), n: mineInTerm + 1 })}</p></div>
+        <p class="sub">${editing ? esc(prePaper?.title || "") : t("w.sub", { term: esc(UI.tl(term)), n: mineInTerm + 1 })}</p></div>
       <div class="write-grid">
         <form class="ui-card write-form" id="w-form" autocomplete="off">
           ${editing ? "" : `<div class="lookup"><input id="w-lookup" placeholder="${t("w.lookup.ph")}"><button type="button" class="ui-btn" id="w-fetch">${t("w.fetch")}</button></div>
@@ -205,7 +205,7 @@
     if (!d) { el.textContent = ""; return; }
     const n = Math.round((Date.parse(S.today()) - Date.parse(d)) / 864e5);
     const term = S.terms.list().find(x => x.start <= d && d <= x.end);
-    el.textContent = [!editing && n > 0 ? t("w.dateLate", { n }) : !editing && n < 0 ? t("w.dateEarly", { n: -n }) : "", term ? t("w.dateTerm", { term: term.label }) : ""].filter(Boolean).join(" · ");
+    el.textContent = [!editing && n > 0 ? t("w.dateLate", { n }) : !editing && n < 0 ? t("w.dateEarly", { n: -n }) : "", term ? t("w.dateTerm", { term: UI.tl(term) }) : ""].filter(Boolean).join(" · ");
   }
 
   // ---- attachments

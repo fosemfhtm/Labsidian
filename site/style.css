@@ -54,9 +54,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .filters select { max-width: 100%; }   /* a long option name would otherwise set the width and push past a phone screen */
 @media (max-width: 760px) { .filters { display: grid; grid-template-columns: 1fr 1fr; } .filters > .p-search { grid-column: 1 / -1; } .filters select { width: 100%; } }
-.list { display: grid; gap: 6px; }
+.list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }   /* a long tag ellipsizes instead of widening the page */
 .paper-row {
-  display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 12px 14px; cursor: pointer;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 14px; cursor: pointer;
 }
 .pr-title { font-weight: 550; }
 .pr-meta { grid-column: 1; color: var(--text-3); font-size: var(--fs-callout); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }

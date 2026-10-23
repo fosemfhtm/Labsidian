@@ -36,9 +36,9 @@
       "m.theme": "Appearance", "m.lang": "Language", "m.auto": "Auto", "m.light": "Light", "m.dark": "Dark", "c.cancel": "Cancel", "c.ok": "OK", "m.write": "Write diary", "m.reading": "Reading list", "m.me": "My page", "m.pw": "Change password", "m.admin": "Admin", "m.logout": "Sign out",
       "n.title": "Notifications", "n.empty": "No new notifications", "n.readAll": "Mark all read",
       "n.curation": "Time for this month's tag tidy-up: merge similar tags and fix wrong ones (or ask your AI)",
-      "n.comment": "{a} commented on your review", "n.question": "{a} asked a question on your review", "n.idea": "{a} left an idea on your review",
-      "n.reply": "{a} replied to your comment", "n.mention": "{a} mentioned you", "n.like": "{a} liked your review",
-      "n.want": "{a} added a paper from your review to their reading list", "n.sameRead": "{a} also read a paper you reviewed",
+      "n.comment": "{a} commented on your diary", "n.question": "{a} asked a question on your diary", "n.idea": "{a} left an idea on your diary",
+      "n.reply": "{a} replied to your comment", "n.mention": "{a} mentioned you", "n.like": "{a} liked your diary",
+      "n.want": "{a} added a paper from your diary to their reading list", "n.sameRead": "{a} also read a paper you wrote about",
       "nav.me": "My page",
       "n.studyInvite": "{a} invited you to a paper study", "n.studyJoin": "{a} joined your study", "n.studyQuestion": "{a} posted a question to a study",
       "n.studyClosed": "{a} finished a study. See the notes", "n.studyTomorrow": "Paper study tomorrow", "n.studyToday": "Paper study today", "n.studyTomorrowTodo": "Study tomorrow. Your diary (or brought paper) isn't up yet", "n.studyTodayTodo": "Study today. Your diary (or brought paper) isn't up yet", "n.studyNotesDraft": "Your AI (MCP) drafted study notes", "n.guideItem": "{a} added a paper to a guide", "n.groupSession": "You present next in a regular study. Set up the session", "n.groupJoin": "{a} joined your regular study",
@@ -117,7 +117,8 @@
     host.className = "top-right";
     const n = S.notifications.unread();
     const vt = S.view.terms(), all = S.view.allTerms();
-    const termLabel = !vt.length ? t("tm.all") : vt.length === 1 ? (all.find(x => x.id === vt[0])?.label || vt[0]) : `${all.find(x => x.id === vt[0])?.label || vt[0]} +${vt.length - 1}`;
+    const name = id => { const x = all.find(x => x.id === id); return x ? UI.tl(x) : id; };
+    const termLabel = !vt.length ? t("tm.all") : vt.length === 1 ? name(vt[0]) : `${name(vt[0])} +${vt.length - 1}`;
     host.innerHTML = `
       <button class="term-btn ${vt.length ? "active" : ""}" id="term-btn">📅 <span class="hide-sm">${esc(termLabel)}</span><span class="caret">▾</span></button>
       <a class="ui-btn prominent small" href="#/write">✎ <span class="hide-sm">${t("m.write")}</span></a>
@@ -154,7 +155,7 @@
     const vt = S.view.terms();
     return `<div class="menu-h"><b>${t("tm.title")}</b></div><p class="hint menu-hint">${t("tm.hint")}</p>
       <label class="ui-check menu-check"><input type="checkbox" data-all ${vt.length ? "" : "checked"}> ${t("tm.all")}</label>
-      ${S.view.allTerms().reverse().map(x => `<label class="ui-check menu-check"><input type="checkbox" data-term="${esc(x.id)}" ${vt.includes(x.id) ? "checked" : ""}> ${esc(x.label)}</label>`).join("")}
+      ${S.view.allTerms().reverse().map(x => `<label class="ui-check menu-check"><input type="checkbox" data-term="${esc(x.id)}" ${vt.includes(x.id) ? "checked" : ""}> ${esc(UI.tl(x))}</label>`).join("")}
       <div class="menu-foot"><button class="ui-btn prominent small" data-act="apply">${t("tm.apply")}</button></div>`;
   }
   function wireTerms(m) {

@@ -97,11 +97,11 @@
     function list() {
       const rows = filtered(), base = scoped(), any = filtering();
       const chips = [
-        !opts.term && f.term && [termById(f.term)?.label || f.term, "term"],
+        !opts.term && f.term && [termById(f.term) ? UI.tl(termById(f.term)) : f.term, "term"],
         f.month && [t("dl.month", { y: f.month.slice(0, 4), m: +f.month.slice(5) }), "month"],
         f.domain && [tagName("domain", f.domain), "domain"], f.method && [tagName("method", f.method), "method"],
       ].filter(Boolean);
-      const scope = opts.term ? t("dl.scope", { term: esc(opts.term.label) }) : t("dl.scopeAll");
+      const scope = opts.term ? t("dl.scope", { term: esc(UI.tl(opts.term)) }) : t("dl.scopeAll");
       $(".dl-active", root).innerHTML = `<span class="muted">${any ? t("dl.shown", { n: rows.length, all: opts.term ? base.length : all.length }) : `${scope} · ${base.length}`}</span>`
         + chips.map(([label, k]) => `<button type="button" class="ui-chip" aria-pressed="true" data-clear="${k}">${esc(label)} ✕</button>`).join("")
         + (any ? `<button type="button" class="ui-btn text" data-clear="all">${t("dl.clear")}</button>` : "");
@@ -167,7 +167,7 @@
       });
       if (term) for (let m = term.start.slice(0, 7), end = (S.today() < term.end ? S.today() : term.end).slice(0, 7); m <= end; m = nextMonth(m)) rows[m] ||= {};
       const keys = term ? Object.keys(rows).sort() : termList().map(x => x.id).filter(id => rows[id]);
-      const label = m => (term ? t("dl.month", { y: m.slice(0, 4), m: +m.slice(5) }).replace(/^\d+년 /, "") : termById(m)?.label || m);
+      const label = m => (term ? t("dl.month", { y: m.slice(0, 4), m: +m.slice(5) }).replace(/^\d+년 /, "") : termById(m) ? UI.tl(termById(m)) : m);
       const top = Object.entries(total).filter(([k]) => k !== "_none").sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
       if (total._none) top.push("_none");
       const color = k => (k === "_none" ? "rgb(var(--gray))" : UI.T[(axis === "domain" ? "d:" : "m:") + k]?.color || "rgb(var(--gray2))");
@@ -178,7 +178,7 @@
       };
       box.innerHTML = `<div class="row-between dl-drift-h"><h3>${t("dl.drift")}</h3>
           <div class="ui-seg small" role="group" aria-label="${t("dl.drift")}">${["domain", "method"].map(a => `<button type="button" data-axis="${a}" aria-pressed="${axis === a}">${t("dl.axis." + a)}</button>`).join("")}</div></div>
-        <p class="hint">${term ? `${t("dl.driftMonths", { term: esc(term.label) })} · <button type="button" class="ui-btn text" data-back>${t("dl.backAll")}</button>` : t("dl.driftTerms")}</p>
+        <p class="hint">${term ? `${t("dl.driftMonths", { term: esc(UI.tl(term)) })} · <button type="button" class="ui-btn text" data-back>${t("dl.backAll")}</button>` : t("dl.driftTerms")}</p>
         ${!keys.length ? `<p class="ui-empty compact">${t("dl.driftEmpty")}</p>` : `<div class="drift">${keys.map(m => {
           const row = rows[m], sum = Object.values(row).reduce((a, b) => a + b, 0);
           const other = Object.entries(row).filter(([k]) => !top.includes(k)).reduce((a, [, v]) => a + v, 0);

@@ -24,8 +24,8 @@
       "h.progressExempt": "{term} · {n} (no quota)", "h.weekDone": "This week done ✓", "h.weekTodo": "Nothing yet this week",
       "h.tab.all": "All", "h.tab.mine": "My fields", "h.tab.q": "Questions", "h.tab.shared": "Read together",
       "h.posted": "posted {t}", "h.alsoRead": "also read by {names}",
-      "h.act.comment": "{a} commented on {b}'s review", "h.act.question": "{a} asked {b} a question",
-      "h.act.idea": "{a} left an idea on {b}'s review", "h.act.reply": "{a} replied",
+      "h.act.comment": "{a} commented on {b}'s diary", "h.act.question": "{a} asked {b} a question",
+      "h.act.idea": "{a} left an idea on {b}'s diary", "h.act.reply": "{a} replied",
       "h.more": "Show more", "h.empty": "Nothing to show yet", "h.mineEmpty": "Write a few entries and we'll pick your fields",
       "h.openQ": "Questions waiting for an answer", "h.noOpenQ": "No open questions", "h.together": "Recently read together", "h.thisWeek": "This week's diaries",
       "h.nobodyYet": "Nobody yet", "h.studyOpened": "{a} opened a paper study", "h.studies": "Upcoming studies", "h.noStudies": "No open studies", "h.openStudy": "Open a study", "h.resolved": "resolved", "h.ago.now": "just now", "h.ago.m": "{n}m ago", "h.ago.h": "{n}h ago", "h.ago.d": "{n}d ago",
@@ -121,7 +121,7 @@
     return `
       <div class="ui-card compose">
         <div class="compose-row">${UI.avatar(me.id, true)}<div><b>${t("h.compose")}</b>
-          <div class="muted">${q.exempt ? t("h.progressExempt", { term: esc(term.label), n: inTerm }) : t("h.progress", { term: esc(term.label), n: inTerm, target: q.target })}
+          <div class="muted">${q.exempt ? t("h.progressExempt", { term: esc(UI.tl(term)), n: inTerm }) : t("h.progress", { term: esc(UI.tl(term)), n: inTerm, target: q.target })}
             · <span class="${weekDone ? "wk-ok" : "wk-todo"}">${t(weekDone ? "h.weekDone" : "h.weekTodo")}</span></div>
           ${(() => { const rl = S.reading.list().filter(x => !x.written), a = rl.filter(x => x.status === "reading").length, b = rl.filter(x => x.status === "read").length;
             return a || b ? `<a class="rl-home" href="#/reading">📚 ${t("h.reading", { a, b })}</a>` : ""; })()}</div></div>

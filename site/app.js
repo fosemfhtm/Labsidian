@@ -62,7 +62,8 @@
     return html;
   }
   const initial = name => /^[A-Za-z]/.test(name) ? name[0].toUpperCase() : name.slice(-2);
-  const tl = x => (lang === "en" ? x.labelEn : x.label) || x.label;
+  // a tag's or a term's name: terms only have a Korean label, so "2026H2" reads "2026 H2" in English
+  const tl = x => (lang === "en" && (x.labelEn || /^(\d{4})H([12])$/.exec(x.id)?.slice(1).join(" H"))) || x.label;
   const topicIds = p => [...p.domains.map(d => "d:" + d), ...p.methods.map(m => "m:" + m)];
 
   const paperTopicCount = {};
@@ -170,7 +171,7 @@
     if (!files?.length) return "";
     const imgs = files.filter(f => f.kind === "image"), pdfs = files.filter(f => f.kind === "pdf");
     return `<div class="rv-files">
-      ${pdfs.map(f => `<a class="rv-pdf" data-fid="${esc(f.id)}" target="_blank" rel="noopener">📄 ${esc(f.name)} <span class="m">${kb(f.size)}</span></a>`).join("")}
+      ${pdfs.map(f => `<a class="rv-pdf" data-fid="${esc(f.id)}" target="_blank" rel="noopener">📄 <span class="nm">${esc(f.name)}</span> <span class="m">${kb(f.size)}</span></a>`).join("")}
       ${imgs.length ? `<div class="rv-imgs">${imgs.map(f => `<img data-fid="${esc(f.id)}" alt="${esc(f.name)}" title="${esc(f.name)}" loading="lazy">`).join("")}</div>` : ""}
     </div>`;
   };

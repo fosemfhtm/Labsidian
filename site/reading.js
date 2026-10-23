@@ -30,7 +30,7 @@
       "rl.empty.reading": "Papers you start reading show up here", "rl.empty.todo": "Add a paper by link or PDF", "rl.empty.read": "Papers you finished but haven't written up show up here",
       "rl.nudgeRead": "{n} read but not written up", "rl.nudgeStale": "{n} waiting for over two weeks",
       "rl.start": "Start reading", "rl.done": "Finished", "rl.write": "Write diary", "rl.myDiary": "My diary", "rl.attach": "Attach PDF",
-      "rl.aiDraft": "AI draft", "rl.reviewDraft": "Review draft",
+      "rl.aiDraft": "AI draft", "rl.reviewDraft": "Check draft",
       "rl.back": "Back to 'to read'", "rl.remove": "Remove from Reading List", "rl.removeQ": "Remove from your reading list?", "rl.removeMsg": "The uploaded PDF is deleted too, and this can't be undone.", "rl.removeOk": "Remove", "rl.note": "Note",
       "rl.notePh": "Why you want to read it, thoughts while reading…", "rl.save": "Save", "rl.editTitle": "Edit Title",
       "rl.labRead": "{n} in the lab read it", "rl.addedAgo": "added {d}d ago", "rl.startedAgo": "reading for {d}d", "rl.readAgo": "finished {d}d ago",

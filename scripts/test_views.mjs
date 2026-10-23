@@ -186,7 +186,7 @@ const writeView = writeNode("view");
 Object.defineProperty(writeView, "innerHTML", { set() { writeNodes.clear(); } });
 let savedDraft = null, confirmLeave, resolveLookup, published = 0;
 const writeLocation = { hash: "#/write" }, writeUI = { esc: String, R: { r: { id: "r", person: "u", paper: "p", date: "2026-10-01", content: "original", rating: 4 } },
-  PA: { p: { title: "Paper", reviews: ["r"] } }, ratingInput: () => "", paintRatingInput() {}, wireRatingInput() {}, T: {} };
+  PA: { p: { title: "Paper", reviews: ["r"] } }, ratingInput: () => "", paintRatingInput() {}, wireRatingInput() {}, T: {}, tl: x => x.label };
 const writeStore = { auth: { current: () => ({ id: "u" }) }, terms: { current: () => ({ start: "2026-01-01", end: "2026-12-31" }), list: () => [] },
   today: () => "2026-10-01", findPaper: () => null, suggestTags: () => ({ tags: [], similar: [] }),
   drafts: { get: () => savedDraft, save: data => { savedDraft = structuredClone(data); return "2026-10-01T12:00:00Z"; } },

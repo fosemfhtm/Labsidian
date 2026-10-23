@@ -19,7 +19,7 @@
       "s.kind.comment": "Comment", "s.kind.question": "Question", "s.kind.idea": "Idea", "s.reply": "Reply", "s.resolve": "Mark resolved",
       "s.resolved": "Resolved", "s.reopen": "Reopen", "s.delete": "Delete", "s.post": "Post", "s.ph": "Mention people with @name",
       "s.noComments": "No comments yet. Ask the first question.", "s.translated": "Translation (browser built-in · on-device)",
-      "s.trNone": "Built-in translation isn't available in this browser (needs recent desktop Chrome).", "s.trMcp": "Ask your MCP-connected Claude/Codex: “translate the reviews of ‘{title}’ on Labsidian”.",
+      "s.trNone": "Built-in translation isn't available in this browser (needs recent desktop Chrome).", "s.trMcp": "Ask your MCP-connected Claude/Codex: “translate the diaries of ‘{title}’ on Labsidian”.",
       "s.trLoading": "Translating…", "s.added": "Added to reading list", "s.removed": "Removed from reading list",
     },
   });
