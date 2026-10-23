@@ -705,13 +705,15 @@ details.fld summary { cursor: pointer; }
 .pp-lab-side h4 { margin: 0 0 var(--s-2); font: var(--t-headline); font-weight: 600; letter-spacing: var(--tr-headline); color: var(--label-2); }
 .pp-lab-body { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: var(--s-4); align-items: center; }
 .pp-lab-body .vz-rose { width: 100%; max-width: 150px; }
-.pp-axes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-width: 460px; }
-.pp-axes .ui-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 48px; }
+.pp-axes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: var(--s-5) minmax(0, 1fr) auto auto; gap: 2px var(--s-2); max-width: 460px; }
+/* one set of columns for all rows ("114 papers" never wraps); the row's leading padding is the dot's track */
+.pp-axes li, .pp-axes .ui-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; column-gap: var(--s-2); }
+.pp-axes .ui-row { padding-inline-start: 0; }
 .pp-axes .ui-row[aria-pressed="true"] { background: rgb(var(--accent-rgb) / .14); }
-.pp-axes i { width: 8px; height: 8px; border-radius: var(--r-full); }
+.pp-axes i { width: 8px; height: 8px; border-radius: var(--r-full); justify-self: end; }
 .pp-axes .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-axes b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.pp-axes .n { font: var(--t-callout); color: var(--label-meta); text-align: right; font-variant-numeric: tabular-nums; }
+.pp-axes .n { font: var(--t-callout); color: var(--label-meta); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pp-hint { margin: 0; }
 .vz-petal.dim { fill-opacity: .14; }
 .hovering .vz-petal:not(.hl):not(.dim) { fill-opacity: .35; }

@@ -40,8 +40,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 .pc-name { font-weight: 600; font-size: var(--fs-body); }
 .pc-meta { color: var(--text-3); font-size: var(--fs-callout); }
-.bars { margin-top: 12px; display: grid; gap: 5px; }
-.bar-row { display: grid; grid-template-columns: 120px 1fr 32px; align-items: center; gap: 8px; font-size: var(--fs-callout); }
+/* one column grid for all rows: the label column fits the longest label (up to 45%), bars line up */
+.bars { margin-top: 12px; display: grid; grid-template-columns: fit-content(45%) minmax(0, 1fr) auto; gap: 5px 8px; }
+.bar-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; font-size: var(--fs-callout); }
 .bar-row .lbl { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-row .track, .sim-row .track { display: block; height: 6px; background: var(--fill-3); border-radius: var(--r-xs); overflow: hidden; }
 .bar-row .fill { display: block; height: 100%; border-radius: var(--r-xs); }
