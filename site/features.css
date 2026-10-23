@@ -127,7 +127,7 @@ details.fld summary { cursor: pointer; }
 .big-num b { font-size: var(--fs-large-title); letter-spacing: -.03em; }
 .big-num span { color: var(--text-2); }
 .pbar { position: relative; height: 12px; background: var(--bg-2); border-radius: var(--r-control-sm); margin: 12px 0 4px; }
-.pfill { height: 100%; border-radius: var(--r-control-sm); background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.pfill { height: 100%; border-radius: var(--r-control-sm); background: var(--accent); }
 .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--separator); }
 .mark.hi { background: var(--star); }
 .mark.exp { background: var(--label); width: 3px; border-radius: var(--r-xs); }
