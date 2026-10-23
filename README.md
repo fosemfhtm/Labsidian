@@ -139,8 +139,8 @@ python scripts/parse_diary.py "2026 상반기 Paper Diary.docx" --term 2026H1
 S2_API_KEY=... python scripts/enrich_s2.py
 
 # 3) 의미 지도 계산 (~3분) → 사이트 빌드. 사이트에서 새로 쓴 논문(data/labsidian.db)도 같이 들어가요
-.venv/Scripts/python scripts/build_map.py          # 전체 계산: 모든 점이 새로 놓여요 (학기 초에 한 번)
-.venv/Scripts/python scripts/build_map.py --add    # 지도에 없는 논문만 끼워 넣어요. 나머지 점은 그대로
+.venv/Scripts/python scripts/build_map.py          # 전체 계산: 지난 지도에서 출발해 조금씩 다듬어요 (주 1회). --fresh 면 처음부터 새로
+.venv/Scripts/python scripts/build_map.py --add    # 지도에 없는 논문만 끼워 넣어요. 나머지 점은 그대로 (매일)
 python scripts/build_site.py                        # → site/data.js
 
 # 4) 보기
@@ -169,10 +169,11 @@ python scripts/serve.py 8765 --host 0.0.0.0     # 학교망에서 http://<서버
 
 - 방화벽은 학교망과 사설 IP 대역만 열어 두세요(KAIST `143.248.0.0/16`, 학교 와이파이·KVPN이 쓰는 사설 IP `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`). 사설 IP는 학교 밖 인터넷에서 들어올 수 없어요.
 - 비밀번호가 네트워크로 오가니 서버 앞에 HTTPS(예: Caddy 리버스 프록시)를 두는 걸 권해요. 프록시를 쓰면 serve.py는 `--host` 없이 `127.0.0.1`에 두면 돼요.
-- 사이트에서 새로 쓴 논문은 쓰자마자 제목·초록이 비슷한 논문 옆에 임시로 놓이고, 매일 새벽 지도 계산이 제자리를 정해 줘요. 서버의 crontab 예시(ML 환경은 `.venv-map`에 따로):
+- 사이트에서 새로 쓴 논문은 쓰자마자 제목·초록이 비슷한 논문 옆에 임시로 놓이고, 매일 새벽 지도 계산이 제자리를 정해 줘요. 일요일에는 전체를 지난 지도에서 출발해 다시 다듬어서, 끼워 넣은 논문 위치도 바로잡혀요(점이 조금씩 움직여요). 서버의 crontab 예시(ML 환경은 `.venv-map`에 따로):
 
 ```bash
-30 4 * * * cd <저장소> && .venv-map/bin/python scripts/build_map.py --add >> data/logs/map.log 2>&1 && python3 scripts/build_site.py >> data/logs/map.log 2>&1
+30 4 * * 1-6 cd <저장소> && .venv-map/bin/python scripts/build_map.py --add >> data/logs/map.log 2>&1 && python3 scripts/build_site.py >> data/logs/map.log 2>&1
+30 4 * * 0   cd <저장소> && .venv-map/bin/python scripts/build_map.py       >> data/logs/map.log 2>&1 && python3 scripts/build_site.py >> data/logs/map.log 2>&1
 ```
 
 ## 내 Claude · Codex 연결 (MCP)

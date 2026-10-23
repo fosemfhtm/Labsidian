@@ -1,7 +1,8 @@
 """Semantic maps: papers -> embeddings (+ their field / method tags) -> two 2D layouts + neighbours.
 
 Usage (needs the ML venv):
-    python scripts/build_map.py          # full: fit both maps on every paper (once a term: every point moves)
+    python scripts/build_map.py          # weekly: fit both maps on every paper, starting from the last map (points shift a little)
+    python scripts/build_map.py --fresh  # a new map from scratch, ignoring the last one (every point moves)
     python scripts/build_map.py --add    # nightly: put papers that aren't on the map yet onto it; the rest stay put
 Papers = the imported diary (data/diary.json) + papers first written on the site (data/labsidian.db, read-only).
 Writes data/map.json, which build_site.py merges into site/data.js. A full run saves the fitted maps in
@@ -19,8 +20,9 @@ Pipeline
      (weight 0.7: 10 nearest map neighbours share the paper's main tag 83% (field) / 91% (method) of the time, vs 67/59%
      at 0.4, with most text neighbours kept; 1.0+ gains ~1 point more and splits the map into one island per tag — 2026-10-22)
   4. UMAP 2-d, cosine, fixed seed: the field map (x, y); the method map (mx, my) starts from the field map so the
-     graph can flip between them with papers staying roughly in their column. --add places new papers with the
-     saved models' transform(), scaled and turned like the full run.
+     graph can flip between them with papers staying roughly in their column. A weekly run starts from the last map
+     with a low learning rate and is turned onto it; --add places new papers with the saved models' transform(),
+     scaled and turned like the full run.
   5. top-k cosine neighbours per paper on the text alone (for "similar papers" and local-graph edges)
 There are no map regions: the graph draws each tag's papers as a density area (docs/design/decisions.md 2026-10-22).
 """
@@ -39,6 +41,9 @@ from taxonomy import DOMAINS, METHODS  # noqa: E402
 MODEL = "allenai/specter2"
 SEED = 42
 TAG_WEIGHT = 0.7
+# UMAP learning rate (default 1.0) when a full run refines the last map: 0.05 moves points ~10–15 (map spread 100) per run
+# on the demo lab and still pulls papers --add placed 30% closer to their text neighbours; 1.0 reshuffles ~40 — 2026-10-23
+WARM_RATE = 0.05
 
 
 def load_papers():
@@ -142,8 +147,10 @@ def inputs(papers, emb, mean):
     return np.hstack([ec, TAG_WEIGHT * tag_matrix(papers, DOMAINS, 3, "d")]), np.hstack([ec, TAG_WEIGHT * tag_matrix(papers, METHODS, 2, "m")])
 
 
-def fit(papers, emb):
-    """→ {key: (x, y, mx, my)} and the state --add needs to place later papers the same way"""
+def fit(papers, emb, old):
+    """→ {key: (x, y, mx, my)} and the state --add needs to place later papers the same way. With a previous map (old),
+    UMAP starts from it (papers new since then start among their nearest text neighbours), so a weekly re-run refines
+    the map instead of drawing a new one; then each map is turned / mirrored / shifted onto the old one."""
     mean = emb.mean(0)
     xf, xm = inputs(papers, emb, mean)
     state = {"model": MODEL, "tagWeight": TAG_WEIGHT, "dims": [xf.shape[1], xm.shape[1]], "mean": mean}
@@ -152,21 +159,59 @@ def fit(papers, emb):
         um, state["field"] = uf.copy(), None
     else:
         import umap
-        from scipy.linalg import orthogonal_procrustes
         # more papers → look at more neighbours, so the big topic structure survives (18 up to ~900 papers)
         make = lambda: umap.UMAP(n_components=2, n_neighbors=min(len(papers) - 1, max(18, round(0.6 * np.sqrt(len(papers))))),
                                  min_dist=0.12, spread=1.2, metric="cosine", random_state=SEED)
         state["field"], state["method"] = make(), make()
+        start = None if "--fresh" in sys.argv else last_layout(papers, emb, old)
+        if start is not None:  # refine last map gently (a full-strength run from it still reshuffles ~40% of a spread)
+            for m in (state["field"], state["method"]):
+                m.set_params(learning_rate=WARM_RATE)
+            state["field"].set_params(init=start[:, :2])
         uf = state["field"].fit_transform(xf)
-        state["method"].set_params(init=uf)
+        state["method"].set_params(init=start[:, 2:] if start is not None else uf)
         um = state["method"].fit_transform(xm)
     # same density as the corpus grows; keep flat axes finite for tiny datasets
     state["scale"] = 100 * np.sqrt(max(1, len(papers) / 900))
     state["nf"], state["nm"] = (uf.mean(0), np.where(uf.std(0) > 0, uf.std(0), 1)), (um.mean(0), np.where(um.std(0) > 0, um.std(0), 1))
     uf, um = scaled(uf, state["nf"], state), scaled(um, state["nm"], state)
-    state["rot"] = orthogonal_procrustes(um, uf)[0] if len(papers) >= 4 else np.eye(2)  # turn / mirror the method map onto the field map
-    um = um @ state["rot"]
+    shared = [i for i, p in enumerate(papers) if p["key"] in old]
+    target = lambda a, b: np.array([[old[papers[i]["key"]][a], old[papers[i]["key"]][b]] for i in shared])
+    state["af"] = turn(uf, target("x", "y"), shared)
+    uf = moved(uf, state["af"])
+    # the method map follows last time's method map, or on a first run the field map: the flip only moves what changed
+    state["am"] = turn(um, target("mx", "my"), shared) if len(shared) >= 3 else turn(um, uf, list(range(len(papers))))
+    um = moved(um, state["am"])
     return {p["key"]: (*uf[i], *um[i]) for i, p in enumerate(papers)}, state
+
+
+def last_layout(papers, emb, old):
+    """the previous map as UMAP's starting point (x, y, mx, my per paper), or None when it covers under half the papers"""
+    have = [i for i, p in enumerate(papers) if p["key"] in old]
+    if len(have) < max(4, len(papers) / 2):
+        return None
+    start = np.zeros((len(papers), 4))
+    for i in have:
+        o = old[papers[i]["key"]]
+        start[i] = o["x"], o["y"], o["mx"], o["my"]
+    e = unit(emb)
+    for i in sorted(set(range(len(papers))) - set(have)):  # a newer paper: the mean spot of its 6 nearest old papers
+        nearest = np.array(have)[np.argsort(-(e[have] @ e[i]))[:6]]
+        start[i] = start[nearest].mean(0)
+    return start
+
+
+def turn(u, target, rows):
+    """the rotation / mirror (+ shift) that best lays u[rows] onto target; identity when there's too little to go on"""
+    if len(rows) < 3:
+        return np.zeros(2), np.eye(2), np.zeros(2)
+    from scipy.linalg import orthogonal_procrustes
+    src, dst = u[rows], target
+    return src.mean(0), orthogonal_procrustes(src - src.mean(0), dst - dst.mean(0))[0], dst.mean(0)
+
+
+def moved(u, t):
+    return (u - t[0]) @ t[1] + t[2]
 
 
 def scaled(u, norm, state):
@@ -176,7 +221,8 @@ def scaled(u, norm, state):
 def place(papers, emb, state):
     """new papers onto the saved maps: transform, then the full run's scaling and turn"""
     xf, xm = inputs(papers, emb, state["mean"])
-    uf, um = scaled(state["field"].transform(xf), state["nf"], state), scaled(state["method"].transform(xm), state["nm"], state) @ state["rot"]
+    uf = moved(scaled(state["field"].transform(xf), state["nf"], state), state["af"])
+    um = moved(scaled(state["method"].transform(xm), state["nm"], state), state["am"])
     return {p["key"]: (*uf[i], *um[i]) for i, p in enumerate(papers)}
 
 
@@ -189,9 +235,9 @@ def main():
     emb = embeddings(papers)
 
     state = pickle.loads(model_p.read_bytes()) if "--add" in sys.argv and model_p.exists() else None
-    old = read_json(map_p)["papers"] if state and map_p.exists() else {}
+    old = read_json(map_p)["papers"] if map_p.exists() else {}  # --fresh still turns the new map onto it
     if state and state.get("field") and state["model"] == MODEL and state["tagWeight"] == TAG_WEIGHT \
-            and state["dims"] == [emb.shape[1] + len(DOMAINS), emb.shape[1] + len(METHODS)]:
+            and state["dims"] == [emb.shape[1] + len(DOMAINS), emb.shape[1] + len(METHODS)] and "af" in state:
         pos = {k: (v["x"], v["y"], v["mx"], v["my"]) for k, v in old.items()}
         new = [i for i, p in enumerate(papers) if p["key"] not in pos]
         if new:
@@ -200,7 +246,7 @@ def main():
     else:
         if "--add" in sys.argv:
             print("--add: no saved maps that fit → full run", file=sys.stderr)
-        pos, state = fit(papers, emb)
+        pos, state = fit(papers, emb, old)
         model_p.write_bytes(pickle.dumps(state))
 
     # neighbours on the text alone
