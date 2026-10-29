@@ -145,6 +145,12 @@
   // tag colours: a data colour name (data-viz.md §2), or an older #hex; anything else → "gray2"
   const safeColor = c => (PALETTE.includes(c) || c === "gray2" || /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "gray2");
   const cleanTag = id => { const m = /^([dmf]):(.+)$/.exec(String(id || "")); return m ? `${m[1]}:${m[2].toLowerCase().replace(/[^0-9a-z가-힣_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40)}` : null; };
+  const materialTitle = v => { const t = String(v || "").trim(); if (!t || t.length > 80) throw new Error("study.materialTitle"); return t; };
+  const materialUrl = v => {
+    const url = String(v || "").trim();
+    try { if (!["http:", "https:"].includes(new URL(url).protocol)) throw new Error(); } catch { throw new Error("study.materialUrl"); }
+    return url;
+  };
   const isDate = d => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d;
   const bringMode = v => v === "presenters" ? v : !!v;   // study.bring: false · true (everyone) · "presenters"
 
@@ -983,19 +989,22 @@
         const me = requireUser(), st = db.studies[id];
         if (!st) throw new Error("study.missing");
         if (!st.members.includes(me.id) && me.role !== "admin") throw new Error("forbidden");
-        const title = String(data.title || "").trim();
-        if (!title || title.length > 80) throw new Error("study.materialTitle");
-        const material = { id: uid("sm_"), kind: data.kind, title, by: me.id, at: now() };
+        const material = { id: uid("sm_"), kind: data.kind, title: materialTitle(data.title), by: me.id, at: now() };
         if (data.kind === "file") {
           const file = cleanFiles([data.file])[0]; if (!file) throw new Error("file.type");
           material.file = file;
-        } else if (data.kind === "link") {
-          const url = String(data.url || "").trim();
-          try { if (!["http:", "https:"].includes(new URL(url).protocol)) throw new Error(); }
-          catch { throw new Error("study.materialUrl"); }
-          material.url = url;
-        } else throw new Error("study.materialKind");
-        st.materials.push(material); log("study.materialAdd", title); save(); return material;
+        } else if (data.kind === "link") material.url = materialUrl(data.url);
+        else throw new Error("study.materialKind");
+        st.materials.push(material); log("study.materialAdd", material.title); save(); return material;
+      },
+      // rename a material, or point a link elsewhere: whoever may delete it (the adder, the host, an admin)
+      async updateMaterial(id, materialId, data) {
+        const me = requireUser(), st = db.studies[id], material = st?.materials.find(m => m.id === materialId);
+        if (!material) throw new Error("study.materialMissing");
+        if (material.by !== me.id && st.host !== me.id && me.role !== "admin") throw new Error("forbidden");
+        const title = materialTitle(data.title), url = material.kind === "link" && "url" in data ? materialUrl(data.url) : material.url;
+        Object.assign(material, { title }, url ? { url } : {});
+        log("study.materialEdit", title); save(); return material;
       },
       async removeMaterial(id, materialId) {
         const me = requireUser(), st = db.studies[id], material = st?.materials.find(m => m.id === materialId);

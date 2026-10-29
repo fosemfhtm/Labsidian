@@ -156,6 +156,8 @@ details.fld summary { cursor: pointer; }
 .ui-table td .avatar { display: inline-grid; width: var(--av-s); height: var(--av-s); font-size: var(--fs-av-s); vertical-align: middle; margin-right: 4px; }
 .tags-tbl input[data-f=label], .tags-tbl input[data-f=labelEn] { width: 100%; min-width: 120px; }
 .inline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.st-material-edit { display: flex; gap: var(--s-2); align-items: center; }
+.st-material-edit input { flex: 1; min-width: 0; }
 .pair { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 5px 0; font-size: var(--fs-body); }
 .op { display: flex; gap: 8px; align-items: center; font-size: var(--fs-body); padding: 3px 0; }
 .op .ui-btn.text { margin-left: auto; }

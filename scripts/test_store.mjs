@@ -273,6 +273,15 @@ const mat = await mats.store.studies.addMaterial(multiId, { kind: "file", title:
 await assert.rejects(boot(mats.db(), "carol").store.studies.removeMaterial(multiId, mat.id), /forbidden/);
 await assert.rejects(mats.store.studies.addMaterial(multiId, { kind: "link", title: "Bad", url: "javascript:alert(1)" }), /materialUrl/);
 await assert.rejects(mats.store.studies.addMaterial(multiId, { kind: "link", title: "x".repeat(81), url: "https://example.org" }), /materialTitle/);
+// renaming follows the delete rule; a link can be repointed only to http(s), a file keeps its file
+await assert.rejects(boot(mats.db(), "carol").store.studies.updateMaterial(multiId, mat.id, { title: "Mine now" }), /forbidden/);
+await mats.store.studies.updateMaterial(multiId, mat.id, { title: "  Final slides ", url: "https://ignored.example" });
+assert.equal(`${mat.title}|${mat.file.id}|${mat.url}`, "Final slides|slides|undefined");
+const lnk = await mats.store.studies.addMaterial(multiId, { kind: "link", title: "Paper", url: "https://arxiv.org/abs/1" });
+await assert.rejects(mats.store.studies.updateMaterial(multiId, lnk.id, { title: "Paper", url: "javascript:alert(1)" }), /materialUrl/);
+await assert.rejects(mats.store.studies.updateMaterial(multiId, lnk.id, { title: "" }), /materialTitle/);
+await mats.store.studies.updateMaterial(multiId, lnk.id, { title: "Paper v2", url: "https://arxiv.org/abs/2" });
+assert.equal(`${lnk.title}|${lnk.url}`, "Paper v2|https://arxiv.org/abs/2");
 await mats.store.studies.removeMaterial(multiId, mat.id);
 assert.deepEqual(materialFiles, ["slides"]);
 await mats.store.studies.addMaterial(multiId, { kind: "file", title: "Image", file: { id: "image", kind: "image" } });

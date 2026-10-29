@@ -283,7 +283,7 @@
   // ---------------------------------------------------------------- detail
   // One study = three phases, one tab each (+ brought papers when that option is on):
   //   준비 (my to-dos, question board, who is ready) → 다이어리 (entries side by side) → 소개 순서 → 정리 (notes)
-  let editPick = false, editNotes = false;
+  let editPick = false, editNotes = false, editMaterial = null;  // editMaterial: the material id being renamed
   const longDate = st => {
     if (!st.date) return t("st.noDate");
     return [UI.shortDate(st.date), st.time, st.place].filter(Boolean).map(esc).join(" · ");
@@ -359,10 +359,16 @@
         </div></div>`;
     // shared materials (slides, links): any member adds a file or a link; the adder, host or an admin removes it
     const materialsTab = `<div class="ui-card st-materials">
-      ${st.materials.map(m => `<div class="ui-row two ruled">${UI.avatar(m.by)}
+      ${st.materials.map(m => { const mayEdit = m.by === me.id || st.host === me.id || me.role === "admin";
+        if (mayEdit && editMaterial === m.id) return `<form class="ui-row two ruled st-material-edit" data-material="${m.id}">${UI.avatar(m.by)}
+          <input name="title" maxlength="80" required value="${esc(m.title)}" aria-label="${t("st.materialTitle")}">
+          ${m.kind === "link" ? `<input name="url" type="url" required value="${esc(m.url)}" aria-label="${t("st.materialUrl")}">` : ""}
+          <button type="button" class="ui-btn small" data-act="materialCancel">${t("st.n.cancel")}</button><button class="ui-btn small prominent">${t("st.save")}</button></form>`;
+        return `<div class="ui-row two ruled">${UI.avatar(m.by)}
         <span class="grow">${m.kind === "file" ? `<a class="link" ${fileAttrs(m.file)}>${esc(m.title)}</a>` : `<a class="link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.title)}</a>`}
           <div class="m">${name(m.by)} · ${esc(UI.shortDate(m.at.slice(0, 10)))}</div></span>
-        ${m.by === me.id || st.host === me.id || me.role === "admin" ? `<button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}
+        ${mayEdit ? `<button class="ui-btn small" data-act="materialEdit" data-material="${m.id}">${t("st.edit")}</button>
+          <button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`; }).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}
       ${joined || me.role === "admin" ? `<form class="inline-form" id="st-material-form">
         <div class="ui-seg small" id="st-material-mode" role="group" aria-label="${t("st.materialAddAs")}">
           <button type="button" data-mode="file" aria-pressed="true">${t("st.materialAsFile")}</button><button type="button" data-mode="link" aria-pressed="false">${t("st.materialAsLink")}</button></div>
@@ -445,6 +451,14 @@
 
   function wireDetail(st, params) {
     const rerender = () => detailPage(st.id, params);
+    const editForm = $(".st-material-edit", view);
+    if (editForm) UI.submitOnce(editForm, async () => {
+      const f = editForm.elements;
+      try { await S.studies.updateMaterial(st.id, editForm.dataset.material, { title: f.title.value, ...(f.url ? { url: f.url.value } : {}) }); }
+      catch (e) { $("#st-material-err", view).textContent = t("st.materialInvalid"); return; }
+      editMaterial = null; rerender();
+    }, $("#st-material-err", view));
+    editForm?.elements.title.focus();
     const mf = $("#st-material-form", view);
     if (mf) {
       const title = $("#st-material-title", view), url = $("#st-material-url", view), picker = $("#st-material-file", view), err = $("#st-material-err", view);
@@ -494,6 +508,8 @@
     }
     view.querySelectorAll("[data-act]").forEach(el => (el.onclick = async () => {
       const act = el.dataset.act, q = el.closest("[data-q]")?.dataset.q, pu = el.closest("[data-pick]")?.dataset.pick;
+      if (act === "materialEdit") { editMaterial = el.dataset.material; return rerender(); }
+      if (act === "materialCancel") { editMaterial = null; return rerender(); }
       if (act === "materialDelete") {
         if (!(await LabConfirm(t("st.materialDelete"), { message: t("st.materialDeleteMsg"), ok: t("st.delete"), destructive: true }))) return;
         await S.studies.removeMaterial(st.id, el.dataset.material); return rerender();
