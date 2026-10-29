@@ -1756,6 +1756,9 @@
     const st = await fetch("/api/state", { cache: "no-store" }).then(x => x.json()).catch(() => null);
     if (!st) return;
     await saving;
+    // a save that finished while this snapshot was on its way is newer than it: taking the snapshot would drop that
+    // change here, and the next save would write the stale record back over it on the server
+    if (st.version < server.version) return;
     if ([...recordsOf(db)].some(([k, v]) => server.synced.get(k) !== v)) return;  // local edits not sent yet → next round
     db = Object.assign(empty(), st.db);
     server.version = st.version; server.synced = recordsOf(db);
