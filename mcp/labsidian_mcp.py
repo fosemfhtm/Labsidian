@@ -754,7 +754,8 @@ def download_pdf(file_id: str) -> dict:
     signed URL and curl command (valid 10 minutes); stdio saves locally and returns the path."""
     d = DB.data()
     every = [f for x in (d.get("reading") or {}).values() for i in x for f in i.get("files") or []] + \
-            [f for r in d["reviews"] for f in r.get("files") or []] + [f for st in d.get("studies") or [] for f in st.get("files") or []]
+            [f for r in d["reviews"] for f in r.get("files") or []] + [f for st in d.get("studies") or [] for f in st.get("files") or []] + \
+            [f for st in d.get("studies") or [] for pk in (st.get("picks") or {}).values() for f in pk.get("files") or []]
     name = next((f.get("name") for f in every if f.get("id") == file_id), None) or file_id + ".pdf"
     name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name).strip(". ") or "paper.pdf"
     if HTTP_MODE:
@@ -843,7 +844,7 @@ def get_study(study_id: str) -> dict:
         "not_reviewed_yet": [_name(u, d) for u in st["members"] if u not in {r["person"] for r in revs} | {r["person"] for r in hidden}],
         "hidden_until_you_write": [_name(r["person"], d) for r in hidden],
         "write_first": bool(st.get("blind")), "related_papers": BRING_NAME[st.get("bring") or False],
-        "brought_papers": [{"order": i + 1, "by": _name(pk["uid"], d), "title": pk["title"], "why": pk.get("why", ""),
+        "brought_papers": [{"order": i + 1, "by": _name(pk["uid"], d), "title": pk["title"], "why": pk.get("why", ""), "files": file_list(pk.get("files")),
                             "paper": brief(d["PA"][pk["paperId"]], d) if pk.get("paperId") in d["PA"] else {"title": pk["title"], "link": pk.get("link", "")}}
                            for i, pk in enumerate(picks)],
         "questions": [{"question_id": q["id"], "by": _name(q["author"], d), "question": q["body"], "votes": len(q.get("votes", [])),
@@ -884,6 +885,41 @@ def add_study_material(study_id: str, title: str, url: str) -> dict:
                            "title": title, "url": url, "summary": title}),
                  {"open": f"{SITE}/#/study/{st['id']}"})
 
+
+@mcp.tool()
+def bring_study_paper(study_id: str, paper_ref: str = "", title: str = "", link: str = "", why: str = "",
+                      pdf_file_id: str = "", pdf_name: str = "", pdf_path: str = "") -> dict:
+    """Post the related paper I bring to a study as me (its "Order" tab; related_papers in get_study says who brings one:
+    "everyone", or "presenters" = only the presenters). One paper per member: calling again changes it (fields left
+    empty stay as they are) and a PDF — slides or the paper — is added to the ones already attached.
+    The paper: a lab paper (paper_ref, from search_papers) or any paper by title and optional link.
+    why: how it connects to the paper read together (up to 500 characters). pdf_file_id: an uploaded PDF
+    (pdf_upload_link first, pdf_name optional); pdf_path: a local PDF, stdio only. No notification is sent."""
+    u, st = me(), _study(study_id)
+    mine = (st.get("picks") or {}).get(u["id"])
+    if not st.get("bring") or (st["bring"] == "presenters" and u["id"] not in st.get("presenters", [])):
+        raise ToolError("this study doesn't ask me for a related paper (see related_papers in get_study)")
+    p = paper(paper_ref) if paper_ref else None
+    title = p["title"] if p else title.strip()
+    if not (title or mine):
+        raise ToolError("give paper_ref or title")
+    if len(why) > 500:
+        raise ToolError("why must be at most 500 characters")
+    files = ([_attach_pdf(pdf_path)] if pdf_path else []) + ([_uploaded_pdf(pdf_file_id, pdf_name)] if pdf_file_id else [])
+    op = DB.apply({"op": "study.pick", "actor": u["id"], "studyId": st["id"], "paperId": p["id"] if p else None, "title": title,
+                   "link": link.strip() or (p.get("link", "") if p else ""), "why": why.strip(), "files": files,
+                   "summary": (title or mine["title"])[:60]})
+    return _done(op, {"pdfs": [f["name"] for f in files], "open": f"{SITE}/#/study/{st['id']}?tab=picks"})
+
+
+@mcp.tool()
+def remove_study_paper(study_id: str) -> dict:
+    """Take back the related paper I brought to a study, with its PDFs, as me. No notification is sent."""
+    u, st = me(), _study(study_id)
+    if u["id"] not in (st.get("picks") or {}):
+        raise ToolError("I haven't brought a paper to this study")
+    return _done(DB.apply({"op": "study.pickRemove", "actor": u["id"], "studyId": st["id"], "summary": st["title"][:60]}),
+                 {"open": f"{SITE}/#/study/{st['id']}?tab=picks"})
 
 
 @mcp.tool()

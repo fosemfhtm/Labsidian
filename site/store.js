@@ -1580,7 +1580,7 @@
   // one MCP command, applied as its actor. The server runs this in a headless copy of this file (scripts/store_worker.mjs)
   // and stores the result; a hosted DB would do the same in an RPC / edge function. Returns what it made (ids) for the caller.
   const OPS = new Set(["draft", "draft.delete", "comment", "react", "inbox.read", "reading.add", "study.question", "study.questionVote",
-    "study.notesDraft", "study.create", "study.join", "study.materialAdd",
+    "study.notesDraft", "study.create", "study.join", "study.materialAdd", "study.pick", "study.pickRemove",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
     "paper.meta", "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
   async function applyOp(op) {
@@ -1640,6 +1640,12 @@
       }
       if (op.op === "study.join") { const st = db.studies[op.studyId]; if (!st || st.closed) throw new Error("study.missing"); await Store.studies.join(op.studyId); }
       if (op.op === "study.materialAdd") res = { materialId: (await Store.studies.addMaterial(op.studyId, { kind: "link", title: op.title, url: op.url })).id };
+      if (op.op === "study.pick") {  // my related paper: empty fields keep what's there, PDFs add to the ones already attached
+        const prev = db.studies[op.studyId]?.picks?.[op.actor];
+        await Store.studies.setPick(op.studyId, { title: op.title || prev?.title, paperId: op.paperId || (op.title ? null : prev?.paperId), link: op.link || prev?.link || "",
+          why: op.why || prev?.why || "", files: [...(prev?.files || []), ...cleanFiles(op.files)] });
+      }
+      if (op.op === "study.pickRemove") await Store.studies.removePick(op.studyId, op.actor);
       if (op.op === "study.create") {
         // a regular study's next session gets the same defaults as the site's "next session" form
         const g = op.groupId ? db.groups[op.groupId] : null;

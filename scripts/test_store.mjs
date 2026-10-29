@@ -254,6 +254,16 @@ await opener.store.studies.update(bringId, { bring: true });
 const listener = boot(opener.db(), "carol");
 await listener.store.studies.setPick(bringId, { title: "Carol's pick" });
 assert.equal(listener.store.studies.picks(listener.store.studies.get(bringId)).map(pk => pk.uid).join(","), "bob,carol");
+// the MCP ops: fields left empty keep what's there, PDFs pile up, and taking it back removes the paper and its files
+const viaMcp = boot(listener.db(), "bob"), gone = [];
+viaMcp.store.files.remove = async id => { gone.push(id); };
+await viaMcp.applyOp({ actor: "bob", op: "study.pick", studyId: bringId, why: "same problem", files: [{ id: "slides", kind: "pdf" }] });
+await viaMcp.applyOp({ actor: "bob", op: "study.pick", studyId: bringId, files: [{ id: "paper", kind: "pdf" }] });
+const bobPick = viaMcp.store.studies.get(bringId).picks.bob;
+assert.equal(`${bobPick.title}|${bobPick.why}|${bobPick.files.map(f => f.id)}`, "Bob's pick|same problem|slides,paper");
+await viaMcp.applyOp({ actor: "bob", op: "study.pickRemove", studyId: bringId });
+assert.equal(viaMcp.store.studies.get(bringId).picks.bob, undefined);
+assert.equal(gone.join(","), "slides,paper");
 const closer = boot(listener.db(), "alice");
 await closer.store.studies.update(bringId, { bring: false });
 await assert.rejects(boot(closer.db(), "bob").store.studies.setPick(bringId, { title: "Again" }), /forbidden/);
