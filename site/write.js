@@ -227,7 +227,7 @@
     for (let f of list) {
       if (files.length >= MAX_FILES) { err.textContent = t("w.fileMax", { n: MAX_FILES }); break; }
       const kind = S.files.kindOf(f.type);
-      if (!kind) { err.textContent = t("w.fileType"); continue; }
+      if (kind !== "pdf" && kind !== "image") { err.textContent = t("w.fileType"); continue; }
       if (kind === "image") f = await shrink(f);
       if (f.size > S.files.limits[kind]) { err.textContent = t("w.fileSize", { name: f.name }); continue; }
       $("#w-saved", view).textContent = t("w.uploading");

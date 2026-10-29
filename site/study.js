@@ -18,8 +18,8 @@
       "st.empty": "진행 중인 스터디가 없어요. 위에서 하나 열어보세요.", "st.pastEmpty": "아직 끝난 스터디가 없어요",
       "st.members": "참가 {n}명", "st.reviewed": "다이어리 {n}/{m}", "st.qs": "질문 {n}", "st.noDate": "날짜 미정", "st.today": "오늘", "st.dday": "D-{n}", "st.after": "{n}일 지남",
       "st.done": "마침", "st.presenter": "발제", "st.host": "개설",
-      "st.materials": "자료", "st.materialTitle": "자료 제목", "st.materialUrl": "자료 링크", "st.materialFile": "PDF · 이미지 추가…",
-      "st.materialHint": "PDF와 이미지를 올릴 수 있어요. PPTX는 PDF로 내보내 올려 주세요.",
+      "st.materials": "자료", "st.materialTitle": "자료 제목", "st.materialUrl": "자료 링크", "st.materialFile": "파일 추가…",
+      "st.materialHint": "PDF·이미지는 바로 보이고, HTML은 사이트 안에서 따로 격리해 열려요. 그 밖의 파일(PPTX·코드 등)은 내려받아요. 20MB까지 올릴 수 있어요.",
       "st.materialEmpty": "아직 자료가 없어요.", "st.materialDelete": "이 자료를 삭제할까요?", "st.materialDeleteMsg": "첨부 파일도 함께 삭제되고 되돌릴 수 없어요.",
       "st.materialInvalid": "80자 이내 제목과 http 또는 https 링크를 입력해 주세요.", "st.needPresenters": "발제자를 한 명 이상 선택해 주세요.",
       "st.materialAdd": "추가",
@@ -57,7 +57,7 @@
       "st.prep": "모임 준비", "st.prepDiary": "다이어리", "st.prepPick": "가져온 논문",
       "st.common": "같이 읽는 논문", "st.picks": "가져온 논문 · 소개 순서", "st.picksHint": "같이 읽는 논문과 관련된 논문을 한 편씩 가져와서 모임에서 소개해요. 가져온 논문의 다이어리도 평소처럼 써요.",
       "st.myPick": "내가 가져올 논문", "st.pick.ph": "연구실 논문 검색 · 없으면 제목을 그대로 입력", "st.pick.why": "같이 읽는 논문과 어떻게 이어지나요?",
-      "st.pick.why.ph": "예: 같은 문제를 강화학습 대신 최적화로 풂", "st.pick.slides": "📎 소개 자료 (PDF·이미지)", "st.pick.save": "올리기", "st.pick.edit": "바꾸기",
+      "st.pick.why.ph": "예: 같은 문제를 강화학습 대신 최적화로 풂", "st.pick.slides": "📎 소개 자료 첨부", "st.pick.save": "올리기", "st.pick.edit": "바꾸기",
       "st.pick.remove": "빼기", "st.pick.write": "✎ 이 논문 다이어리 쓰기", "st.pick.none": "아직 아무도 안 가져왔어요", "st.pick.saved": "가져올 논문을 올렸어요",
       "st.pick.diary": "다이어리", "st.pick.noDiary": "다이어리 아직",
     },
@@ -68,8 +68,8 @@
       "st.empty": "No open studies. Open one above.", "st.pastEmpty": "No finished studies yet",
       "st.members": "{n} joined", "st.reviewed": "entries {n}/{m}", "st.qs": "{n} questions", "st.noDate": "date TBD", "st.today": "Today", "st.dday": "D-{n}", "st.after": "{n}d ago",
       "st.done": "done", "st.presenter": "presenter", "st.host": "opened by",
-      "st.materials": "Materials", "st.materialTitle": "Material Title", "st.materialUrl": "Material Link", "st.materialFile": "Add PDF or Image…",
-      "st.materialHint": "Upload a PDF or image. Export PPTX slides as a PDF before uploading.",
+      "st.materials": "Materials", "st.materialTitle": "Material Title", "st.materialUrl": "Material Link", "st.materialFile": "Add File…",
+      "st.materialHint": "PDFs and images open in place, HTML opens isolated from the site, and other files (PPTX, code…) download. Up to 20 MB.",
       "st.materialEmpty": "No materials yet.", "st.materialDelete": "Delete this material?", "st.materialDeleteMsg": "Its attached file will also be deleted. This cannot be undone.",
       "st.materialInvalid": "Enter a title of up to 80 characters and an http or https link.", "st.needPresenters": "Select at least one presenter.",
       "st.materialAdd": "Add",
@@ -105,7 +105,7 @@
       "st.prep": "Preparation", "st.prepDiary": "diary", "st.prepPick": "brought paper",
       "st.common": "Read together", "st.picks": "Brought papers · order", "st.picksHint": "Related papers people bring and introduce at the meeting. Write their diary entries as usual.",
       "st.myPick": "The paper I'll bring", "st.pick.ph": "Search lab papers · or type a new title", "st.pick.why": "How does it connect to the common paper?",
-      "st.pick.why.ph": "e.g. same problem, solved with optimisation instead of RL", "st.pick.slides": "📎 Slides (PDF · image)", "st.pick.save": "Post", "st.pick.edit": "Change",
+      "st.pick.why.ph": "e.g. same problem, solved with optimisation instead of RL", "st.pick.slides": "📎 Attach Slides or Files", "st.pick.save": "Post", "st.pick.edit": "Change",
       "st.pick.remove": "Remove", "st.pick.write": "✎ Write its diary entry", "st.pick.none": "Nobody has brought one yet", "st.pick.saved": "Posted the paper you'll bring",
       "st.pick.diary": "diary", "st.pick.noDiary": "no diary yet",
     },
@@ -203,10 +203,13 @@
   const bringSeg = (v, id) => `<div class="ui-seg small" id="${id}" role="group" aria-label="${t("st.opt.bring")}">${Object.entries(BRING).map(([k, x]) =>
     `<button type="button" data-bring="${k}" aria-pressed="${x === (v === "presenters" ? v : !!v)}">${t("st.bring." + k)}</button>`).join("")}</div>`;
   const paintSeg = b => b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  const uploadInto = async (file, err) => {
-    try { return await S.files.put(file, file.name); }
+  const ANY_FILE = ["pdf", "image", "html", "file"];  // study materials and brought papers take any file (store.js FILE_LIMIT)
+  const uploadInto = async (file, err, kinds) => {
+    try { return await S.files.put(file, file.name, kinds); }
     catch (e) { err.textContent = e.message === "file.size" ? t("w.fileSize", { name: file.name }) : t("w.fileType"); return null; }
   };
+  // a download-only file keeps its name when saved (the server sends it as an attachment without one)
+  const fileAttrs = f => `data-fid="${esc(f.id)}" target="_blank" rel="noopener"${f.kind === "file" ? ` download="${esc(f.name)}"` : ""}`;
 
   // ---------------------------------------------------------------- create
   function newPage(params) {
@@ -355,7 +358,7 @@
     // shared materials (slides, links): any member adds a file or a link; the adder, host or an admin removes it
     const materialsTab = `<div class="ui-card st-materials">
       ${st.materials.map(m => `<div class="ui-row two ruled">${UI.avatar(m.by)}
-        <span class="grow">${m.kind === "file" ? `<a class="link" data-fid="${esc(m.file.id)}" target="_blank" rel="noopener">${esc(m.title)}</a>` : `<a class="link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.title)}</a>`}
+        <span class="grow">${m.kind === "file" ? `<a class="link" ${fileAttrs(m.file)}>${esc(m.title)}</a>` : `<a class="link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.title)}</a>`}
           <div class="m">${name(m.by)} · ${esc(UI.shortDate(m.at.slice(0, 10)))}</div></span>
         ${m.by === me.id || st.host === me.id || me.role === "admin" ? `<button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}
       ${joined || me.role === "admin" ? `<form class="inline-form" id="st-material-form">
@@ -363,7 +366,7 @@
         <input id="st-material-url" type="url" placeholder="${t("st.materialUrl")}" aria-label="${t("st.materialUrl")}">
         <button class="ui-btn small">${t("st.materialAdd")}</button>
         <button type="button" class="ui-btn small" id="st-material-pick">${t("st.materialFile")}</button>
-        <input id="st-material-file" type="file" accept="application/pdf,image/*" hidden></form>
+        <input id="st-material-file" type="file" hidden></form>
         <p class="hint">${t("st.materialHint")}</p><p class="err" id="st-material-err"></p>` : ""}
     </div>`;
     const diaryTab = `
@@ -376,7 +379,7 @@
         <input id="pk-link" type="hidden" value="${esc(myPick?.link || "")}">
         <input id="pk-why" placeholder="${t("st.pick.why.ph")}" value="${esc(myPick?.why || "")}" aria-label="${t("st.pick.why")}">
         <div class="drop-btns"><button type="button" class="ui-btn small" id="pk-pickfile">${t("st.pick.slides")}</button><span class="att-list" id="pk-files">${(myPick?.files || []).map(f => `<span class="att pdf">📎 ${esc(f.name)}</span>`).join("")}</span>
-          <input type="file" id="pk-file" accept="application/pdf,image/*" hidden><span class="spacer"></span>
+          <input type="file" id="pk-file" hidden><span class="spacer"></span>
           ${editPick ? `<button type="button" class="ui-btn small" data-act="pkcancel">${t("st.n.cancel")}</button>` : ""}<button class="ui-btn small prominent">${t("st.pick.save")}</button></div>
         <p class="err" id="pk-err"></p></form>`;
     const picksTab = `<p class="hint tab-hint">${t("st.picksHint")}</p>${pickForm}
@@ -389,7 +392,7 @@
             ${(pk.uid === me.id || canManage) && !st.closed ? `<button class="ui-btn text destructive" data-act="pkdel">${t("st.pick.remove")}</button>` : ""}</div>
           <div class="pk-title">${pp ? `<a href="#/paper/${pp.id}">${esc(pk.title)}</a>` : httpUrl(pk.link) ? `<a href="${esc(pk.link)}" target="_blank" rel="noopener noreferrer">${esc(pk.title)}</a>` : esc(pk.title)}</div>
           ${pk.why ? `<div class="pk-why">↳ ${esc(pk.why)}</div>` : ""}
-          ${(pk.files || []).length ? `<div class="pk-files">${pk.files.map(f => `<a class="rv-pdf" data-fid="${esc(f.id)}" target="_blank" rel="noopener">📎 ${esc(f.name)}</a>`).join("")}</div>` : ""}
+          ${(pk.files || []).length ? `<div class="pk-files">${pk.files.map(f => `<a class="rv-pdf" ${fileAttrs(f)}>📎 ${esc(f.name)}</a>`).join("")}</div>` : ""}
           ${pk.uid === me.id && !dr ? `<a class="ui-btn small" href="#/write?study=${st.id}&pick=1">${t("st.pick.write")}</a>` : ""}
           ${guideAdd({ paperId: pp?.id, title: pk.title, link: pk.link })}
           ${dr ? `<details class="pk-diary"><summary>${t("st.pick.diary")} · ${UI.stars(dr.rating)}</summary>${UI.reviewHtml(dr)}</details>` : ""}
@@ -445,7 +448,7 @@
       $("#st-material-pick", view).onclick = () => { if (!title.reportValidity()) return; picker.click(); };
       picker.onchange = async () => {
         const f = picker.files[0]; picker.value = ""; if (!f) return;
-        const file = await uploadInto(f, err); if (!file) return;
+        const file = await uploadInto(f, err, ANY_FILE); if (!file) return;
         try { await S.studies.addMaterial(st.id, { kind: "file", title: title.value, file }); rerender(); }
         catch (e) { await S.files.remove(file.id); err.textContent = t("st.materialInvalid"); }
       };
@@ -466,7 +469,7 @@
       $("#pk-pickfile", view).onclick = () => picker.click();
       picker.onchange = async () => {
         const f = picker.files[0], out = $("#pk-files", view); picker.value = ""; if (!f) return;
-        const meta = await uploadInto(f, $("#pk-err", view)); if (!meta) return;
+        const meta = await uploadInto(f, $("#pk-err", view), ANY_FILE); if (!meta) return;
         pickFiles.push(meta); out.insertAdjacentHTML("beforeend", `<span class="att pdf">📎 ${esc(f.name)}</span>`);
       };
       UI.submitOnce(pf, async () => {

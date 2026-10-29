@@ -667,7 +667,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_error(404)
             self.send_response(200)
             mime = (row[0] or "").split(";")[0].lower()
-            if mime not in ("application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"):
+            if mime == "text/html":  # a member's HTML report: scripts run, but in an opaque origin with no access to the site or its session
+                self.send_header("Content-Security-Policy", "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals")
+                mime = "text/html"
+            elif mime not in ("application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"):
                 mime = "application/octet-stream"
                 self.send_header("Content-Disposition", "attachment")
             self.send_header("Content-Type", mime)

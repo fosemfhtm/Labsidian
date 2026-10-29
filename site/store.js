@@ -126,7 +126,9 @@
   // ---------------------------------------------------------------- attachments (PDF · images)
   // Mock: blobs live in this browser's IndexedDB; review rows only keep {id, name, type, size, kind}.
   // Supabase version: Storage bucket "attachments" (same metadata in the review row).
-  const FILE_LIMIT = { pdf: 20 * 1024 * 1024, image: 5 * 1024 * 1024 };
+  // pdf · image open in place; html opens sandboxed (served with CSP sandbox); any other file is download-only.
+  // Diaries and the reading list take pdf · image; study materials and brought papers take all four.
+  const FILE_LIMIT = { pdf: 20 * 1024 * 1024, image: 5 * 1024 * 1024, html: 20 * 1024 * 1024, file: 20 * 1024 * 1024 };
   let idbP = null;
   const idb = () => idbP ||= new Promise((res, rej) => {
     const q = indexedDB.open(FILES_DB, 1);
@@ -138,7 +140,7 @@
     return new Promise((res, rej) => { const tx = d.transaction("files", mode), rq = fn(tx.objectStore("files")); tx.oncomplete = () => res(rq.result); tx.onerror = () => rej(tx.error); });
   };
   const fileUrls = {};
-  const cleanFiles = list => (Array.isArray(list) ? list : []).filter(f => f && f.id && (f.kind === "pdf" || f.kind === "image"))
+  const cleanFiles = list => (Array.isArray(list) ? list : []).filter(f => f && f.id && f.kind in FILE_LIMIT)
     .map(({ id, name, type, size, kind }) => ({ id, name: String(name || "").slice(0, 200), type, size: +size || 0, kind }));
   // tag colours: a data colour name (data-viz.md §2), or an older #hex; anything else → "gray2"
   const safeColor = c => (PALETTE.includes(c) || c === "gray2" || /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "gray2");
@@ -1133,15 +1135,15 @@
 
     files: {
       limits: FILE_LIMIT,
-      kindOf: type => (type === "application/pdf" ? "pdf" : /^image\//.test(type || "") ? "image" : null),
-      async put(blob, name) {
+      kindOf: type => (type === "application/pdf" ? "pdf" : /^image\//.test(type || "") ? "image" : type === "text/html" ? "html" : "file"),
+      async put(blob, name, kinds = ["pdf", "image"]) {
         requireUser();
         const kind = Store.files.kindOf(blob.type);
-        if (!kind) throw new Error("file.type");
+        if (!kinds.includes(kind) || (kind === "html" && !server)) throw new Error("file.type");  // html only where the server can sandbox it
         if (blob.size > FILE_LIMIT[kind]) throw new Error("file.size");
         const id = uid("f_");
         if (server) {
-          const r = await fetch(`/api/files/${id}`, { method: "PUT", headers: { "Content-Type": blob.type }, body: blob });
+          const r = await fetch(`/api/files/${id}`, { method: "PUT", headers: { "Content-Type": blob.type || "application/octet-stream" }, body: blob });
           if (!r.ok) throw new Error("file.upload");
         } else await idbDo("readwrite", st => st.put(blob, id));
         save();  // persists the id sequence

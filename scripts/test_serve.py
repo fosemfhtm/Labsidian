@@ -68,6 +68,26 @@ class ServerTests(unittest.TestCase):
             with patch.object(serve.time, "time", return_value=1600):
                 self.assertEqual(h._get()[0], 403)
 
+    def test_uploaded_html_is_sandboxed_and_other_files_download(self):
+        with self.file_handler() as (h, store):
+            h.who = lambda: "member"
+            sent = []
+            h.send_header = lambda *args: sent.append(args)
+            for fid, mime in (("html", "text/html"), ("pptx", "application/vnd.ms-powerpoint"), ("svg", "image/svg+xml"), ("pdf", "application/pdf")):
+                store.con.execute("INSERT INTO files VALUES (?,?,?)", (fid, mime, b"x"))
+            def headers(fid):
+                sent.clear()
+                h.path = "/api/files/" + fid
+                h._get()
+                return dict(sent)
+            html = headers("html")
+            self.assertEqual(html["Content-Type"], "text/html")
+            self.assertIn("sandbox", html["Content-Security-Policy"])
+            self.assertNotIn("allow-same-origin", html["Content-Security-Policy"])  # same origin would hand it the member's session
+            for fid in ("pptx", "svg"):  # svg can carry script too
+                self.assertEqual(headers(fid)["Content-Disposition"], "attachment")
+            self.assertNotIn("Content-Disposition", headers("pdf"))
+
     def test_signed_upload_pdf_limit_and_single_use(self):
         with self.file_handler() as (h, store):
             h.path = "/api/files/upload-link"
