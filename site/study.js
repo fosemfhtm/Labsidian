@@ -18,10 +18,11 @@
       "st.empty": "진행 중인 스터디가 없어요. 위에서 하나 열어보세요.", "st.pastEmpty": "아직 끝난 스터디가 없어요",
       "st.members": "참가 {n}명", "st.reviewed": "다이어리 {n}/{m}", "st.qs": "질문 {n}", "st.noDate": "날짜 미정", "st.today": "오늘", "st.dday": "D-{n}", "st.after": "{n}일 지남",
       "st.done": "마침", "st.presenter": "발제", "st.host": "개설",
-      "st.materials": "자료", "st.materialTitle": "자료 제목", "st.materialUrl": "자료 링크", "st.materialFile": "파일 추가…",
+      "st.materials": "자료", "st.materialTitle": "자료 제목", "st.materialUrl": "https://…", "st.materialFile": "파일 선택…",
+      "st.materialAddAs": "자료 추가 방식", "st.materialAsFile": "파일", "st.materialAsLink": "링크", "st.materialTitleOpt": "자료 제목 (비우면 파일 이름)",
       "st.materialHint": "PDF·이미지는 바로 보이고, HTML은 사이트 안에서 따로 격리해 열려요. 그 밖의 파일(PPTX·코드 등)은 내려받아요. 20MB까지 올릴 수 있어요.",
       "st.materialEmpty": "아직 자료가 없어요.", "st.materialDelete": "이 자료를 삭제할까요?", "st.materialDeleteMsg": "첨부 파일도 함께 삭제되고 되돌릴 수 없어요.",
-      "st.materialInvalid": "80자 이내 제목과 http 또는 https 링크를 입력해 주세요.", "st.needPresenters": "발제자를 한 명 이상 선택해 주세요.",
+      "st.materialInvalid": "http 또는 https로 시작하는 링크를 넣어 주세요. 제목은 80자까지예요.", "st.needPresenters": "발제자를 한 명 이상 선택해 주세요.",
       "st.materialAdd": "추가",
       // form
       "st.new": "스터디 열기", "st.paper": "논문", "st.paper.ph": "연구실 논문 검색 · 없으면 제목을 그대로 입력", "st.link": "링크 (선택)",
@@ -68,10 +69,11 @@
       "st.empty": "No open studies. Open one above.", "st.pastEmpty": "No finished studies yet",
       "st.members": "{n} joined", "st.reviewed": "entries {n}/{m}", "st.qs": "{n} questions", "st.noDate": "date TBD", "st.today": "Today", "st.dday": "D-{n}", "st.after": "{n}d ago",
       "st.done": "done", "st.presenter": "presenter", "st.host": "opened by",
-      "st.materials": "Materials", "st.materialTitle": "Material Title", "st.materialUrl": "Material Link", "st.materialFile": "Add File…",
+      "st.materials": "Materials", "st.materialTitle": "Material Title", "st.materialUrl": "https://…", "st.materialFile": "Choose File…",
+      "st.materialAddAs": "Add material as", "st.materialAsFile": "File", "st.materialAsLink": "Link", "st.materialTitleOpt": "Title (file name if empty)",
       "st.materialHint": "PDFs and images open in place, HTML opens isolated from the site, and other files (PPTX, code…) download. Up to 20 MB.",
       "st.materialEmpty": "No materials yet.", "st.materialDelete": "Delete this material?", "st.materialDeleteMsg": "Its attached file will also be deleted. This cannot be undone.",
-      "st.materialInvalid": "Enter a title of up to 80 characters and an http or https link.", "st.needPresenters": "Select at least one presenter.",
+      "st.materialInvalid": "Enter a link starting with http or https. Titles are up to 80 characters.", "st.needPresenters": "Select at least one presenter.",
       "st.materialAdd": "Add",
       "st.new": "Open a study", "st.paper": "Paper", "st.paper.ph": "Search lab papers · or type a new title", "st.link": "Link (optional)",
       "st.date": "Date", "st.time": "Time", "st.place": "Place", "st.place.ph": "e.g. seminar room, Zoom", "st.desc": "About · what to read", "st.desc.ph": "Why read it together, which sections…",
@@ -362,12 +364,13 @@
           <div class="m">${name(m.by)} · ${esc(UI.shortDate(m.at.slice(0, 10)))}</div></span>
         ${m.by === me.id || st.host === me.id || me.role === "admin" ? `<button class="ui-btn small destructive" data-act="materialDelete" data-material="${m.id}">${t("st.delete")}</button>` : ""}</div>`).join("") || `<p class="muted">${t("st.materialEmpty")}</p>`}
       ${joined || me.role === "admin" ? `<form class="inline-form" id="st-material-form">
-        <input id="st-material-title" maxlength="80" required placeholder="${t("st.materialTitle")}" aria-label="${t("st.materialTitle")}">
-        <input id="st-material-url" type="url" placeholder="${t("st.materialUrl")}" aria-label="${t("st.materialUrl")}">
-        <button class="ui-btn small">${t("st.materialAdd")}</button>
-        <button type="button" class="ui-btn small" id="st-material-pick">${t("st.materialFile")}</button>
+        <div class="ui-seg small" id="st-material-mode" role="group" aria-label="${t("st.materialAddAs")}">
+          <button type="button" data-mode="file" aria-pressed="true">${t("st.materialAsFile")}</button><button type="button" data-mode="link" aria-pressed="false">${t("st.materialAsLink")}</button></div>
+        <input id="st-material-title" maxlength="80" placeholder="${t("st.materialTitleOpt")}" aria-label="${t("st.materialTitle")}">
+        <input id="st-material-url" type="url" placeholder="${t("st.materialUrl")}" aria-label="${t("st.materialUrl")}" hidden>
+        <button type="button" class="ui-btn small prominent" id="st-material-go">${t("st.materialFile")}</button>
         <input id="st-material-file" type="file" hidden></form>
-        <p class="hint">${t("st.materialHint")}</p><p class="err" id="st-material-err"></p>` : ""}
+        <p class="hint" id="st-material-hint">${t("st.materialHint")}</p><p class="err" id="st-material-err"></p>` : ""}
     </div>`;
     const diaryTab = `
       ${st.blind && !st.closed && !mine ? `<p class="ui-notice warn">${t("st.blindOn")}</p>` : ""}
@@ -445,16 +448,27 @@
     const mf = $("#st-material-form", view);
     if (mf) {
       const title = $("#st-material-title", view), url = $("#st-material-url", view), picker = $("#st-material-file", view), err = $("#st-material-err", view);
-      $("#st-material-pick", view).onclick = () => { if (!title.reportValidity()) return; picker.click(); };
+      const go = $("#st-material-go", view);
+      let mode = "file";  // a file from my computer (the usual) or a link
+      go.onclick = () => (mode === "file" ? picker.click() : mf.requestSubmit());  // the file dialog needs the click itself
+      $("#st-material-mode", view).onclick = e => {
+        const b = e.target.closest("[data-mode]"); if (!b) return;
+        mode = b.dataset.mode; paintSeg(b); err.textContent = "";
+        url.hidden = mode !== "link"; $("#st-material-hint", view).hidden = mode !== "file";
+        title.placeholder = t(mode === "file" ? "st.materialTitleOpt" : "st.materialTitle");
+        go.textContent = t(mode === "file" ? "st.materialFile" : "st.materialAdd");
+        (mode === "link" ? url : title).focus();
+      };
       picker.onchange = async () => {
         const f = picker.files[0]; picker.value = ""; if (!f) return;
         const file = await uploadInto(f, err, ANY_FILE); if (!file) return;
-        try { await S.studies.addMaterial(st.id, { kind: "file", title: title.value, file }); rerender(); }
+        try { await S.studies.addMaterial(st.id, { kind: "file", title: title.value.trim() || f.name.slice(0, 80), file }); rerender(); }
         catch (e) { await S.files.remove(file.id); err.textContent = t("st.materialInvalid"); }
       };
       UI.submitOnce(mf, async () => {
+        if (mode === "file") { picker.click(); return; }
         if (!httpUrl(url.value.trim())) { err.textContent = t("st.materialInvalid"); return; }
-        await S.studies.addMaterial(st.id, { kind: "link", title: title.value, url: url.value }); rerender();
+        await S.studies.addMaterial(st.id, { kind: "link", title: title.value.trim() || url.value.trim().slice(0, 80), url: url.value }); rerender();
       }, err);
     }
     view.querySelectorAll("[data-opt]").forEach(el => (el.onchange = async () => { await S.studies.update(st.id, { [el.dataset.opt]: el.checked }); rerender(); }));
