@@ -257,9 +257,11 @@ details.fld summary { cursor: pointer; }
 .feed-item.act { padding: 12px 14px; cursor: pointer; }
 .act-body { font-size: var(--fs-body); line-height: 1.55; white-space: pre-wrap; }
 .act-paper { font-size: var(--fs-callout); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* sticky, so it scrolls on its own when it is taller than the window (otherwise its bottom cards can never be reached) */
+/* sticky, so it scrolls on its own when it is taller than the window (otherwise its bottom cards can never be reached);
+   no visible scrollbar — Windows draws a classic bar with arrows beside the cards */
 .home-side { position: sticky; top: calc(var(--top-h) + 16px); display: grid; gap: var(--s-6);
-  max-height: calc(100dvh - var(--top-h) - var(--s-8)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  max-height: calc(100dvh - var(--top-h) - var(--s-8)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.home-side::-webkit-scrollbar { display: none; }
 .home-side h4 { margin: 0 0 var(--s-3); font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .compose { display: grid; gap: 12px; }
 .compose-row { display: flex; gap: 10px; align-items: center; font-size: var(--fs-body); }
