@@ -257,7 +257,9 @@ details.fld summary { cursor: pointer; }
 .feed-item.act { padding: 12px 14px; cursor: pointer; }
 .act-body { font-size: var(--fs-body); line-height: 1.55; white-space: pre-wrap; }
 .act-paper { font-size: var(--fs-callout); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.home-side { position: sticky; top: calc(var(--top-h) + 16px); display: grid; gap: var(--s-6); }
+/* sticky, so it scrolls on its own when it is taller than the window (otherwise its bottom cards can never be reached) */
+.home-side { position: sticky; top: calc(var(--top-h) + 16px); display: grid; gap: var(--s-6);
+  max-height: calc(100dvh - var(--top-h) - var(--s-8)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .home-side h4 { margin: 0 0 var(--s-3); font: var(--t-title3); letter-spacing: var(--tr-title3); }
 .compose { display: grid; gap: 12px; }
 .compose-row { display: flex; gap: 10px; align-items: center; font-size: var(--fs-body); }
@@ -269,7 +271,7 @@ details.fld summary { cursor: pointer; }
 .week-writers { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 900px) {
   .home-grid { grid-template-columns: minmax(0, 1fr); }
-  .home-side { position: static; order: -1; }
+  .home-side { position: static; order: -1; max-height: none; overflow: visible; }
   .home-side .ui-card:not(.compose, .week) { display: none; }   /* the rest live in feed tabs / the study tab; this week's writers don't */
 }
 
