@@ -145,7 +145,8 @@ function buildGraph() {
   if (graph) graph.clear(); else graph = new Graph();
   papers.forEach(p => graph.addNode(p.id, {
     kind: "paper", type: "border", x: anchorX(p), y: anchorY(p), ax: anchorX(p), ay: anchorY(p),
-    size: PAPER_SCALE * 0.9 * Math.min(9, 3 + (p.reviews.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),   // a little smaller, so the tag areas lead
+    // grows with how many people read it, not how many diaries: one member's repeat diaries don't fatten a paper
+    size: PAPER_SCALE * 0.9 * Math.min(9, 3 + (p.readers.length - 1) * 1.5 + (p.rating >= 4 ? 0.7 : 0)),   // a little smaller, so the tag areas lead
     label: p.title.length > 46 ? p.title.slice(0, 44) + "…" : p.title,
     borderSize: p.readers.length > 1 ? 0.28 : 0,
   }));
