@@ -8,7 +8,7 @@
     en: { "design.diaryCard": "Diary card (content layer, no glass)", "design.prose": "Formatted text", "design.prose.sample": "## Seminar guide\n### Presentation order\n- **Main paper**\n  - Introduce *theory* and `code`\n\nSee the [materials](https://example.com) for details." },
   });
   const view = document.createElement("section");
-  view.id = "view-design"; view.className = "view page wide";
+  view.id = "view-design"; view.className = "view page";
   document.querySelector("main").appendChild(view);
 
   const I = (name, cls = "") => `<i data-lucide="${name}" class="ic ${cls}"></i>`;

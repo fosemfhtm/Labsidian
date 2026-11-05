@@ -221,6 +221,10 @@
   const writeBtn = p => { const mine = myReviewOn(p);
     return mine ? `<a class="ui-btn prominent" href="#/write?review=${mine.id}">✎ ${t("s.myDiary")}</a>` : `<a class="ui-btn prominent" href="#/write?paper=${p.id}">✎ ${t("s.writeThis")}</a>`; };
   const readingBtn = p => (myReviewOn(p) ? "" : `<button class="ui-btn" data-reading="${p.id}">${Store.reading.has(p.id) ? "✓ " + t("s.inReading") : "📚 " + t("s.addReading")}</button>`);
+  // a short line in a multi-line summary that reads as a section label ("Problem:", "핵심 문제") is set bold; the text stays as written
+  const SEC_RE = /^(?![-•*·\d(])[^.!?。…]{2,24}(?<![다요음함임됨봄])$/u;   // not a short Korean sentence ("좋은 논문이다")
+  const bodyHtml = text => { const lines = text.split("\n");
+    return lines.length < 3 ? esc(text) : lines.map(l => (SEC_RE.test(l.trim()) ? `<b class="rv-sec">${esc(l)}</b>` : esc(l))).join("\n"); };
   const reviewHtml = (r, opts = {}) => {
     const p = P[r.person] || { name: t("unknownPerson"), color: "rgb(var(--gray))" };
     const mine = window.Store?.auth.current()?.id === r.person;
@@ -237,7 +241,7 @@
         <span class="date" title="${t("rv.diaryDate")}">${esc(r.date)}</span>
         ${mine ? `<span class="ui-pill accent">${t("rv.mine")}</span>` : ""}
         ${r.studyId && window.Store?.studies.get(r.studyId) ? `<a class="ui-pill ok" href="#/study/${r.studyId}">${t("st.reviewBadge")}</a>` : ""}</div>
-      ${r.content ? `<div class="rv-body ${long ? "" : "open"}">${esc(r.content)}</div>
+      ${r.content ? `<div class="rv-body ${long ? "" : "open"}">${bodyHtml(r.content)}</div>
         ${long ? `<button class="rv-toggle">${t("rv.expand")}</button>` : ""}` : ""}
       ${r.memo ? `<div class="rv-memo" data-label="${t("rv.memo")}">${esc(r.memo)}</div>` : ""}
       ${filesHtml(r.files)}
@@ -450,7 +454,7 @@
   // ---------- full-screen detail pages ----------
   const pageView = id => {
     let v = document.getElementById("view-" + id);
-    if (!v) { v = document.createElement("section"); v.id = "view-" + id; v.className = "view page wide"; $("main").appendChild(v); }
+    if (!v) { v = document.createElement("section"); v.id = "view-" + id; v.className = "view page"; $("main").appendChild(v); }
     return v;
   };
   // "back" stays inside the app: go back only if we navigated here from another in-app page

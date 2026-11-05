@@ -197,7 +197,6 @@ details.fld summary { cursor: pointer; }
 .ui-table b.ok { color: var(--success); } .ui-table b.warn { color: var(--danger); }
 
 /* full-screen detail pages */
-.page.wide { max-width: 1280px; }
 .back { margin-bottom: 10px; display: inline-block; font-size: var(--fs-body); text-decoration: none; }
 .dp-head h1 { font-size: var(--fs-title1); line-height: 1.3; letter-spacing: -.02em; margin: 8px 0 8px; }
 .dp-head .kv { margin-top: 3px; }
@@ -210,7 +209,10 @@ details.fld summary { cursor: pointer; }
 .dp-reviews { display: grid; gap: 14px; }
 .review.full .rv-body { font-size: var(--fs-body); line-height: 1.7; color: var(--text); }
 .review.full .rv-memo { font-size: var(--fs-body); line-height: 1.65; }
-.rv-paper { display: block; font-weight: 600; font-size: var(--fs-body); margin-bottom: 6px; text-decoration: none; color: var(--text); }
+/* diary card: paper title (Title 3) > venue (Callout, meta) > body; short section lines in the summary read as headings */
+.rv-paper { display: block; font: var(--t-title3); letter-spacing: var(--tr-title3); margin-bottom: 2px; text-decoration: none; color: var(--label); }
+.review > .kv { font: var(--t-callout); letter-spacing: var(--tr-callout); color: var(--label-meta); margin-bottom: var(--s-2); }
+.rv-sec { font-weight: 600; color: var(--label); }
 .rv-paper:hover { color: var(--accent); }
 .abstract-full { white-space: pre-wrap; color: var(--text-2); line-height: 1.7; margin: 0; }
 @media (max-width: 900px) {
@@ -287,7 +289,7 @@ details.fld summary { cursor: pointer; }
 .st-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-body); color: var(--text-2); }
 .st-top .m, .st-foot .m { color: var(--text-3); font-size: var(--fs-callout); }
 .st-desc { margin: 0; color: var(--text-2); font-size: var(--fs-body); line-height: 1.55; }
-.st-desc.full { white-space: pre-wrap; margin-top: 10px; max-width: 820px; }
+.st-desc.full { white-space: pre-wrap; margin-top: 10px; max-width: var(--readable); }
 .st-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .st-avs { display: inline-flex; align-items: center; vertical-align: middle; }
 .st-avs .did .avatar { box-shadow: 0 0 0 2px rgb(var(--green)); }
@@ -301,7 +303,7 @@ details.fld summary { cursor: pointer; }
 .st-rate .avatar { width: var(--av-xs); height: var(--av-xs); font-size: var(--fs-av-xs); }
 .st-cols { align-items: start; }
 .review.st-missing { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text-3); font-size: var(--fs-body); border-left-style: dashed; }
-.st-notes { display: grid; gap: 4px; max-width: 820px; }
+.st-notes { display: grid; gap: 4px; }
 .st-board h3 { margin-top: 0; }
 .st-q-form { display: grid; gap: 6px; margin: 8px 0 10px; }
 .st-q-form .ui-btn { justify-self: end; }
@@ -375,7 +377,7 @@ details.fld summary { cursor: pointer; }
 .st-manage .menu-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 230px; display: grid; gap: 8px; padding: 12px; }
 .st-manage hr { border: 0; border-top: 1px solid var(--line); margin: 2px 0; width: 100%; }
 .st-manage .ui-btn.text { text-align: left; }
-.st-todo { display: grid; gap: 4px; margin-bottom: 16px; max-width: 640px; }
+.st-todo { display: grid; gap: 4px; margin-bottom: 16px; }
 .st-todo > h3 { margin-bottom: 4px; }
 .st-todo.join { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-2); font-size: var(--fs-body); }
 .todo { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
@@ -393,14 +395,14 @@ details.fld summary { cursor: pointer; }
 .st-abs summary h3::after { content: " ▾"; color: var(--text-3); font-size: var(--fs-callout); }
 .st-abs .abstract-full { margin-top: 10px; }
 .st-rates { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; font-size: var(--fs-body); color: var(--text-2); margin-bottom: 10px; }
-.st-notes-view { display: grid; gap: 16px; max-width: 820px; }
+.st-notes-view { display: grid; gap: 16px; }
 .st-notes-view section h4 { margin: 0 0 6px; font-size: var(--fs-body); color: var(--accent); letter-spacing: .02em; }
-.st-notes-view .nv { white-space: pre-wrap; line-height: 1.65; font-size: var(--fs-body); }
+.st-notes-view .nv { white-space: pre-wrap; line-height: 1.65; font-size: var(--fs-body); max-width: var(--readable); }
 .st-notes-view .form-foot { margin-top: 0; }
 .st-notes .ui-btn.text { justify-self: start; }
-.st-notes-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 820px; color: var(--text-2); font-size: var(--fs-body); }
+.st-notes-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-2); font-size: var(--fs-body); }
 .st-notes-empty p { margin: 0; }
-.st-discussed { margin-top: 12px; max-width: 820px; }
+.st-discussed { margin-top: 12px; }
 .st-discussed h4 { margin: 0 0 8px; font-size: var(--fs-body); }
 @media (max-width: 900px) { .st-two { grid-template-columns: 1fr; } .st-hero h1 { font-size: var(--fs-title2); } .st-manage .menu-pop { max-width: calc(100vw - 32px); } }
 .st-todo-done { margin: 0 0 14px; font-size: var(--fs-body); color: rgb(var(--green)); }

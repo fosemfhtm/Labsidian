@@ -114,7 +114,7 @@
   });
 
   const view = document.createElement("section");
-  view.id = "view-study"; view.className = "view page wide";
+  view.id = "view-study"; view.className = "view page";
   document.querySelector("main").appendChild(view);
 
   const name = id => esc(UI.personName(id));
@@ -324,11 +324,13 @@
       materials: st.materials.length ? String(st.materials.length) : "" };
 
     // ---- my to-dos (only for members of an open study)
+    // every action here is the same small button ("하기" / "보기"): one look per card, the tab below keeps the one prominent action
+    const todoBtn = (href, label) => `<a class="ui-btn small" href="${href}">${label}</a>`;
     const todo = [
-      { done: !!mine, label: t("st.todo.diary"), go: mine ? `<button class="ui-btn text" data-open="paper:${mine.paper}">${t("st.todo.view")}</button>` : `<a class="ui-btn small prominent" href="#/write?study=${st.id}">${t("st.todo.go")}</a>` },
-      ...(S.studies.brings(st, me.id) ? [{ done: !!myPick, label: t("st.todo.pick"), go: myPick ? `<a class="ui-btn text" href="${link("picks")}">${t("st.todo.view")}</a>` : `<a class="ui-btn small" href="${link("picks")}">${t("st.todo.go")}</a>` }] : []),
-      ...(myPick ? [{ done: !!pickDiary(myPick), label: t("st.todo.pickDiary"), go: pickDiary(myPick) ? "" : `<a class="ui-btn small" href="#/write?study=${st.id}&pick=1">${t("st.todo.go")}</a>` }] : []),
-      { done: qs.some(q => q.author === me.id), optional: true, label: t("st.todo.q"), go: qs.some(q => q.author === me.id) ? "" : `<a class="ui-btn text" href="${link("prep")}&focus=q">${t("st.todo.go")}</a>` },
+      { done: !!mine, label: t("st.todo.diary"), go: mine ? `<button class="ui-btn small" data-open="paper:${mine.paper}">${t("st.todo.view")}</button>` : todoBtn(`#/write?study=${st.id}`, t("st.todo.go")) },
+      ...(S.studies.brings(st, me.id) ? [{ done: !!myPick, label: t("st.todo.pick"), go: todoBtn(link("picks"), t(myPick ? "st.todo.view" : "st.todo.go")) }] : []),
+      ...(myPick ? [{ done: !!pickDiary(myPick), label: t("st.todo.pickDiary"), go: pickDiary(myPick) ? "" : todoBtn(`#/write?study=${st.id}&pick=1`, t("st.todo.go")) }] : []),
+      { done: qs.some(q => q.author === me.id), optional: true, label: t("st.todo.q"), go: qs.some(q => q.author === me.id) ? "" : todoBtn(`${link("prep")}&focus=q`, t("st.todo.go")) },
     ];
     const allDone = todo.every(x => x.done || x.optional);
     const todoHtml = st.closed ? "" : joined && allDone   // same on every tab so switching tabs doesn't move them
