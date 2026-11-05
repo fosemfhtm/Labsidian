@@ -80,6 +80,14 @@ class ParserTests(unittest.TestCase):
         entries = parse_diary.parse(["2026년 3월 1일", "김민수 1", "논문: Paper"], "2026H1", roster)
         self.assertEqual(entries[0]["author"], "김민수")
 
+    def test_template_and_unknown_names_never_join_the_diary_above(self):
+        lines = ["2026년 3월 1일", "홍길동 1", "논문: Paper", "Rating: ✯✯✯½", "Memo: good", "이름", "논문:",
+                 "외부인 2", "논문: Theirs"]
+        entries = parse_diary.parse(lines, "2026H1", self.roster)
+        self.assertEqual([(e["author"], e["title"], e["memo"]) for e in entries],
+                         [("홍길동", "Paper", "good"), ("미상", "Theirs", "")])
+        self.assertEqual(entries[0]["rating"], 3.5)
+
 
 class EnrichmentTests(unittest.TestCase):
     def test_retry_after_and_crossref_never_gets_s2_key(self):

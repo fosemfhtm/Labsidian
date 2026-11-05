@@ -96,10 +96,10 @@ def parse(lines, term, roster):
                     cur[field].append(val)
             continue
         # A roster name plus optional numbering starts someone's block, not a sentence mentioning them. A name-like line
-        # with a number that isn't on the roster ("홍길동 3", someone without an account yet) starts an unknown author's
-        # block, so their diaries never land on the member above them.
+        # with a number that isn't on the roster ("홍길동 3", someone without an account yet) or the template's "이름"
+        # starts an unknown author's block, so neither lands on the diary above (an empty template entry is dropped).
         name = find_name(s, names, aliases) if len(s) <= 30 else None
-        if name or re.fullmatch(r"[가-힣]{2,4}\s*\d{1,4}", s):
+        if name or s == "이름" or re.fullmatch(r"[가-힣]{2,4}\s*\d{1,4}", s):
             flush()
             author = name or "미상"
             field = None
