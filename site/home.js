@@ -48,8 +48,9 @@
     if (m < 1440 * 7) return t("h.ago.d", { n: Math.round(m / 1440) });
     return UI.localDay(iso);
   };
-  // when a review entered the feed: posting time if we have it, else its diary date (imported entries)
-  const reviewTime = r => r.createdAt || `${r.date}T12:00:00`;
+  // when a review entered the feed: posting time if we have it, else its diary date (imported entries) — but never later
+  // than when it was imported, so a future-dated diary from the shared Google Doc doesn't sit on top of the feed for weeks
+  const reviewTime = r => { const d = `${r.date}T12:00:00`; return r.createdAt || (r.importedAt && r.importedAt < d ? r.importedAt : d); };
   const mondayOf = d => { const x = new Date(d + "T00:00:00"); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return UI.localDay(x.toISOString()); };
 
   function myFields(me) {
