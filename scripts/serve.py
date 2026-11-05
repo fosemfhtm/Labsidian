@@ -29,10 +29,10 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
   GET  /api/ops?limit=N        recent commands with their result — admin (also: SELECT * FROM ops in the .db file)
   GET|PUT|DELETE /api/files/<id>   attachments (PDF · images)
   POST /api/files/link {id} · POST /api/files/upload-link {} — ten-minute signed download / one-use PDF upload URLs
-  POST /api/import/diary       {docx: base64, apply?} — admin token: the lab's shared Google Doc (scripts/gdoc_import) →
-                               {added, skipped, applied}: diaries the lab doesn't have yet. A preview unless apply is true.
+  POST /api/import/diary       {docx: base64, apply?} — admin, or scripts/gdoc_pull.py on this machine: the lab's shared
+                               Google Doc → {added, skipped, applied, found}: diaries the lab doesn't have yet (preview unless apply).
   A member's user.style is private writing guidance (at most 20000 characters); /api/whoami includes their own.
-  Local MCP authentication cannot write browser state, import data or diaries, or manage personal tokens.
+  Local MCP authentication cannot write browser state, import data, or manage personal tokens.
 
 Tables: records(coll, id, value) — one row per user / review / comment / member's notifications …, coll "_meta" for the
 rest (terms, tag ops, log …) · ops(id, at, actor, op, status, error, version) · files(id, type, data) · meta(key, value)
@@ -697,7 +697,7 @@ class Handler(SimpleHTTPRequestHandler):
         who = self.who()
         if not who:
             return self.send_json({"error": "signin"}, 401)
-        if who == LOCAL and u.path in ("/api/tokens", "/api/state", "/api/state/import", "/api/import/diary"):
+        if who == LOCAL and u.path in ("/api/tokens", "/api/state", "/api/state/import"):
             return self.send_json({"error": "forbidden"}, 403)
         if u.path == "/api/password":
             me = STORE.user(who) if who != LOCAL else None
@@ -765,7 +765,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def import_diary(self, req, who):
-        """diaries in the lab's shared Google Doc (sent as .docx by scripts/gdoc_import) that the lab doesn't have yet.
+        """diaries in the lab's shared Google Doc (fetched as .docx by scripts/gdoc_pull.py) that the lab doesn't have yet.
         A preview runs the op on a copy; applying logs an op with only the diaries it adds (the doc is sent whole each time)."""
         if not self.is_admin(who):
             return self.send_json({"error": "forbidden"}, 403)
@@ -779,7 +779,8 @@ class Handler(SimpleHTTPRequestHandler):
         ids = {u["name"]: u["id"] for u in users}
         entries = [{"person": ids.get(e["author"], ""), "name": e["author"], **{k: e[k] for k in
                     ("date", "title", "link", "venue", "authors", "rating", "content", "memo")}} for e in found]
-        op = {"id": "import_" + secrets.token_hex(8), "at": now_iso(), "actor": who, "op": "review.import", "entries": entries}
+        op = {"id": "import_" + secrets.token_hex(8), "at": now_iso(), "actor": "admin" if who == LOCAL else who,
+              "op": "review.import", "entries": entries}
         r = WORKER.call({"cmd": "apply", "db": STORE.db(), "op": op})  # preview: the result's db is thrown away
         if not r.get("ok"):
             return self.send_json({"error": r.get("error")}, 400)

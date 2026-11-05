@@ -179,7 +179,7 @@ python scripts/serve.py 8765 --host 0.0.0.0     # 학교망에서 http://<서버
 #### 공유 구글 문서에서 다이어리 가져오기
 
 연구실 공유 Paper Diary(구글 드라이브의 구글 문서)에 쓴 다이어리를 매일 사이트로 가져와요. 방향은 **문서 → 사이트 한쪽**이고, 문서는 읽기만 해요(`drive.readonly`).
-드라이브가 비공개여도 돼요. 폴더를 열 수 있는 멤버의 구글 계정에서 Apps Script가 돌고, 문서를 .docx로 받아 서버(`POST /api/import/diary`)에 보내요. 서버는 구글에 접근하지 않아요.
+드라이브가 비공개여도 돼요. 폴더를 열 수 있는 멤버의 구글 계정에 Apps Script 웹 앱을 하나 두고, 연구실 서버가 매일 아침 그 웹 앱에서 문서를 .docx로 받아 가요(`scripts/gdoc_pull.py`). 서버가 받으러 가는 방향이라, 서버 방화벽을 학교망만 열어 두어도 돼요. 웹 앱은 비밀 키(`KEY`)를 아는 요청에만 문서를 줘요.
 
 - 서버는 `parse_diary.py`로 문서를 읽고, 연구실에 아직 없는 다이어리만 넣어요. 같은 사람이 같은 논문을 7일 안에 쓴 게 있으면(사이트에서 먼저 쓴 경우), 또는 같은 날 같은 내용으로 시작하면(문서에서 제목만 고친 경우) 이미 있는 것으로 봐요. 몇 달 뒤 다시 읽고 쓴 다이어리는 새로 들어가요.
 - 계정 이름과 맞지 않는 이름(아직 계정이 없는 사람)의 다이어리는 넣지 않고 실행 기록에 남겨요. 문서에서 고치거나 지운 다이어리는 사이트에 반영하지 않아요(사이트에서 고쳐요).
@@ -187,14 +187,15 @@ python scripts/serve.py 8765 --host 0.0.0.0     # 학교망에서 http://<서버
 
 설치 (한 번):
 
-1. 관리자 계정으로 사이트에 로그인해 **내 페이지 → AI 연결**에서 토큰을 만들어요(가져오기는 관리자 토큰만 받아요).
-2. 폴더를 열 수 있는 구글 계정으로 [script.google.com](https://script.google.com)에서 새 프로젝트를 만들고, `scripts/gdoc_import/Code.gs`를 붙여 넣어요. 프로젝트 설정에서 "appsscript.json 표시"를 켜고 `scripts/gdoc_import/appsscript.json`으로 바꿔요.
-3. 프로젝트 설정 → 스크립트 속성에 `LABSIDIAN_URL`(예: `https://labsidian-aim.duckdns.org`), `LABSIDIAN_TOKEN`, `FOLDER_ID`(드라이브 폴더 주소의 `folders/` 뒤)를 넣어요.
-4. `syncDiary`를 실행하고 권한을 허용해요. 처음에는 **미리 보기**라서 아무것도 넣지 않고, 실행 기록에 넣을 다이어리와 건너뛴 다이어리(계정 없는 이름 등)만 보여요.
-5. 목록이 맞으면 스크립트 속성 `APPLY`를 `true`로 바꾸고, `installDailyTrigger`를 한 번 실행해요. 매일 아침 6시에 돌고, 문서가 바뀌지 않았으면 서버에 보내지 않아요.
+1. 폴더를 열 수 있는 구글 계정으로 [script.google.com](https://script.google.com)에서 새 프로젝트를 만들고, `scripts/gdoc_import/Code.gs`를 붙여 넣어요. 프로젝트 설정에서 "appsscript.json 표시"를 켜고 `scripts/gdoc_import/appsscript.json`으로 바꿔요.
+2. 프로젝트 설정 → 스크립트 속성에 `FOLDER_ID`(드라이브 폴더 주소의 `folders/` 뒤)를 넣어요. 편집기에서 `makeKey`를 한 번 실행하면(권한 허용) `KEY`가 만들어지고 실행 로그에 나와요.
+3. **배포 → 새 배포 → 웹 앱**으로 배포해요(실행: 나, 액세스: 모든 사용자). 나오는 웹 앱 URL(`…/exec`)을 복사해요.
+4. 서버에 `data/gdoc_import.json`을 만들어요: `{"url": "<웹 앱 URL>", "key": "<KEY>", "server": "http://127.0.0.1:<serve.py 포트>", "apply": false}`.
+5. 서버에서 `python3 scripts/gdoc_pull.py`를 실행해요. `apply`가 false면 **미리 보기**라서 아무것도 넣지 않고, 넣을 다이어리와 건너뛴 다이어리(계정 없는 이름 등)만 보여요.
+6. 목록이 맞으면 `apply`를 `true`로 바꾸고 crontab에 `0 6 * * * cd <저장소> && python3 scripts/gdoc_pull.py >> data/logs/gdoc.log 2>&1`을 넣어요. 문서가 바뀌지 않은 날은 아무것도 보내지 않아요.
 
-폴더에서 이름에 "Paper Diary"가 들어간 구글 문서 중 가장 최근에 고친 것을 읽어요. 서버는 구글(Apps Script)에서 들어오는 요청을 받을 수 있어야 해요. 방화벽을 학교망만 열어 두었다면 이 요청은 막혀요.
-스크립트는 설치한 사람의 구글 계정에 묶여요. 그 사람이 졸업하기 전에 다른 멤버 계정으로 다시 설치해요.
+폴더에서 이름에 "Paper Diary"가 들어간 구글 문서 중 가장 최근에 고친 것을 읽어요. `gdoc_pull.py`는 서버 컴퓨터의 `data/.local_secret`으로 로그인해서 관리자 토큰이 필요 없어요.
+웹 앱은 배포한 사람의 구글 계정에 묶여요. 그 사람이 졸업하기 전에 다른 멤버 계정으로 다시 배포하고 `data/gdoc_import.json`의 URL·키를 바꿔요.
 
 ## 내 Claude · Codex 연결 (MCP)
 
