@@ -1593,7 +1593,7 @@
   const OPS = new Set(["draft", "draft.delete", "comment", "react", "inbox.read", "reading.add", "study.question", "study.questionVote",
     "study.notesDraft", "study.create", "study.join", "study.materialAdd", "study.pick", "study.pickRemove",
     "tag.merge", "tag.rename", "tag.create", "quota.set", "term.save", "user.role", "user.disable", "paper.tags",
-    "paper.meta", "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update"]);
+    "paper.meta", "offday.save", "offday.remove", "reading.update", "guide.create", "guide.addItem", "guide.vote", "guide.update", "review.import"]);
   async function applyOp(op) {
     if (!OPS.has(op.op)) throw new Error("unknown op");
     const actor = db.users[op.actor];
@@ -1739,6 +1739,36 @@
         else db.paperTags[p.id] = { domains: ids.filter(t => t[0] === "d").map(t => t.slice(2)), methods: ids.filter(t => t[0] === "m").map(t => t.slice(2)),
           by: op.actor, at: now() };
         log("paper.tags", `${p.title.slice(0, 60)} → ${ids.join(", ") || "(auto)"}`); save(); buildDataset();
+      }
+      if (op.op === "review.import") {
+        // diaries from the lab's shared Google Doc (scripts/serve.py /api/import/diary). The doc is read again and again, so
+        // anything the lab already has is skipped: same person + same paper within a week, or same person + day + opening text
+        // (a title fixed in the doc). No notifications, no createdAt: the feed places them at their diary date like the Word import.
+        requireAdmin();
+        const head = s => String(s || "").replace(/\s+/g, "").slice(0, 100);
+        const week = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) <= 7 * 864e5;
+        const seen = SEED.allReviews.map(r => ({ person: r.person, key: r.paperKey || paperIndex.get(r.paper)?.key, date: r.date, head: head(r.content) }));
+        const added = [], skipped = [], made = new Map();
+        for (const e of op.entries || []) {
+          const title = String(e.title || "").trim().slice(0, 300), key = normTitle(title), h = head(e.content);
+          const row = { i: added.length + skipped.length, date: e.date, name: String(e.name || ""), title };
+          let reason = !db.users[e.person] || db.users[e.person].disabled ? "person" : !isDate(e.date) || !key ? "incomplete"
+            : seen.some(s => s.person === e.person && ((s.key === key && week(s.date, e.date)) || (h && s.date === e.date && s.head === h))) ? "duplicate" : "";
+          let rating = 0;
+          try { rating = cleanRating(e.rating ?? 0); } catch (err) { reason ||= "rating"; }
+          if (reason) { skipped.push({ ...row, reason }); continue; }
+          const p = paperKeyIndex.get(key), id = uid("r_");
+          if (!p && !made.has(key)) made.set(key, uid("np_"));
+          db.reviews[id] = { id, person: e.person, date: e.date, term: termOf(e.date), rating,
+            content: String(e.content || "").slice(0, 20000), memo: String(e.memo || "").slice(0, 20000), tags: [], files: [],
+            paper: p?.id || made.get(key), paperKey: p?.key || key, via: "gdoc", importedAt: now(),
+            meta: { title, link: String(e.link || "").slice(0, 500), venue: String(e.venue || "").slice(0, 200), authors: String(e.authors || "").slice(0, 500),
+              year: "", preprintVenue: "", preprintYear: "", abstract: "" } };
+          seen.push({ person: e.person, key, date: e.date, head: h });
+          added.push({ ...row, id });
+        }
+        if (added.length) { log("review.import", `${added.length}`); save(); buildDataset(); }
+        res = { added, skipped };
       }
       log("mcp." + op.op, `${actor.name}: ${op.summary || ""}`);
     } finally { actingAs = null; }

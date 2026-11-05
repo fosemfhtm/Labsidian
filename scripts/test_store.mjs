@@ -373,4 +373,25 @@ await leaver.store.users.setMyColor("lime");
 const taker = boot(leaver.db(), "alice", trio());
 await taker.store.users.setMyColor("red");
 assert.equal(colourOf(boot(taker.db(), "alice", trio()), "alice"), "rgb(var(--red))");
+
+// The shared Google Doc is sent whole every time: only diaries the lab doesn't have yet go in, re-reads months later do.
+const doc = [
+  { person: "alice", date: "2026-06-05", title: "First paper" },                                   // site diary 4 days earlier
+  { person: "alice", date: "2026-09-01", title: "First paper", rating: 3.5, content: "Read it again" },
+  { person: "bob", date: "2026-09-02", title: "Brand New", content: "Same opening" },
+  { person: "carol", date: "2026-09-03", title: "Brand new" },
+  { person: "bob", date: "2026-09-02", title: "Brand New (typo fixed)", content: "Same  opening" },
+  { person: "", name: "미상", date: "2026-09-04", title: "Nobody's" },
+  { person: "carol", date: "2026-09-04", title: "Odd rating", rating: 4.3 },
+];
+const importer = boot({}, "admin");
+await assert.rejects(boot(importer.db(), "bob").applyOp({ actor: "bob", op: "review.import", entries: doc }), /forbidden/);
+const imported = await importer.applyOp({ actor: "admin", op: "review.import", entries: doc });
+assert.equal(imported.added.map(x => x.i).join(","), "1,2,3");
+assert.equal(imported.skipped.map(x => `${x.i}:${x.reason}`).join(","), "0:duplicate,4:duplicate,5:person,6:rating");
+const afterImport = boot(importer.db(), "admin").snapshot();
+assert.equal(afterImport.reviews.filter(r => r.paper === "p1" && r.person === "alice").length, 2);
+const brandNew = afterImport.reviews.filter(r => r.date >= "2026-09-02");
+assert.equal(new Set(brandNew.map(r => r.paper)).size, 1, "two members' diaries on a new paper share it");
+assert.equal((await boot(importer.db(), "admin").applyOp({ actor: "admin", op: "review.import", entries: doc })).added.length, 0);
 console.log("store regression checks passed");

@@ -89,17 +89,19 @@ def parse(lines, term, roster):
             elif key in ("link", "저널", "저자"):
                 cur[{"link": "link", "저널": "venue", "저자": "authors"}[key]] = val
             elif key == "rating":
-                cur["rating"] = min(5, val.count("✯") + val.count("★"))
+                cur["rating"] = min(5, val.count("✯") + val.count("★") + (0.5 if "½" in val else 0))  # ½: the site's docx export
             elif key in ("내용", "memo"):
                 field = "content" if key == "내용" else "memo"
                 if val:
                     cur[field].append(val)
             continue
-        # A roster name plus optional numbering starts someone's block, not a sentence mentioning them.
+        # A roster name plus optional numbering starts someone's block, not a sentence mentioning them. A name-like line
+        # with a number that isn't on the roster ("홍길동 3", someone without an account yet) starts an unknown author's
+        # block, so their diaries never land on the member above them.
         name = find_name(s, names, aliases) if len(s) <= 30 else None
-        if name:
+        if name or re.fullmatch(r"[가-힣]{2,4}\s*\d{1,4}", s):
             flush()
-            author = name
+            author = name or "미상"
             field = None
             continue
         if cur is not None and field and s:

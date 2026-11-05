@@ -29,8 +29,10 @@ MCP server on this machine may instead show data/.local_secret (X-Lab-Local) and
   GET  /api/ops?limit=N        recent commands with their result — admin (also: SELECT * FROM ops in the .db file)
   GET|PUT|DELETE /api/files/<id>   attachments (PDF · images)
   POST /api/files/link {id} · POST /api/files/upload-link {} — ten-minute signed download / one-use PDF upload URLs
+  POST /api/import/diary       {docx: base64, apply?} — admin token: the lab's shared Google Doc (scripts/gdoc_import) →
+                               {added, skipped, applied}: diaries the lab doesn't have yet. A preview unless apply is true.
   A member's user.style is private writing guidance (at most 20000 characters); /api/whoami includes their own.
-  Local MCP authentication cannot write browser state, import data, or manage personal tokens.
+  Local MCP authentication cannot write browser state, import data or diaries, or manage personal tokens.
 
 Tables: records(coll, id, value) — one row per user / review / comment / member's notifications …, coll "_meta" for the
 rest (terms, tag ops, log …) · ops(id, at, actor, op, status, error, version) · files(id, type, data) · meta(key, value)
@@ -39,8 +41,10 @@ A backup is taken once a day on start (data[/demo]/_backup/, last 14 kept).
 Legacy AI drafts move onto reading items after that backup, before any clients are served.
 """
 import atexit
+import base64
 import calendar
 import hashlib
+import io
 import hmac
 import json
 import secrets
@@ -50,6 +54,7 @@ import subprocess
 import sys
 import threading
 import time
+import zipfile
 from datetime import date
 from functools import partial
 from http.cookies import SimpleCookie
@@ -57,7 +62,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from build_site import norm_title
+from build_site import norm_title, read_json
+from parse_diary import docx_paragraphs, parse
 
 ROOT = Path(__file__).resolve().parent.parent
 # a fresh clone has no real lab data (site/data.js is gitignored) → serve the demo lab
@@ -691,7 +697,7 @@ class Handler(SimpleHTTPRequestHandler):
         who = self.who()
         if not who:
             return self.send_json({"error": "signin"}, 401)
-        if who == LOCAL and u.path in ("/api/tokens", "/api/state", "/api/state/import"):
+        if who == LOCAL and u.path in ("/api/tokens", "/api/state", "/api/state/import", "/api/import/diary"):
             return self.send_json({"error": "forbidden"}, 403)
         if u.path == "/api/password":
             me = STORE.user(who) if who != LOCAL else None
@@ -745,6 +751,8 @@ class Handler(SimpleHTTPRequestHandler):
             if LEGACY.exists():
                 LEGACY.rename(LEGACY.with_name("live_snapshot.migrated.json"))
             return self.send_json({"version": STORE.version(), "db": without_secrets(STORE.db(), who)})
+        if u.path == "/api/import/diary":
+            return self.import_diary(req, who)
         if u.path == "/api/ops":
             if any(not isinstance(req.get(k), str) or not req[k] for k in ("id", "op")) or not isinstance(req.get("actor", ""), str):
                 return self.send_json({"ok": False, "error": "op needs id and op"}, 400)
@@ -755,6 +763,35 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "open the site in your browser once first — it moves its data to the server"}, 409)
             return self.send_json(apply_op(req))
         self.send_error(404)
+
+    def import_diary(self, req, who):
+        """diaries in the lab's shared Google Doc (sent as .docx by scripts/gdoc_import) that the lab doesn't have yet.
+        A preview runs the op on a copy; applying logs an op with only the diaries it adds (the doc is sent whole each time)."""
+        if not self.is_admin(who):
+            return self.send_json({"error": "forbidden"}, 403)
+        users = STORE.users().values()
+        aliases = {p["name"]: p.get("aliases", []) for p in read_json(DATA / "roster.json")} if (DATA / "roster.json").exists() else {}
+        try:
+            doc = io.BytesIO(base64.b64decode(req.get("docx") or "", validate=True))
+            found = parse(docx_paragraphs(doc), "", [{"name": u["name"], "aliases": aliases.get(u["name"], [])} for u in users])
+        except (ValueError, KeyError, zipfile.BadZipFile, SyntaxError) as e:  # not base64 / not a .docx / a date like 2월 30일
+            return self.send_json({"error": f"docx: {e}"}, 400)
+        ids = {u["name"]: u["id"] for u in users}
+        entries = [{"person": ids.get(e["author"], ""), "name": e["author"], **{k: e[k] for k in
+                    ("date", "title", "link", "venue", "authors", "rating", "content", "memo")}} for e in found]
+        op = {"id": "import_" + secrets.token_hex(8), "at": now_iso(), "actor": who, "op": "review.import", "entries": entries}
+        r = WORKER.call({"cmd": "apply", "db": STORE.db(), "op": op})  # preview: the result's db is thrown away
+        if not r.get("ok"):
+            return self.send_json({"error": r.get("error")}, 400)
+        res = r["result"]
+        if req.get("apply") is not True or not res["added"]:
+            return self.send_json({"added": [{k: v for k, v in a.items() if k != "id"} for a in res["added"]],
+                                   "skipped": res["skipped"], "applied": False, "found": len(entries)})
+        op["entries"] = [entries[a["i"]] for a in res["added"]]
+        r = apply_op(op)
+        if not r["ok"]:
+            return self.send_json({"error": r["error"]}, 400)
+        return self.send_json({"added": r["result"]["added"], "skipped": res["skipped"], "applied": True, "found": len(entries)})
 
     def login(self, req):
         if any(not isinstance(req.get(k, ""), str) for k in ("id", "name", "password")):
